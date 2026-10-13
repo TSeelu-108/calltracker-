@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Call Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f3f5f7">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Call Tracker</title>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#17202b; --muted:#5d6b7a; --line:#dde3ea;
+  --accent:#0f5f8c; --accent-ink:#ffffff; --accent-soft:#e3eff7;
+  --red-fill:#fde3e1; --red-edge:#e7a29c; --red-ink:#8f2a22;
+  --yel-fill:#fff3c4; --yel-edge:#e3c45a; --yel-ink:#7a5a00;
+  --grn-fill:#d9f2de; --grn-edge:#88c997; --grn-ink:#1d6a33;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --f-disp:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f141a; --surface:#18202a; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3542;
+  --accent:#5fb3e6; --accent-ink:#06121c; --accent-soft:#1a3244;
+  --red-fill:#4a2321; --red-edge:#8a3e38; --red-ink:#ffc9c3;
+  --yel-fill:#463b14; --yel-edge:#8c7426; --yel-ink:#ffe69a;
+  --grn-fill:#1d3d27; --grn-edge:#3f7d50; --grn-ink:#b8ecc5; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px));padding-block:0 48px}
+
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
+.row1{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+.today .lbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.today .date{font-family:var(--f-disp);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em}
+.today .sub{font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.stat b{display:block;font-family:var(--f-disp);font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:10px;display:flex}
+.bar i{display:block;height:100%}
+.logday{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:14px;color:var(--muted)}
+.logday input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px}
+.logday .warn{color:var(--red-ink);font-weight:600}
+
+.install{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--line);font-size:15px}
+.install b{display:block;margin-bottom:2px}
+
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-block:14px 10px}
+.tools input[type=search]{flex:1 1 220px;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;min-height:44px;-webkit-appearance:none}
+.tools select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;min-height:44px;max-width:100%}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:8px 12px;min-height:44px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:10px}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--k);background:var(--f)}
+
+.colhead{display:grid;grid-template-columns:minmax(0,1fr) 150px 132px;gap:10px;padding:0 10px 6px;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.colhead .car{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+.list{display:flex;flex-direction:column;gap:6px}
+.doc{display:grid;grid-template-columns:minmax(0,1fr) 150px 132px;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.name{border:1px solid var(--k);background:var(--f);border-radius:9px;padding:8px 10px;text-align:left;min-width:0;width:100%;color:var(--ink)}
+.name .n{font-family:var(--f-disp);font-weight:700;font-size:18px;line-height:1.15;overflow-wrap:anywhere}
+.name .c{font-size:13px;color:var(--muted)}
+.name .last{font-size:12px;color:var(--t);font-weight:600}
+.s-red{--f:var(--red-fill);--k:var(--red-edge);--t:var(--red-ink)}
+.s-yel{--f:var(--yel-fill);--k:var(--yel-edge);--t:var(--yel-ink)}
+.s-grn{--f:var(--grn-fill);--k:var(--grn-edge);--t:var(--grn-ink)}
+.car{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;font-variant-numeric:tabular-nums}
+.car div{font-family:var(--f-disp);font-size:22px;font-weight:600;line-height:1.1}
+.car small{display:block;font-size:11px;color:var(--muted);font-family:var(--f-ui);letter-spacing:.06em;font-weight:600}
+.car .r{font-weight:800}
+.act{display:flex;gap:6px;justify-content:flex-end}
+.call{flex:1;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;min-height:52px;font-size:16px;padding:0 10px;transition:transform .08s}
+.call:active{transform:scale(.96)}
+.undo{border:1px solid var(--line);background:transparent;border-radius:10px;min-width:44px;min-height:52px;font-size:20px;color:var(--muted)}
+.undo:disabled{opacity:.3}
+.empty{padding:28px 20px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.empty h2{margin:0;color:var(--ink);font-family:var(--f-disp)}
+.empty p{margin:0;max-width:52ch}
+.flash{animation:fl .6s ease-out}
+@keyframes fl{from{box-shadow:0 0 0 4px var(--accent)}to{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.call{transition:none}}
+
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .colhead{display:none}
+  .doc{grid-template-columns:minmax(0,1fr) 112px;grid-template-areas:"n n" "c a"}
+  .doc .name{grid-area:n}.doc .car{grid-area:c}.doc .act{grid-area:a}
+  .today .date{font-size:22px}
+}
+
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+
+.scrim{position:fixed;inset:0;background:rgba(10,15,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+.sheet{background:var(--surface);color:var(--ink);width:100%;max-width:760px;max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:16px 16px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-family:var(--f-disp);font-size:24px;margin:0 0 4px}
+.sheet p{margin:6px 0;color:var(--muted);max-width:62ch}
+.sheet .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;margin-top:12px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.thumb{width:86px;border:2px solid var(--line);border-radius:8px;overflow:hidden;font-size:11px;text-align:center;background:var(--bg)}
+.thumb img{display:block;width:100%;height:64px;object-fit:cover}
+.thumb div{padding:3px}
+.thumb.ok{border-color:var(--grn-edge)} .thumb.bad{border-color:var(--red-edge)} .thumb.busy{border-color:var(--accent)}
+.status{margin-top:12px;font-weight:600}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.rtable{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px;-webkit-overflow-scrolling:touch}
+.rtable table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.rtable th,.rtable td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.rtable th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);position:sticky;top:0;background:var(--surface)}
+.rtable td.num input{width:52px;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--bg);text-align:center;font-size:16px}
+.rtable tr.check td{background:var(--yel-fill)}
+.rtable .x{border:0;background:transparent;color:var(--muted);font-size:20px;min-width:40px;min-height:40px}
+.summary{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:10px;font-weight:600}
+.summary .bad{color:var(--red-ink)} .summary .good{color:var(--grn-ink)}
+.hist{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:6px}
+.hist li{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.hist button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;min-height:40px;color:var(--red-ink)}
+.confirm{margin-top:12px;padding:12px;border-radius:10px;background:var(--red-fill);border:1px solid var(--red-edge);color:var(--ink)}
+.small{font-size:13px;color:var(--muted)}
+.okline{color:var(--grn-ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row1">
+      <div class="today">
+        <div class="lbl">Today</div>
+        <div class="date" id="todayLbl"></div>
+        <div class="sub" id="planLbl"></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="importBtn">Load from screenshots</button>
+        <button class="btn" id="dayBtn">Today's calls</button>
+        <button class="btn" id="exportBtn">Export for routing</button>
+        <a class="btn" href="route/">Plan my week</a>
+        <button class="btn ghost" id="moreBtn">Backup</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sToday">0</b><span>Calls today</span></div>
+      <div class="stat"><b id="sC">0</b><span>Completed</span></div>
+      <div class="stat"><b id="sR">0</b><span>Remaining</span></div>
+      <div class="stat"><b id="sDone">0</b><span>Doctors done</span></div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="barG" style="background:var(--grn-edge)"></i><i id="barY" style="background:var(--yel-edge)"></i><i id="barR" style="background:var(--red-edge)"></i></div>
+    <div class="logday">
+      <label for="logDate">Calls are logged on</label>
+      <input type="date" id="logDate">
+      <span id="logWarn" class="warn" hidden>Not today</span>
+      <button class="btn ghost" id="backToday" hidden style="min-height:40px;padding:6px 10px">Back to today</button>
+    </div>
+  </header>
+
+  <div class="install" id="installTip" hidden>
+    <b>Put this on your Home Screen</b>
+    Tap the Share button <span aria-hidden="true">(square with an arrow)</span>, then <b style="display:inline">Add to Home Screen</b>. Open it from that icon from now on. It works with no internet, and everything stays on this iPad.
+  </div>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="Find a doctor or city" aria-label="Find a doctor or city">
+    <select id="city" aria-label="City"></select>
+    <div class="seg" role="group" aria-label="Show">
+      <button data-f="all" aria-pressed="true">All</button>
+      <button data-f="todo" aria-pressed="false">Still to do</button>
+      <button data-f="done" aria-pressed="false">Done</button>
+    </div>
+    <select id="sort" aria-label="Sort">
+      <option value="name">A–Z</option>
+      <option value="rem">Most remaining</option>
+      <option value="city">By city</option>
+      <option value="stale">Longest since call</option>
+    </select>
+  </div>
+  <div class="legend">
+    <span style="--f:var(--red-fill);--k:var(--red-edge)">More than half left</span>
+    <span style="--f:var(--yel-fill);--k:var(--yel-edge)">Half or less left</span>
+    <span style="--f:var(--grn-fill);--k:var(--grn-edge)">All calls done</span>
+  </div>
+  <div class="colhead" id="colhead"><div>Doctor · tap name for call dates</div><div class="car"><div>C</div><div>A</div><div>R</div></div><div style="text-align:right">Log</div></div>
+  <div class="list" id="list"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+"use strict";
+const KEY = "callplan.tracker.v1";
+const TJS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+const CORE = "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/";
+const LANG = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int";
+const VCACHE = "calltracker-vendor-v1";
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2,"0");
+const isoDay = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayISO = () => isoDay(new Date());
+const fromISO = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const longDate = s => fromISO(s).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+const shortDate = s => fromISO(s).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+const daysAgo = s => Math.round((fromISO(todayISO()) - fromISO(s))/864e5);
+
+/* ---------- state (saved only on this device) ---------- */
+const norm = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+function makeDoc(name, city, c, a, r){
+  a = Math.max(0, +a||0); c = Math.max(0, +c||0);
+  r = (r===""||r==null||isNaN(+r)) ? Math.max(0,a-c) : Math.max(0,+r);
+  return {id:norm(name), name:String(name).trim().toUpperCase(), city:String(city||"").trim().toUpperCase(), c0:c, a, r0:r, log:[]};
+}
+function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
+let logDay = todayISO();
+let ui = {q:"", city:"", f:"all", sort:"name", flash:null};
+function save(){ state.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ toast("Couldn't save on this iPad. Free up storage space."); } }
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ---------- derived ---------- */
+const done = d => d.c0 + d.log.length;
+const rem = d => Math.max(0, d.r0 - d.log.length);
+function status(d){
+  const r = rem(d);
+  if (r === 0) return "grn";
+  if (d.a > 0 && r / d.a > 0.5) return "red";
+  return "yel";
+}
+const lastCall = d => d.log.length ? d.log.slice().sort()[d.log.length-1] : null;
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderHeader(){
+  const t = todayISO();
+  $("todayLbl").textContent = longDate(t);
+  $("planLbl").textContent = state.doctors.length ? state.doctors.length + " doctors · " + (state.source || "loaded from screenshots") : "No call plan loaded yet";
+  $("logDate").value = logDay; $("logDate").max = t;
+  const off = logDay !== t;
+  $("logWarn").hidden = !off; $("backToday").hidden = !off;
+  let C=0,A=0,R=0,g=0,y=0,r=0,today=0;
+  for (const d of state.doctors){
+    C += done(d); A += d.a; R += rem(d);
+    const s = status(d); if (s==="grn") g++; else if (s==="yel") y++; else r++;
+    today += d.log.filter(x => x === t).length;
+  }
+  $("sToday").textContent = today;
+  $("sC").textContent = C + " / " + A;
+  $("sR").textContent = R;
+  $("sDone").textContent = g + " / " + state.doctors.length;
+  const n = state.doctors.length || 1;
+  $("barG").style.width = (g/n*100)+"%"; $("barY").style.width = (y/n*100)+"%"; $("barR").style.width = (r/n*100)+"%";
+  const cities = [...new Set(state.doctors.map(d => d.city).filter(Boolean))].sort();
+  $("city").innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option${c===ui.city?" selected":""}>${esc(c)}</option>`).join("");
+  $("colhead").hidden = !state.doctors.length;
+}
+
+function renderList(){
+  if (!state.doctors.length){
+    $("list").innerHTML = `<div class="empty"><h2>Load your call plan</h2>
+      <p>Take screenshots of your Call Plan report (every page, top to bottom), then tap below and pick them from Photos. The names and C / A / R numbers are read right here on the iPad. Nothing is sent anywhere.</p>
+      <button class="btn primary" id="emptyImport">Load from screenshots</button>
+      <button class="btn ghost" id="emptyRestore">Restore a backup file</button></div>`;
+    $("emptyImport").onclick = () => $("importBtn").click();
+    $("emptyRestore").onclick = () => $("moreBtn").click();
+    return;
+  }
+  const q = norm(ui.q);
+  let rows = state.doctors.filter(d =>
+    (!q || d.id.includes(q) || norm(d.city).includes(q)) &&
+    (!ui.city || d.city === ui.city) &&
+    (ui.f === "all" || (ui.f === "done" ? rem(d) === 0 : rem(d) > 0)));
+  const byName = (a,b) => a.name.localeCompare(b.name);
+  if (ui.sort === "rem") rows.sort((a,b) => rem(b)-rem(a) || byName(a,b));
+  else if (ui.sort === "city") rows.sort((a,b) => (a.city||"~").localeCompare(b.city||"~") || byName(a,b));
+  else if (ui.sort === "stale") rows.sort((a,b) => (lastCall(a)||"0").localeCompare(lastCall(b)||"0") || byName(a,b));
+  else rows.sort(byName);
+  if (!rows.length){ $("list").innerHTML = `<div class="empty"><p>No doctors match. Clear the search or filters.</p></div>`; return; }
+  $("list").innerHTML = rows.map(d => {
+    const lc = lastCall(d), s = status(d);
+    const lastTxt = lc ? (lc === todayISO() ? "Called today" : "Last logged " + shortDate(lc) + " · " + daysAgo(lc) + "d ago") : "";
+    return `<div class="doc${ui.flash===d.id?" flash":""}">
+      <button class="name s-${s}" data-h="${esc(d.id)}" aria-label="${esc(d.name)}, show call dates">
+        <div class="n">${esc(d.name)}</div>
+        <div class="c">${esc(d.city || "No city listed")}</div>
+        ${lastTxt ? `<div class="last">${lastTxt}</div>` : ""}
+      </button>
+      <div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>
+      <div class="act">
+        <button class="undo" data-u="${esc(d.id)}" ${d.log.length ? "" : "disabled"} aria-label="Undo last call for ${esc(d.name)}">↶</button>
+        <button class="call" data-c="${esc(d.id)}">+ Call</button>
+      </div>
+    </div>`;
+  }).join("");
+  ui.flash = null;
+}
+function render(){ renderHeader(); renderList(); }
+
+/* ---------- actions ---------- */
+let toastT;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2400); }
+const find = id => state.doctors.find(d => d.id === id);
+
+$("list").addEventListener("click", e => {
+  const c = e.target.closest("[data-c]"), u = e.target.closest("[data-u]"), h = e.target.closest("[data-h]");
+  if (c){ const d = find(c.dataset.c); d.log.push(logDay); ui.flash = d.id; save(); render();
+    toast(`Logged call · ${d.name} · ${rem(d)} left` + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : "")); }
+  else if (u){ const d = find(u.dataset.u); if (!d.log.length) return;
+    const i = d.log.lastIndexOf(logDay); const removed = d.log.splice(i>=0?i:d.log.length-1,1)[0];
+    save(); render(); toast(`Removed ${shortDate(removed)} call · ${d.name}`); }
+  else if (h){ openHistory(h.dataset.h); }
+});
+$("q").addEventListener("input", e => { ui.q = e.target.value; renderList(); });
+$("city").addEventListener("change", e => { ui.city = e.target.value; renderList(); });
+$("sort").addEventListener("change", e => { ui.sort = e.target.value; renderList(); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  ui.f = b.dataset.f; document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x===b))); renderList();
+}));
+$("logDate").addEventListener("change", e => { const v = e.target.value; if (v && v <= todayISO()) logDay = v; renderHeader(); });
+$("backToday").addEventListener("click", () => { logDay = todayISO(); renderHeader(); });
+
+let lastSeenDay = todayISO();
+function dayCheck(){ const t = todayISO(); if (t !== lastSeenDay){ if (logDay === lastSeenDay) logDay = t; lastSeenDay = t; render(); } }
+setInterval(dayCheck, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) dayCheck(); });
+
+/* ---------- sheets ---------- */
+let busy = false, importCtl = null;
+function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
+function closeSheet(){ if (importCtl) importCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
+
+function openHistory(id){
+  const d = find(id); const days = d.log.slice().sort().reverse();
+  openSheet(`<h2>${esc(d.name)}</h2>
+    <p>${esc(d.city||"No city listed")} · ${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining</p>
+    <p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded.</p>
+    ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here yet.</p>`}
+    <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    const i = d.log.indexOf(b.dataset.del); if (i>=0) d.log.splice(i,1); save(); render(); openHistory(id);
+  });
+}
+
+$("dayBtn").onclick = () => {
+  const t = logDay, grouped = {}; let total = 0;
+  state.doctors.forEach(d => { const n = d.log.filter(x => x===t).length; if (n){ grouped[d.id]=n; total+=n; } });
+  const all = {}; state.doctors.forEach(d => d.log.forEach(x => all[x]=(all[x]||0)+1));
+  const recent = Object.keys(all).sort().reverse().slice(0,10);
+  openSheet(`<h2>Calls on ${shortDate(t)}</h2>
+    <p>${total} call${total===1?"":"s"} logged on ${longDate(t)}.</p>
+    ${total ? `<ul class="hist">${Object.entries(grouped).map(([id,n])=>{const d=find(id);return `<li><span><b>${esc(d.name)}</b> <span class="small">${esc(d.city)}</span></span><span>${n>1?n+" calls":"1 call"} · ${rem(d)} left</span></li>`}).join("")}</ul>` : ""}
+    ${recent.length ? `<p style="margin-top:16px"><b>Recent days</b></p><ul class="hist">${recent.map(x=>`<li><span>${longDate(x)}</span><b>${all[x]} call${all[x]===1?"":"s"}</b></li>`).join("")}</ul>` : ""}
+    <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+};
+
+/* ---------- backup (stays on the device: Files, or AirDrop to your own iPhone) ---------- */
+$("moreBtn").onclick = async () => {
+  const ready = await ocrReady();
+  openSheet(`<h2>Backup</h2>
+    <p>Your plan and call dates are saved only on this iPad. Save a backup file now and then (to Files, or AirDrop it to your own phone) so nothing is lost if the app is deleted.</p>
+    <div class="foot" style="justify-content:flex-start">
+      <button class="btn primary" id="saveB" ${state.doctors.length?"":"disabled"}>Save backup file</button>
+      <label class="btn" for="restoreF">Restore from backup</label>
+      <input type="file" id="restoreF" accept=".json,application/json,text/plain,*/*" hidden>
+    </div>
+    <p class="small" id="bMsg"></p>
+    <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("saveB").onclick = async () => {
+    const how = await saveFile("call-plan-backup-" + todayISO() + ".json", JSON.stringify(state), "application/json", "Call plan backup");
+    if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files” to keep it on this iPad." : "Backup saved to Downloads in the Files app.";
+  };
+  $("restoreF").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
+      state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} doctors`); }
+    catch(_){ $("bMsg").textContent = "That file isn't a call plan backup."; }
+  };
+};
+
+/* ---------- saving files (share sheet → Save to Files / AirDrop; never uploaded) ---------- */
+async function saveFile(name, text, type, title){
+  const blob = new Blob([text], {type});
+  try {
+    const file = new File([blob], name, {type});
+    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title}); return "shared"; }
+  } catch(e){ if (e && e.name === "AbortError") return null; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  return "downloaded";
+}
+
+/* ---------- export for routing ---------- */
+function weekStartISO(iso){ const d = fromISO(iso); const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k); return isoDay(d); }
+function routingRows(){
+  const t = todayISO(), wk = weekStartISO(t);
+  const end = state.planEnd && state.planEnd >= t ? state.planEnd : null;
+  const weeksLeft = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(t))/864e5)+1)/7)) : null;
+  const rows = state.doctors.filter(d => rem(d) > 0).map(d => {
+    const lc = lastCall(d), r = rem(d);
+    return { name:d.name, city:d.city, completed:done(d), assigned:d.a, remaining:r,
+      lastCall: lc, daysSinceLastCall: lc ? daysAgo(lc) : null,
+      callsThisWeek: d.log.filter(x => x >= wk && x <= t).length,
+      callsPerWeekNeeded: weeksLeft ? Math.round(r/weeksLeft*100)/100 : null,
+      status: status(d)==="red" ? "More than half left" : "Half or less left",
+      _share: d.a ? r/d.a : 0 };
+  });
+  // Most behind first: calls/week needed (or share of plan left), then longest since last call
+  rows.sort((a,b) => ((b.callsPerWeekNeeded ?? b._share) - (a.callsPerWeekNeeded ?? a._share))
+    || ((b.daysSinceLastCall ?? 9999) - (a.daysSinceLastCall ?? 9999)) || a.name.localeCompare(b.name));
+  rows.forEach((r,i) => { r.priority = i+1; delete r._share; });
+  return {rows, weeksLeft, end};
+}
+const csvCell = v => { v = v==null ? "" : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+function routingCSV(rows){
+  const head = ["Priority","Doctor","City","Completed","Assigned","Remaining","Last call","Days since last call","Calls this week","Calls per week needed","Status"];
+  const body = rows.map(r => [r.priority,r.name,r.city,r.completed,r.assigned,r.remaining,r.lastCall||"",r.daysSinceLastCall??"",r.callsThisWeek,r.callsPerWeekNeeded??"",r.status].map(csvCell).join(","));
+  return [head.join(","), ...body].join("\n");
+}
+$("exportBtn").onclick = () => openExport();
+function openExport(){
+  if (!state.doctors.length){ toast("Load your call plan first"); return; }
+  const {rows, weeksLeft, end} = routingRows();
+  const R = rows.reduce((n,r)=>n+r.remaining,0);
+  openSheet(`<h2>Export for routing</h2>
+    <p>Saves every doctor who still has calls left, most behind first. Use it to plan the week's route. The file goes to Files or AirDrop only, never online.</p>
+    <div class="logday" style="margin-top:12px">
+      <label for="planEnd">Call plan ends on</label>
+      <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
+      ${end ? `<span>${weeksLeft} week${weeksLeft>1?"s":""} left · about ${Math.ceil(R/weeksLeft)} calls a week</span>` : `<span class="small">Optional. Adds “calls per week needed” so the most behind doctors come first.</span>`}
+    </div>
+    <div class="summary"><span>${rows.length} doctors · ${R} calls remaining</span></div>
+    <div class="rtable"><table><thead><tr><th>#</th><th>Doctor</th><th>City</th><th>R</th><th>Last call</th><th>This week</th>${end?"<th>Per week</th>":""}</tr></thead><tbody>
+      ${rows.slice(0,25).map(r=>`<tr><td>${r.priority}</td><td>${esc(r.name)}</td><td>${esc(r.city)}</td><td>${r.remaining}</td><td>${r.lastCall?shortDate(r.lastCall)+" · "+r.daysSinceLastCall+"d":"None logged"}</td><td>${r.callsThisWeek}</td>${end?`<td>${r.callsPerWeekNeeded}</td>`:""}</tr>`).join("")}
+    </tbody></table></div>
+    ${rows.length>25?`<p class="small">Showing the top 25. The file has all ${rows.length}.</p>`:""}
+    <p class="small" id="eMsg"></p>
+    <div class="foot">
+      <button class="btn" id="closeS">Close</button>
+      <button class="btn" id="saveCSV">Save as spreadsheet (CSV)</button>
+      <button class="btn primary" id="saveRoute">Save routing file</button>
+    </div>`);
+  $("closeS").onclick = closeSheet;
+  $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); openExport(); };
+  const msg = how => { if (how) $("eMsg").textContent = how==="shared" ? "Choose “Save to Files”, or AirDrop it." : "Saved to Downloads in the Files app."; };
+  $("saveCSV").onclick = async () => msg(await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(rows), "text/csv", "Remaining calls"));
+  $("saveRoute").onclick = async () => msg(await saveFile("remaining-calls-"+todayISO()+".json",
+    JSON.stringify({format:"calltracker-remaining-calls", version:1, exportedOn:todayISO(), planEnds:end, weeksLeft, doctors:rows}, null, 1),
+    "application/json", "Remaining calls"));
+}
+
+/* ---------- on-device screenshot reading ---------- */
+function parseCallPlanText(text){
+  const JUNK_LEAD = /^([^A-Z]{1,3}|[A-Z]|O|Oo|0|\(\)|\[\]|©|@|®|&)$/;
+  const DATE = /^\d{1,2}\/\d{1,2}\/\d{2,4}[.,]?$/;
+  const PRODUCTISH = /(PRIMARY|SECONDARY|AIRSUPRA|BREZTRI|AEROSPHERE|[A-Za-z]{3,};|;[A-Za-z]{3,})/i;
+  const rows = []; let total = null;
+  for (let raw of text.split(/\n+/)){
+    const line = raw.replace(/[|‘’`“”"]/g," ").replace(/\s+/g," ").trim();
+    if (!line) continue;
+    const tm = line.match(/^tota[l1I]\W*\s*(\d+)\s+(.*)$/i);
+    if (tm){ const nums = (tm[2].match(/\d+/g)||[]).map(Number); if (nums.length>=3) total = {count:+tm[1], c:nums[0], a:nums[1], r:nums[2]}; continue; }
+    let tok = line.split(" ");
+    // find where product/sales text begins
+    let p = tok.findIndex(t => PRODUCTISH.test(t));
+    if (p < 2) continue;
+    const head = tok.slice(0,p), tail = tok.slice(p);
+    // SD1 A: first standalone number after the product text
+    const tailNums = tail.join(" ").replace(/^.*?(SECONDARY|PRIMARY)\S*/i,"").match(/\b\d{1,2}\b/g);
+    let sdA = tailNums ? +tailNums[0] : null;
+    if (sdA === 0) sdA = null;
+    // split head into identity part and the C/A/R cluster
+    let di = head.findIndex(t => DATE.test(t));
+    let ident, cluster;
+    if (di >= 0){ ident = head.slice(0,di); cluster = head.slice(di+1); }
+    else {
+      // no date: cluster = trailing tokens that contain digits or look like OCR noise
+      let k = head.length;
+      while (k>0 && /\d|^[OoQ]\W*$|^\W+$/.test(head[k-1]) && head.length-k < 6) k--;
+      ident = head.slice(0,k); cluster = head.slice(k);
+    }
+    // identity: strip leading junk (checkbox), and non-word dashes
+    ident = ident.map(t => t.replace(/!$/,"I").replace(/^!/,"I")).map(t => t.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,"")).filter(Boolean);
+    while (ident.length > 2 && (ident[0].length===1 || (ident[0].length===2 && /[OQ0]/i.test(ident[0])) || /^(IF|TI|II|IT|IO|OI)$/i.test(ident[0]))) ident.shift();
+    ident = ident.filter(t => /^[A-Za-z][A-Za-z'\-]*$/.test(t)).map(t=>t.toUpperCase());
+    if (ident.length < 2) continue;
+    // Target name is followed by its Last Name column: find the repeat
+    let name=null, city="";
+    for (let s=ident.length-1; s>=1 && !name; s--){
+      for (let m=Math.min(3,s); m>=1; m--){
+        if (s+m <= ident.length && ident.slice(s,s+m).join(" ")===ident.slice(s-m,s).join(" ")){
+          name = ident.slice(0,s).join(" "); city = ident.slice(s+m).join(" "); break;
+        }
+      }
+      // OCR sometimes glues a short name together: "DAIPARK PARK" -> "DAI PARK"
+      if (!name && ident[s].length>=2 && ident[s-1].length>ident[s].length+1 && ident[s-1].endsWith(ident[s])){
+        const first = ident[s-1].slice(0, ident[s-1].length-ident[s].length);
+        name = [...ident.slice(0,s-1), first, ident[s]].join(" "); city = ident.slice(s+1).join(" ");
+      }
+    }
+    if (!name) continue;
+    // numbers
+    let digits = cluster.join(" ").replace(/[Oo]/g,"0").replace(/[^0-9]/g,"");
+    let c=null,a=null,r=null,sure=false;
+    if (digits.length===3){ const [x,y,z]=digits.split("").map(Number); if (x+z===y){ c=x;a=y;r=z;sure=true; } }
+    if (!sure && digits.length>=4 && sdA!=null){
+      // two-digit values possible (A>=10): try parses
+      const cands=[]; const d=digits;
+      for (let i=1;i<d.length;i++) for (let j=i+1;j<d.length;j++){
+        const x=+d.slice(0,i), y=+d.slice(i,j), z=+d.slice(j);
+        if (x+z===y && y===sdA && String(+d.slice(0,i))===d.slice(0,i)) cands.push([x,y,z]);
+      }
+      if (cands.length===1){ [c,a,r]=cands[0]; sure=true; }
+    }
+    if (!sure){
+      const d = digits.split("").map(Number);
+      if (sdA!=null){
+        a = sdA; const last = d.length ? d[d.length-1] : null;
+        if (last!=null && last<=a){ r=last; c=a-last; } else { c=0; r=a; }
+      } else if (d.length>=3){ c=d[0]; r=d[d.length-1]; a=c+r; }
+      else if (d.length===2){ a=d[0]; r=Math.min(d[1],a); c=a-r; }
+      else if (d.length===1){ a=d[0]; r=a; c=0; }
+    }
+    if (a==null) continue;
+    rows.push({name, city, c, a, r, guess: !sure && sdA==null});
+  }
+  return {rows, total};
+}
+
+
+function simdSupported(){
+  try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; }
+}
+const CORE_FILE = simdSupported() ? "tesseract-core-simd-lstm.wasm.js" : "tesseract-core-lstm.wasm.js";
+async function vendorBlob(url){
+  // cache-first from this device's storage; network only the first time
+  let res = null;
+  try { const c = await caches.open(VCACHE); res = await c.match(url);
+        if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw new Error("download failed"); await c.put(url, net.clone()); res = net; } }
+  catch(e){ if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw e; res = net; } }
+  return URL.createObjectURL(await res.blob());
+}
+async function ocrReady(){
+  try { const c = await caches.open(VCACHE);
+    return !!(await c.match(TJS+"tesseract.min.js")) && !!(await c.match(TJS+"worker.min.js")) && !!(await c.match(CORE+CORE_FILE)) && localStorage.getItem("calltracker.langReady")==="1";
+  } catch(e){ return false; }
+}
+let ocrWorker = null;
+async function getWorker(onProgress){
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract){
+    const src = await vendorBlob(TJS+"tesseract.min.js");
+    await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("engine")); document.head.appendChild(s); });
+  }
+  const workerPath = await vendorBlob(TJS+"worker.min.js");
+  const corePath = (await vendorBlob(CORE+CORE_FILE)) + "#core.js";
+  ocrWorker = await Tesseract.createWorker("eng", 1, {
+    workerPath, corePath, langPath: LANG, workerBlobURL: false, cacheMethod: "write",
+    logger: m => onProgress && onProgress(m)
+  });
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "0" });
+  try { localStorage.setItem("calltracker.langReady","1"); } catch(e){}
+  return ocrWorker;
+}
+
+$("importBtn").onclick = () => {
+  openSheet(`<h2>Load from screenshots</h2>
+    <p>Pick the screenshots of your Call Plan report: every page, top to bottom, including the last page with the “total” row. Screenshots taken with the iPad’s buttons read best. They're read here on the iPad and never leave it.</p>
+    <div class="drop">
+      <label class="btn primary" for="shotF">Choose screenshots</label>
+      <input type="file" id="shotF" accept="image/*" multiple hidden>
+      <p class="small" style="margin-top:8px">You can pick several at once from Photos.</p>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="status" id="iStat" aria-live="polite"></div>
+    <div class="prog" id="iProg" hidden><i id="iBar"></i></div>
+    <div id="review"></div>
+    <div class="foot" id="iFoot"><button class="btn" id="closeS">Cancel</button></div>`);
+  $("closeS").onclick = closeSheet;
+  parsed = []; reportTotal = null;
+  $("shotF").onchange = e => runImport([...e.target.files]);
+};
+
+let parsed = [], reportTotal = null;
+async function runImport(files){
+  if (!files.length) return;
+  busy = true; importCtl = new AbortController(); const sig = importCtl.signal;
+  const shots = files.map(f => ({f, url:URL.createObjectURL(f), st:"wait", n:0}));
+  const drawThumbs = () => $("thumbs").innerHTML = shots.map(s=>`<div class="thumb ${s.st}"><img src="${s.url}" alt=""><div>${s.st==="ok"?s.n+" doctors":s.st==="bad"?"Couldn't read":s.st==="busy"?"Reading…":"Waiting"}</div></div>`).join("");
+  drawThumbs();
+  $("iFoot").innerHTML = `<button class="btn" id="stopI">Stop</button>`;
+  $("stopI").onclick = () => importCtl.abort();
+  $("iProg").hidden = false;
+  const setBar = p => $("iBar").style.width = Math.round(p*100)+"%";
+  const byId = new Map(parsed.map(r=>[r.id,r]));
+  let worker;
+  try {
+    $("iStat").textContent = "Getting the reader ready…";
+    worker = await getWorker(m => {
+      if (m.status && /loading|initializ/i.test(m.status)) { $("iStat").textContent = "Getting the reader ready… (first time needs internet)"; setBar(m.progress||0); }
+      else if (m.status === "recognizing text") setBar(m.progress||0);
+    });
+  } catch(e){
+    busy = false; $("iProg").hidden = true;
+    $("iStat").textContent = navigator.onLine ? "The reader couldn't start. Close the app fully and open it again." : "The first time you load screenshots, the iPad needs internet to set up the reader. Connect once, then it works offline.";
+    $("iFoot").innerHTML = `<button class="btn" id="closeS">Close</button>`; $("closeS").onclick = closeSheet; return;
+  }
+  for (let i=0;i<shots.length && !sig.aborted;i++){
+    const s = shots[i]; s.st="busy"; drawThumbs(); setBar(0);
+    $("iStat").textContent = `Reading screenshot ${i+1} of ${shots.length}…`;
+    try {
+      const { data } = await worker.recognize(s.f);
+      if (sig.aborted) break;
+      const out = parseCallPlanText(data.text || "");
+      let n = 0;
+      for (const r of out.rows){
+        const d = makeDoc(r.name, r.city, r.c, r.a, r.r); d.guess = !!r.guess;
+        if (d.id && !byId.has(d.id)) { byId.set(d.id, d); n++; }
+      }
+      if (out.total) reportTotal = out.total;
+      s.st = out.rows.length ? "ok" : "bad"; s.n = n;
+    } catch(e){ s.st = "bad"; }
+    drawThumbs();
+  }
+  parsed = [...byId.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  busy = false; $("iProg").hidden = true;
+  const bad = shots.filter(s=>s.st==="bad").length;
+  $("iStat").textContent = parsed.length
+    ? `Found ${parsed.length} doctors.` + (bad ? ` ${bad} screenshot${bad>1?"s":""} couldn't be read. Retake ${bad>1?"them":"it"} with the iPad's screenshot buttons and add again.` : "")
+    : "No doctors found. Make sure the screenshots show the Call Plan Target table clearly.";
+  renderReview();
+}
+
+function renderReview(){
+  if (!parsed.length){ $("iFoot").innerHTML = `<label class="btn" for="moreF">Try other screenshots</label><input type="file" id="moreF" accept="image/*" multiple hidden><button class="btn" id="closeS">Close</button>`;
+    $("closeS").onclick = closeSheet; $("moreF").onchange = e => runImport([...e.target.files]); return; }
+  const sum = parsed.reduce((t,d)=>({c:t.c+d.c0,a:t.a+d.a,r:t.r+d.r0}),{c:0,a:0,r:0});
+  const T = reportTotal;
+  const match = T && +T.a===sum.a && +T.c===sum.c && +T.r===sum.r && (!T.count || +T.count===parsed.length);
+  const flagged = parsed.filter(d => d.guess || d.c0 + d.r0 !== d.a).length;
+  $("review").innerHTML = `
+    <div class="summary">
+      <span>${parsed.length} doctors · C ${sum.c} · A ${sum.a} · R ${sum.r}</span>
+      ${T ? `<span class="${match?"good":"bad"}">${match ? "✓ Matches the report's total row" : `Report's total row: ${T.count?T.count+" doctors · ":""}C ${T.c} · A ${T.a} · R ${T.r}`}</span>` : `<span class="small">Add the last page (with the total row) to double-check the count.</span>`}
+    </div>
+    ${T && !match ? `<p class="small">The numbers don't match yet. A page may be missing, or a number was misread. Check the highlighted rows against your report.</p>` : ""}
+    ${flagged ? `<p class="small">${flagged} highlighted row${flagged>1?"s":""}: the reader wasn't sure of the numbers. Compare with your report and tap a number to fix it.</p>` : ""}
+    <div class="rtable"><table><thead><tr><th>Doctor</th><th>City</th><th>C</th><th>A</th><th>R</th><th></th></tr></thead><tbody>
+    ${parsed.map((d,i)=>`<tr class="${(d.guess || d.c0+d.r0!==d.a)?"check":""}"><td>${esc(d.name)}</td><td>${esc(d.city)}</td>
+      <td class="num"><input id="pc${i}" type="number" inputmode="numeric" min="0" value="${d.c0}" data-i="${i}" data-k="c0" aria-label="Completed"></td>
+      <td class="num"><input id="pa${i}" type="number" inputmode="numeric" min="0" value="${d.a}" data-i="${i}" data-k="a" aria-label="Assigned"></td>
+      <td class="num"><input id="pr${i}" type="number" inputmode="numeric" min="0" value="${d.r0}" data-i="${i}" data-k="r0" aria-label="Remaining"></td>
+      <td><button class="x" data-rm="${i}" aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")}
+    </tbody></table></div>
+    <div id="confirmBox"></div>`;
+  $("review").querySelectorAll("input[data-k]").forEach(inp => inp.onchange = () => { const d = parsed[+inp.dataset.i]; d[inp.dataset.k] = Math.max(0, +inp.value||0); d.guess = false; renderReview(); });
+  $("review").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { parsed.splice(+b.dataset.rm,1); renderReview(); });
+  const clean = d => ({id:d.id, name:d.name, city:d.city, c0:d.c0, a:d.a, r0:d.r0, log:[]});
+  $("iFoot").innerHTML = `
+    <label class="btn" for="moreF">Add more screenshots</label>
+    <input type="file" id="moreF" accept="image/*" multiple hidden>
+    ${state.doctors.length ? `<button class="btn" id="addI">Add new doctors to my list</button>` : ""}
+    <button class="btn primary" id="replI">${state.doctors.length ? "Start a fresh plan with these" : `Use these ${parsed.length} doctors`}</button>`;
+  $("moreF").onchange = e => runImport([...e.target.files]);
+  if ($("addI")) $("addI").onclick = () => {
+    const have = new Set(state.doctors.map(d=>d.id)); const add = parsed.filter(d=>!have.has(d.id));
+    state.doctors.push(...add.map(clean)); save(); render(); closeSheet();
+    toast(add.length ? `Added ${add.length} new doctor${add.length>1?"s":""}` : "Those doctors were already on your list");
+  };
+  const replace = () => {
+    state = {doctors: parsed.map(clean), source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    save(); ui = {q:"",city:"",f:"all",sort:"name",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
+  };
+  $("replI").onclick = () => {
+    if (!state.doctors.length) return replace();
+    const logged = state.doctors.reduce((n,d)=>n+d.log.length,0);
+    $("confirmBox").innerHTML = `<div class="confirm"><b>Replace your current list?</b><p style="color:inherit">This swaps in these ${parsed.length} doctors${logged ? ` and clears the ${logged} call${logged>1?"s":""} you've logged` : ""}. Save a backup first if you might want them.</p>
+      <div class="foot"><button class="btn" id="noR">Keep my list</button><button class="btn primary" id="yesR">Replace</button></div></div>`;
+    $("confirmBox").scrollIntoView({block:"nearest"});
+    $("noR").onclick = () => $("confirmBox").innerHTML = "";
+    $("yesR").onclick = replace;
+  };
+}
+
+/* ---------- Home Screen + offline ---------- */
+const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+$("installTip").hidden = standalone;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+render();
+</script>
+</body>
+</html>
