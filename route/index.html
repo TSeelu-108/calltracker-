@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Week Router">
+<meta name="theme-color" content="#f3f5f7">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Week Router</title>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#17202b; --muted:#5d6b7a; --line:#dde3ea;
+  --accent:#0f5f8c; --accent-ink:#ffffff; --accent-soft:#e3eff7;
+  --am:#e6f0fb; --am-edge:#9cc2e8; --pm:#fbf0e3; --pm-edge:#e3b98a;
+  --red-fill:#fde3e1; --red-edge:#e7a29c; --red-ink:#8f2a22;
+  --yel-fill:#fff3c4; --yel-edge:#e3c45a; --yel-ink:#7a5a00;
+  --grn-fill:#d9f2de; --grn-edge:#88c997; --grn-ink:#1d6a33;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --f-disp:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f141a; --surface:#18202a; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3542;
+  --accent:#5fb3e6; --accent-ink:#06121c; --accent-soft:#1a3244;
+  --am:#162636; --am-edge:#2f5a80; --pm:#2e2418; --pm-edge:#7a5a33;
+  --red-fill:#4a2321; --red-edge:#8a3e38; --red-ink:#ffc9c3;
+  --yel-fill:#463b14; --yel-edge:#8c7426; --yel-ink:#ffe69a;
+  --grn-fill:#1d3d27; --grn-edge:#3f7d50; --grn-ink:#b8ecc5; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px));padding-block:0 56px}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
+.row1{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.weeknav{display:flex;align-items:center;gap:6px}
+.weeknav h1{font-family:var(--f-disp);font-size:28px;line-height:1.1;margin:0;letter-spacing:-.01em;min-width:0}
+.icon{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-width:44px;min-height:44px;font-size:20px;line-height:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:inherit}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.small{min-height:36px;padding:6px 10px;font-size:14px}
+.btn:disabled{opacity:.45}
+.sub{font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+.dot.ok{background:var(--grn-edge)} .dot.warn{background:var(--yel-edge)}
+.card p{margin:0;font-size:14px;color:var(--muted)}
+.card .actions{margin-top:auto}
+
+.summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pill{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+.pill b{font-weight:700}
+.banner{margin-top:12px;padding:10px 14px;border-radius:10px;background:var(--yel-fill);border:1px solid var(--yel-edge);font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+
+.days{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.dayhead{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.dayhead h2{margin:0;font-family:var(--f-disp);font-size:20px}
+.dayhead .area{color:var(--muted);font-size:14px}
+.daynotes{padding:8px 14px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--line)}
+.half{padding:6px 10px 10px}
+.half .lbl{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 4px}
+.stop{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px;border-radius:10px;border:1px solid var(--k);background:var(--f);margin-bottom:6px}
+.stop.am{--f:var(--am);--k:var(--am-edge)} .stop.pm{--f:var(--pm);--k:var(--pm-edge)}
+.num{width:28px;height:28px;border-radius:50%;background:var(--surface);border:1px solid var(--k);display:grid;place-items:center;font-weight:700;font-size:14px}
+.who{min-width:0}
+.who .n{font-family:var(--f-disp);font-weight:700;font-size:17px;line-height:1.2;overflow-wrap:anywhere}
+.who .a{font-size:14px;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
+.who .o{font-size:13px;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{font-size:12px;font-weight:600;border-radius:6px;padding:2px 6px;background:var(--surface);border:1px solid var(--line)}
+.tag.appt{background:var(--yel-fill);border-color:var(--yel-edge);color:var(--yel-ink)}
+.tag.cal{background:var(--grn-fill);border-color:var(--grn-edge);color:var(--grn-ink)}
+.tag.swap{background:var(--accent-soft)}
+.note{font-size:12px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.sbtns{display:flex;flex-direction:column;gap:6px;align-items:stretch;flex-wrap:wrap}
+.empty{padding:24px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px;margin-top:16px}
+.short{padding:8px 14px;font-size:13px;color:var(--red-ink);background:var(--red-fill)}
+details.uns{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+details.uns summary{font-weight:600;cursor:pointer;min-height:32px}
+.ulist{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.ulist li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:4px 0}
+.ulist span:last-child{color:var(--muted);text-align:right}
+
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+.scrim{position:fixed;inset:0;background:rgba(10,15,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+.sheet{background:var(--surface);color:var(--ink);width:100%;max-width:780px;max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:16px 16px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-family:var(--f-disp);font-size:22px;margin:0 0 4px}
+.sheet p{margin:6px 0;color:var(--muted);max-width:64ch}
+.foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
+.list{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:6px}
+.list li{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex-wrap:wrap}
+.list li .grow{flex:1 1 220px;min-width:0}
+.list select,.field select,.field input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px;max-width:100%}
+.field{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-size:14px;font-weight:600}
+.field .sub{font-weight:400}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:8px 12px;min-height:40px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:4px 4px 4px 10px;font-size:13px;background:var(--bg)}
+.chip.maybe{border-style:dashed}
+.chip button{border:0;background:transparent;min-width:28px;min-height:28px;border-radius:50%;color:var(--muted);font-size:16px}
+.cpday{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-top:8px}
+.cpday b{display:block;margin-bottom:6px}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumbs img{width:80px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.cand{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.cand .n{font-weight:700}
+.cands{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.stop.done{opacity:.6}
+.stop.done .n::after{content:"  ✓ Done";font-size:13px;color:var(--grn-ink);font-weight:700}
+.contact{font-size:14px;margin-top:4px;overflow-wrap:anywhere}
+.contact a{color:var(--accent);font-weight:600}
+.mynote{font-size:13px;margin-top:4px;padding:6px 8px;border-radius:6px;background:var(--surface);border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}
+.zonepill{background:var(--accent-soft);border-color:var(--accent)}
+.dayact{display:flex;gap:6px;align-items:center}
+textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;min-height:90px;width:100%}
+.zone{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.zone .chips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 10px;font-size:13px;min-height:34px}
+.zone .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media (max-width:640px){
+  .sbtns .btn{flex:1 1 auto}
+  .inputs{grid-template-columns:minmax(0,1fr)}
+  .weeknav h1{font-size:22px}
+  .stop{grid-template-columns:28px minmax(0,1fr)}
+  .sbtns{grid-column:1 / -1;flex-direction:row;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="row1">
+      <div>
+        <div class="eyebrow">Week Router</div>
+        <div class="weeknav">
+          <button class="icon" id="prevW" aria-label="Previous week">‹</button>
+          <h1 id="weekLbl"></h1>
+          <button class="icon" id="nextW" aria-label="Next week">›</button>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn ghost" href="../" id="trackerLink">Call Tracker</a>
+        <button class="btn ghost" id="settingsBtn">Settings</button>
+        <button class="btn" id="whoBtn">Who's in</button>
+        <button class="btn primary" id="buildBtn">Build my week</button>
+      </div>
+    </div>
+    <div class="summary" id="summary"></div>
+  </header>
+
+  <section class="inputs" aria-label="This week's files">
+    <div class="card">
+      <h3><span class="dot" id="d1"></span>Remaining calls</h3>
+      <p id="s1"></p>
+      <div class="actions">
+        <button class="btn small" id="useTracker" hidden>Use my Call Tracker</button>
+        <label class="btn small" for="f1">Load export file</label>
+        <input type="file" id="f1" accept=".json,.csv,application/json,text/csv,text/plain" hidden>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="dot" id="d2"></span>Territory spreadsheet</h3>
+      <p id="s2"></p>
+      <div class="actions">
+        <label class="btn small" for="f2">Load spreadsheet</label>
+        <input type="file" id="f2" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
+        <button class="btn small" id="matchBtn">Check doctor matches</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="dot" id="d3"></span><span id="cpTitle">Ann &amp; Chase this week</span></h3>
+      <p id="s3"></p>
+      <div class="actions">
+        <button class="btn small" id="shotBtn">Add schedule screenshots</button>
+        <button class="btn small" id="cpBtn">Review</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="dot" id="d4"></span>Calendar (.ics)</h3>
+      <p id="s4"></p>
+      <div class="actions">
+        <label class="btn small" for="f4">Load .ics file</label>
+        <input type="file" id="f4" accept=".ics,text/calendar,text/plain" hidden>
+        <button class="btn small" id="calBtn">Review</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="stale" class="banner" hidden><span>Something changed since this week was built.</span><button class="btn small" id="rebuild2">Rebuild week</button></div>
+  <div id="routeArea"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script src="logic.js"></script>
+<script>
+"use strict";
+const L = window.RouteLogic;
+const KEY = "weekrouter.v1", TRACKER_KEY = "callplan.tracker.v1";
+const TJS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+const CORE = "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/";
+const LANG = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int";
+const VCACHE = "calltracker-vendor-v1";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const todayISO = () => L.isoDay(new Date());
+const fmtDay = iso => L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"});
+const fmtShort = iso => L.fromISO(iso).toLocaleDateString(undefined,{month:"short", day:"numeric"});
+const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase());
+
+/* ---------- state (kept only on this iPad) ---------- */
+let S = load() || {};
+S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, notes:{}, contacts:{}, zoneOverride:{}}, S);
+S.settings = Object.assign({home:"concord", perDay:6, workDays:[1,2,3,4,5], counterparts:["Ann","Chase"], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null}, S.settings||{});
+function load(){
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (!s) return null;
+    if (s.ics) s.ics.events.forEach(e => { ["start","end","recurrenceId"].forEach(k => { if (e[k]) e[k].date = new Date(e[k].date); }); e.exdates = (e.exdates||[]).map(d => new Date(d)); });
+    return s; } catch(e){ return null; }
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){ toast("This device is out of space for the router."); } }
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+let weekMon = (() => { if (S.lastWeek && S.lastWeek >= L.mondayOf(todayISO())) return S.lastWeek; const t = L.fromISO(todayISO()); const wd = t.getDay(); return wd === 0 || wd === 6 ? L.mondayOf(L.addDays(todayISO(), 2)) : L.mondayOf(todayISO()); })();
+
+/* ---------- derived inputs ---------- */
+let D = {};
+function derive(){
+  D = {};
+  if (S.docs && S.docs.src === "tracker"){ const t = readTracker(); if (t){ try { S.docs.list = L.docsFromTrackerFile(t); } catch(e){} } }
+  D.docs = S.docs ? L.scoreDoctors(S.docs.list.map(d => ({...d}))) : [];
+  D.offices = S.sheet ? S.sheet.offices : [];
+  D.match = L.matchDoctors(D.docs, D.offices, S.overrides);
+  D.names = L.buildNameIndex(D.docs, D.offices, D.match);
+  D.days = L.weekDays(weekMon);
+  D.workDays = D.days.filter(iso => S.settings.workDays.includes(L.fromISO(iso).getDay()) && iso >= todayISO());
+  D.cal = [];
+  if (S.ics){
+    const occ = L.expandEvents(S.ics.events, D.days[0], D.days[4]);
+    D.cal = occ.map(e => { const c = L.classifyEvent(e, S.settings.counterparts, D.names); const key = (e.uid||e.summary) + "|" + e.start.getTime(); return {...e, ...c, key, auto:c.kind, kind: S.kinds[key] || c.kind}; });
+  }
+  // counterpart visits this week: screenshots/manual + calendar events marked as Ann/Chase
+  D.cp = S.cp.filter(v => D.days.includes(v.date));
+  D.cal.filter(e => e.kind === "counterpart").forEach(e => {
+    const date = L.isoDay(e.start);
+    e.docs.forEach(x => { if (!D.cp.some(v => v.date === date && v.id === x.id)) D.cp.push({date, id:x.id, who:(e.who[0]||"Calendar"), src:"calendar", sure:x.sure}); });
+  });
+  D.home = L.cityCoords(S.settings.home) || L.CITIES.concord;
+  D.zone = zoneForWeek(weekMon);
+}
+function zoneIndexForWeek(mon){
+  const Z = S.settings.zones; if (!Z.length) return 0;
+  if (S.zoneOverride[mon] != null) return S.zoneOverride[mon] % Z.length;
+  const a = S.settings.zoneAnchor || {mon, idx:0};
+  const weeks = Math.round((L.fromISO(mon) - L.fromISO(a.mon)) / (7*864e5));
+  return (((a.idx + weeks) % Z.length) + Z.length) % Z.length;
+}
+function zoneForWeek(mon){
+  if (S.settings.mode !== "zones" || !S.settings.zones.length) return null;
+  const z = S.settings.zones[zoneIndexForWeek(mon)];
+  return {name:z.name, cities:z.cities, zips:z.zips};
+}
+const docName = id => { const d = D.docs.find(x => x.id === id); return d ? title(d.name) : title(id); };
+function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone]); }
+
+/* ---------- render ---------- */
+function render(){
+  derive();
+  const end = D.days[4];
+  $("weekLbl").textContent = fmtShort(D.days[0]) + " – " + (L.fromISO(end).getMonth() === L.fromISO(D.days[0]).getMonth() ? L.fromISO(end).getDate() : fmtShort(end));
+  $("cpTitle").textContent = S.settings.counterparts.filter(Boolean).join(" & ") + " this week";
+  // inputs
+  const trackerData = readTracker();
+  $("useTracker").hidden = !trackerData;
+  $("useTracker").textContent = S.docs && S.docs.src === "tracker" ? "Refresh from Call Tracker" : "Use my Call Tracker";
+  setCard(1, S.docs ? "ok" : "", S.docs ? `${S.docs.list.length} doctors with calls left · ${S.docs.list.reduce((n,d)=>n+d.remaining,0)} calls · from ${S.docs.label}, ${fmtShort(S.docs.at.slice(0,10))}` : (trackerData ? "Tap “Use my Call Tracker” to pull in your numbers." : "Load the remaining-calls file you exported from the Call Tracker."));
+  if (S.sheet){
+    const found = D.docs.length ? D.docs.length - D.match.unmatched.length : 0;
+    setCard(2, D.match.unmatched.length ? "warn" : "ok", `${S.sheet.offices.length} offices · ${S.sheet.name}` + (D.docs.length ? ` · ${found} of ${D.docs.length} doctors found` : ""));
+  } else setCard(2, "", "Your Excel list of doctors, addresses and best days. You only need to load it again when it changes.");
+  const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
+  setCard(3, D.cp.length ? "ok" : "", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${w}: ${n} visit${n>1?"s":""}`).join(" · ") + ". You won't be routed to these doctors on those days." : "Add their Sunday screenshots so you're never at the same doctor on the same day.");
+  if (S.ics){
+    const c = k => D.cal.filter(e => e.kind === k).length;
+    setCard(4, "ok", `${S.ics.name} · this week: ${c("busy")} busy time${c("busy")===1?"":"s"}, ${c("mine")} doctor visit${c("mine")===1?"":"s"} of yours, ${c("counterpart")} ${S.settings.counterparts.join("/")} visit${c("counterpart")===1?"":"s"}, ${c("ignore")} ignored`);
+  } else setCard(4, "", "Your calendar export. Meetings and time off are kept free, and Ann's and Chase's visits are avoided.");
+  $("buildBtn").disabled = !(S.docs && S.sheet);
+  renderRoute();
+}
+function setCard(n, st, txt){ $("d"+n).className = "dot " + st; $("s"+n).textContent = txt; }
+
+let C = null; // context for the current week's plan
+function currentPlan(){ return S.weeks[weekMon] || null; }
+function contextInput(){
+  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule};
+}
+function renderRoute(){
+  const W = currentPlan();
+  $("stale").hidden = !(W && W.stamp !== stamp());
+  if (!W){
+    $("summary").innerHTML = zonePill();
+    $("buildBtn").textContent = "Build my week";
+    $("routeArea").innerHTML = `<div class="empty">${S.docs && S.sheet ? "Tap <b>Build my week</b> to plan " + fmtShort(D.days[0]) + " – " + fmtShort(D.days[4]) + "." : "Load your remaining calls and your territory spreadsheet, then tap <b>Build my week</b>."}</div>`;
+    return;
+  }
+  C = L.buildContext(contextInput());
+  const plan = W.plan;
+  let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
+  Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
+  $("buildBtn").textContent = "Rebuild week";
+  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}<button class="btn small" id="shareBtn">Share my week</button>`;
+  const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
+  let html = `<div class="days">`;
+  for (const iso of Object.keys(plan.days).sort()){
+    const d = plan.days[iso]; let k = 0;
+    const stopHtml = (s, i) => {
+      const o = s.office != null ? D.offices[s.office] : null; const doc = D.docs.find(x => x.id === s.id) || {};
+      const prev = s.history.length ? s.history[s.history.length-1] : null;
+      const addr = o ? (o.address + (o.city ? ", " + o.city : "")) : "";
+      return `<div class="stop ${s.slot}${s.done ? " done" : ""}">
+        <div class="num">${++k}</div>
+        <div class="who">
+          <div class="n">${esc(docName(s.id))}</div>
+          ${o ? `<div class="a">${esc(addr)}</div>` : ""}
+          ${o && o.org ? `<div class="o">${esc(o.org)}</div>` : ""}
+          <div class="tags">
+            ${s.fixed ? `<span class="tag cal">On your calendar${s.time ? " · " + esc(s.time) : ""}</span>` : ""}
+            ${s.manual ? `<span class="tag swap">Added by you</span>` : ""}
+            ${o && o.avail && o.avail.appt ? `<span class="tag appt">Appointment only</span>` : ""}
+            ${doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left</span>` : ""}
+            <span class="tag">${doc.lastCall ? "Last call " + fmtShort(doc.lastCall) : "No call logged yet"}</span>
+            ${prev ? `<span class="tag swap">Swapped in for ${esc(docName(prev.id))}</span>` : ""}
+          </div>
+          ${contactHtml(s, o)}
+          ${S.notes[s.id] ? `<div class="mynote">${esc(S.notes[s.id])}</div>` : ""}
+          ${o && o.notes ? `<div class="note">${linkPhones(o.notes)}</div>` : ""}
+        </div>
+        <div class="sbtns">
+          ${s.done ? `<button class="btn small" data-undone="${iso}|${i}">Not done</button>` : `<button class="btn small primary" data-done="${iso}|${i}">Done</button>`}
+          ${s.manual && !s.done ? `<button class="btn small" data-remove="${iso}|${i}">Remove</button>` : ""}
+          ${s.fixed || s.done || s.manual ? "" : `<button class="btn small" data-notin="${iso}|${i}">Not in</button><button class="btn small" data-sub="${iso}|${i}">Substitute</button>`}
+          ${prev && !s.done ? `<button class="btn small ghost" data-undo="${iso}|${i}">Undo swap</button>` : ""}
+          <button class="btn small ghost" data-notes="${iso}|${i}">Notes</button>
+          ${o && o.address ? `<a class="btn small ghost" href="https://maps.apple.com/?daddr=${encodeURIComponent(addr)}" target="_blank" rel="noopener">Maps</a>` : ""}
+        </div>
+      </div>`;
+    };
+    const am = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "am"), pm = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "pm");
+    const cps = (cpBy[iso]||[]);
+    const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
+    html += `<section class="day">
+      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip from " + esc(title(S.settings.home)) : ""}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
+      ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
+      ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other doctors on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
+      ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
+      ${pm.length ? `<div class="half"><div class="lbl">Afternoon</div>${pm.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
+      ${!d.stops.length ? `<div class="half"><div class="sub" style="padding:8px 4px">${d.notes && d.notes.some(x => x.label === "All day") ? "Your calendar has this day blocked." : "Nothing could be planned this day."}</div></div>` : ""}
+    </section>`;
+  }
+  html += `</div>`;
+  const skipped = D.days.filter(iso => !plan.days[iso]);
+  if (skipped.length) html += `<p class="sub" style="margin-top:10px">Not planned: ${skipped.map(iso => L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short"}) + (iso < todayISO() ? " (past)" : " (day off in Settings)")).join(", ")}.</p>`;
+  const uns = (plan.unscheduled || []).slice(0, 25);
+  if (uns.length) html += `<details class="uns"><summary>Not this week (${plan.unscheduled.length})</summary><p class="sub">Most behind first, with the reason they weren't planned.</p><ul class="ulist">${uns.map(u => `<li><span>${esc(docName(u.id))}</span><span>${esc(u.why)}</span></li>`).join("")}</ul></details>`;
+  $("routeArea").innerHTML = html;
+  if ($("shareBtn")) $("shareBtn").onclick = shareWeek;
+}
+function zonePill(){
+  if (!D.zone) return "";
+  return `<button class="pill zonepill" id="zoneBtn" aria-label="Change this week's zone">${esc(D.zone.name)} this week ⇄</button>`;
+}
+const PHONE = /(\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4})/g;
+const digits = s => String(s).replace(/\D/g,"");
+function linkPhones(text){ return esc(text).replace(PHONE, m => `<a href="tel:${digits(m)}">${m}</a>`); }
+function contactHtml(s, o){
+  const c = S.contacts[s.addrKey];
+  if (!c || !(c.name || c.phone)) return "";
+  return `<div class="contact">${c.name ? esc(c.name) : "Office"}${c.phone ? ` · <a href="tel:${digits(c.phone)}">${esc(c.phone)}</a> · <a href="sms:${digits(c.phone)}">Text</a>` : ""}${c.note ? ` · <span class="sub">${esc(c.note)}</span>` : ""}</div>`;
+}
+
+/* ---------- actions ---------- */
+let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
+function openSheet(h){ $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
+let busy = false, ocrCtl = null;
+function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
+$("prevW").onclick = () => { weekMon = L.addDays(weekMon, -7); S.lastWeek = weekMon; save(); render(); };
+$("nextW").onclick = () => { weekMon = L.addDays(weekMon, 7); S.lastWeek = weekMon; save(); render(); };
+
+function build(){
+  derive();
+  if (!S.docs || !S.sheet){ toast("Load your remaining calls and spreadsheet first"); return; }
+  if (!D.workDays.length){ toast("No days left to plan in this week"); return; }
+  const {plan, C:ctx} = L.planWeek(contextInput());
+  const probs = L.checkPlan(ctx, plan);
+  S.weeks[weekMon] = {plan, stamp: stamp(), builtAt: new Date().toISOString()};
+  // keep only recent weeks
+  Object.keys(S.weeks).sort().slice(0, -6).forEach(k => delete S.weeks[k]);
+  save(); render();
+  toast(probs.length ? "Built, but please check: " + probs[0] : "Week built");
+}
+$("buildBtn").onclick = () => {
+  const W = currentPlan();
+  if (W && Object.values(W.plan.days).some(d => d.stops.some(s => s.history.length))){
+    openSheet(`<h2>Rebuild this week?</h2><p>This replaces the current plan, including the swaps you made.</p><div class="foot"><button class="btn" id="no">Keep my plan</button><button class="btn primary" id="yes">Rebuild</button></div>`);
+    $("no").onclick = closeSheet; $("yes").onclick = () => { closeSheet(); build(); };
+  } else build();
+};
+$("rebuild2").onclick = () => $("buildBtn").click();
+
+$("summary").addEventListener("click", e => {
+  if (!e.target.closest("#zoneBtn")) return;
+  const Z = S.settings.zones, cur = zoneIndexForWeek(weekMon);
+  openSheet(`<h2>Zone for ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}</h2><p>Zones switch every week on their own. Pick a different one for just this week.</p>
+    <div class="cands">${Z.map((z,i) => `<button class="btn${i===cur?" primary":""}" data-z="${i}">${esc(z.name)}</button>`).join("")}</div>
+    <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-z]").forEach(b => b.onclick = () => { S.zoneOverride[weekMon] = +b.dataset.z; save(); closeSheet(); render(); toast(Z[+b.dataset.z].name + " this week. Tap Rebuild week to plan it."); });
+});
+function readTrackerRaw(){ try { return JSON.parse(localStorage.getItem(TRACKER_KEY)); } catch(e){ return null; } }
+function logToTracker(id, date, remove){
+  const t = readTrackerRaw(); if (!t || !Array.isArray(t.doctors)) return false;
+  const d = t.doctors.find(x => L.normName(x.name) === id); if (!d) return false;
+  if (remove){ const i = d.log.lastIndexOf(date); if (i < 0) return false; d.log.splice(i,1); }
+  else d.log.push(date);
+  t.updatedAt = Date.now();
+  try { localStorage.setItem(TRACKER_KEY, JSON.stringify(t)); return true; } catch(e){ return false; }
+}
+$("routeArea").addEventListener("click", e => {
+  const W = currentPlan(); if (!W) return;
+  const at = sel => { const b = e.target.closest("[" + sel + "]"); if (!b) return null; const [iso, i] = b.getAttribute(sel).split("|"); return {iso, i:+i, s: i != null ? W.plan.days[iso] && W.plan.days[iso].stops[+i] : null}; };
+  let x;
+  if ((x = at("data-done"))){
+    if (x.iso > todayISO()){ toast("That visit is on " + L.fromISO(x.iso).toLocaleDateString(undefined,{weekday:"long"}) + ". Mark it done on the day."); return; }
+    const logged = logToTracker(x.s.id, x.iso, false);
+    x.s.done = x.iso; x.s.logged = logged; save(); render();
+    toast(logged ? `Logged a call for ${docName(x.s.id)} in your Call Tracker` : `Marked done. ${docName(x.s.id)} isn't in your Call Tracker, so log it there too.`);
+    return;
+  }
+  if ((x = at("data-undone"))){
+    const un = x.s.logged ? logToTracker(x.s.id, x.s.done, true) : false;
+    x.s.done = null; x.s.logged = false; save(); render();
+    toast(un ? "Removed that call from your Call Tracker" : "Marked not done"); return;
+  }
+  if ((x = at("data-notin"))){
+    const list = L.substitutes(C, W.plan, x.iso, x.i, 5);
+    if (!list.length){ toast("No one else fits that " + (x.s.slot === "am" ? "morning" : "afternoon") + " without breaking a rule"); return; }
+    const was = x.s.id; L.applySubstitute(C, W.plan, x.iso, x.i, list[0]); save(); render();
+    toast(`Swapped in ${docName(list[0].id)}${L.miles(list[0].near) >= 1 ? " (about " + Math.round(L.miles(list[0].near)) + " mi away)" : ""}. Undo swap brings back ${docName(was)}.`); return;
+  }
+  if ((x = at("data-notes"))){ openNotes(x.iso, x.i); return; }
+  if ((x = at("data-remove"))){ const s = L.removeStop(C, W.plan, x.iso, x.i); save(); render(); toast("Removed " + docName(s.id)); return; }
+  const ad = e.target.closest("[data-add]"); if (ad){ openAdd(ad.dataset.add); return; }
+  const rd = e.target.closest("[data-reday]");
+  if (rd){
+    const iso = rd.dataset.reday; L.rebuildDay(C, W.plan, iso); save(); render();
+    toast("Here's another option for " + L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}) + ". Tap again for more."); return;
+  }
+  const sb = e.target.closest("[data-sub]"), ub = e.target.closest("[data-undo]");
+  if (sb){ const [iso, i] = sb.dataset.sub.split("|"); openSubstitute(iso, +i); }
+  if (ub){
+    const [iso, i] = ub.dataset.undo.split("|"); const W = currentPlan();
+    const r = L.undoSubstitute(C, W.plan, iso, +i);
+    if (r.ok){ save(); render(); toast("Brought back " + docName(r.id)); }
+    else toast(r.reason === "conflict-doc" ? docName(r.id) + " is already planned on another day this week" : r.reason === "conflict-addr" ? "You're already visiting " + docName(r.id) + "'s office another day this week" : r.reason);
+  }
+});
+function openSubstitute(iso, i){
+  const W = currentPlan(); const cur = W.plan.days[iso].stops[i];
+  const all = L.substitutes(C, W.plan, iso, i, 40);
+  const sameL = all.filter(c => c.sameOffice);
+  const rest = all.filter(c => !c.sameOffice);
+  const nearL = sameL.concat(rest.filter(c => L.miles(c.near) <= 25).slice(0, 10)), farL = rest.filter(c => L.miles(c.near) > 25).slice(0, nearL.length >= 4 ? 4 : 8);
+  const list = nearL.concat(farL);
+  const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
+  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(o.address)}, ${esc(o.city)} · ${mi(c.near)}</div><div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
+  openSheet(`<h2>Substitute for ${esc(docName(cur.id))}</h2>
+    <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, isn't at an office you're visiting this week, and isn't being seen by ${esc(S.settings.counterparts.join(" or "))} that day. Most behind and closest first.</p>
+    ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
+    ${sameL.length ? `<p style="margin-top:14px"><b>Also at this office today</b></p><div class="cands">${sameL.map((c,j) => card(c,j)).join("")}</div>` : ""}
+    ${nearL.length > sameL.length ? `<p style="margin-top:14px"><b>${sameL.length ? "Nearby" : "Best fits"}</b></p><div class="cands">${nearL.slice(sameL.length).map((c,j) => card(c, sameL.length + j)).join("")}</div>` : (!sameL.length && farL.length ? `<p><b>No one nearby fits.</b></p>` : "")}
+    ${farL.length ? `<p style="margin-top:14px"><b>Farther away</b> · would pull you out of today's area</p><div class="cands">${farL.map((c,j) => card(c, nearL.length + j)).join("")}</div>` : ""}
+    <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+    const c = list[+b.dataset.pick]; L.applySubstitute(C, W.plan, iso, i, c); save(); closeSheet(); render();
+    toast(`Swapped in ${docName(c.id)}. Tap Undo to bring back ${docName(cur.id)}.`);
+  });
+}
+
+/* ---------- remaining calls ---------- */
+function readTracker(){ try { const s = JSON.parse(localStorage.getItem(TRACKER_KEY)); return s && Array.isArray(s.doctors) && s.doctors.length ? s : null; } catch(e){ return null; } }
+$("useTracker").onclick = () => {
+  const t = readTracker(); if (!t) return;
+  S.docs = {list: L.docsFromTrackerFile(t), label:"your Call Tracker", src:"tracker", at:new Date().toISOString()}; save(); render(); toast(`Loaded ${S.docs.list.length} doctors with calls left`);
+};
+$("f1").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const txt = await f.text(); let list;
+    try { list = L.docsFromTrackerFile(JSON.parse(txt)); } catch(_){ list = L.docsFromCSV(txt); }
+    S.docs = {list, label:f.name, src:"file", at:new Date().toISOString()}; save(); render(); toast(`Loaded ${list.length} doctors with calls left`);
+  } catch(err){ toast(err.message || "That file couldn't be read"); }
+};
+
+/* ---------- spreadsheet (.xlsx read on the iPad) ---------- */
+async function inflateRaw(u8){ const ds = new DecompressionStream("deflate-raw"); return new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer(); }
+async function readXlsx(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), td = new TextDecoder();
+  let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("That file isn't an Excel .xlsx file.");
+  const n = dv.getUint16(e+10, true); let off = dv.getUint32(e+16, true); const files = {};
+  for (let i=0;i<n;i++){
+    const method = dv.getUint16(off+10,true), csize = dv.getUint32(off+20,true), nl = dv.getUint16(off+28,true), xl = dv.getUint16(off+30,true), cl = dv.getUint16(off+32,true), lho = dv.getUint32(off+42,true);
+    files[td.decode(u8.subarray(off+46, off+46+nl))] = {method, csize, lho}; off += 46+nl+xl+cl;
+  }
+  const get = async name => { const f = files[name]; if (!f) return null; const l = f.lho, s = l+30+dv.getUint16(l+26,true)+dv.getUint16(l+28,true); const data = u8.subarray(s, s+f.csize);
+    return td.decode(f.method === 0 ? data : new Uint8Array(await inflateRaw(data))); };
+  const xml = s => new DOMParser().parseFromString(s, "application/xml");
+  const ssx = await get("xl/sharedStrings.xml");
+  const shared = ssx ? [...xml(ssx).getElementsByTagName("si")].map(si => [...si.getElementsByTagName("t")].map(t => t.textContent).join("")) : [];
+  const wb = xml(await get("xl/workbook.xml")), rels = xml(await get("xl/_rels/workbook.xml.rels"));
+  const relMap = {}; [...rels.getElementsByTagName("Relationship")].forEach(r => relMap[r.getAttribute("Id")] = r.getAttribute("Target"));
+  const sheets = [...wb.getElementsByTagName("sheet")].map(s => ({name:s.getAttribute("name"), target: relMap[s.getAttribute("r:id")] || relMap[s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id")]}));
+  const out = [];
+  for (const sh of sheets){
+    let path = String(sh.target||"").replace(/^\//,""); if (!path.startsWith("xl/")) path = "xl/" + path;
+    const sx = await get(path); if (!sx) continue;
+    const rows = [];
+    [...xml(sx).getElementsByTagName("row")].forEach(r => {
+      const ri = +r.getAttribute("r") - 1; const row = [];
+      [...r.getElementsByTagName("c")].forEach(c => {
+        const ref = c.getAttribute("r") || ""; let ci = 0; for (const ch of ref.replace(/\d+/g,"")) ci = ci*26 + (ch.charCodeAt(0)-64); ci--;
+        const t = c.getAttribute("t"), v = c.getElementsByTagName("v")[0], is = c.getElementsByTagName("is")[0];
+        let val = v ? v.textContent : (is ? [...is.getElementsByTagName("t")].map(x => x.textContent).join("") : "");
+        if (t === "s") val = shared[+val] ?? "";
+        const fm = c.getElementsByTagName("f")[0]; if (fm && t !== "s" && t !== "str" && !v) val = "=" + fm.textContent;
+        row[ci] = val;
+      });
+      rows[ri] = row;
+    });
+    out.push({name: sh.name, rows: rows.map(r => r || [])});
+  }
+  return out;
+}
+$("f2").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    let sheets;
+    if (/\.csv$/i.test(f.name)) sheets = [{name:f.name, rows: L.csvRows(await f.text())}];
+    else sheets = await readXlsx(await f.arrayBuffer());
+    let offices = null, lastErr = null;
+    for (const sh of sheets){ try { const o = L.officesFromRows(sh.rows); if (o.length && (!offices || o.length > offices.length)) offices = o; } catch(err){ lastErr = err; } }
+    if (!offices) throw lastErr || new Error("No doctors found in that spreadsheet.");
+    S.sheet = {name:f.name, offices, at:new Date().toISOString()}; save(); render();
+    toast(`Loaded ${offices.length} offices`);
+    if (D.docs.length && D.match.unmatched.length) openMatches();
+  } catch(err){ toast(err.message || "That spreadsheet couldn't be read"); }
+};
+
+$("matchBtn").onclick = () => openMatches();
+function openMatches(){
+  derive();
+  if (!S.sheet || !D.docs.length){ toast("Load your remaining calls and spreadsheet first"); return; }
+  const names = [...new Set(D.offices.map(o => o.rawName))].sort((a,b) => a.localeCompare(b));
+  const rowFor = d => {
+    const hits = D.match.byDoc[d.id] || []; const cur = hits.length ? D.offices[hits[0]].rawName : "";
+    const where = hits.map(i => D.offices[i]).map(o => `${o.city}${o.avail ? "" : " (no days listed)"}`).join(", ");
+    return `<li><div class="grow"><b>${esc(title(d.name))}</b><div class="sub">${hits.length ? esc(where) : "Not found"}${D.match.how[d.id] === "close" ? " · close spelling, please check" : ""}</div></div>
+      <select data-ov="${esc(d.id)}" aria-label="Spreadsheet name for ${esc(title(d.name))}"><option value="">Not in spreadsheet</option>${names.map(n => `<option${n===cur?" selected":""}>${esc(n)}</option>`).join("")}</select></li>`;
+  };
+  const un = D.docs.filter(d => !(D.match.byDoc[d.id]||[]).length || D.match.how[d.id] === "close");
+  const ok = D.docs.filter(d => !un.includes(d));
+  openSheet(`<h2>Doctor matches</h2>
+    <p>Your call plan uses full names and your spreadsheet mostly uses last names, so they're matched automatically. Pick the right spreadsheet name for anyone who's missing or wrong.</p>
+    ${un.length ? `<p><b>Needs a look (${un.length})</b></p><ul class="list">${un.map(rowFor).join("")}</ul>` : `<p class="sub">Everyone was found.</p>`}
+    <details style="margin-top:12px"><summary class="sub" style="min-height:32px;cursor:pointer">Matched automatically (${ok.length})</summary><ul class="list">${ok.map(rowFor).join("")}</ul></details>
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = () => { closeSheet(); render(); };
+  $("sheet").querySelectorAll("[data-ov]").forEach(s => s.onchange = () => { S.overrides[s.dataset.ov] = s.value; save(); derive(); });
+}
+
+/* ---------- calendar ---------- */
+$("f4").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const evs = L.parseICS(await f.text());
+    if (!evs.length) throw new Error("No events found in that file.");
+    const now = Date.now(), keep = evs.filter(ev => ev.rrule || Math.abs(ev.start.date.getTime() - now) < 120*864e5);
+    S.ics = {name:f.name, events:keep, at:new Date().toISOString()}; save(); render();
+    toast(`Loaded ${keep.length} calendar events`); openCalendar();
+  } catch(err){ toast(err.message || "That calendar file couldn't be read"); }
+};
+$("calBtn").onclick = () => openCalendar();
+function openCalendar(){
+  derive();
+  if (!S.ics){ toast("Load your .ics file first"); return; }
+  const who = S.settings.counterparts.filter(Boolean).join("/");
+  const kinds = [["busy","Blocks my time"],["mine","My doctor visit"],["counterpart",who+" visit"],["ignore","Ignore"]];
+  const ev = D.cal;
+  openSheet(`<h2>Calendar this week</h2>
+    <p>Each event is sorted automatically. Change any that are wrong: <b>Blocks my time</b> keeps that time free, <b>My doctor visit</b> puts that doctor in your route, <b>${esc(who)} visit</b> keeps you away from that doctor that day.</p>
+    ${ev.length ? `<ul class="list">${ev.map((e,i) => `<li><div class="grow"><b>${esc(e.summary || "(no title)")}</b><div class="sub">${L.fromISO(L.isoDay(e.start)).toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"})} · ${e.allDay ? "all day" : e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + "–" + e.end.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}${e.docs.length ? " · " + e.docs.map(x => docName(x.id) + (x.sure ? "" : "?")).join(", ") : ""}</div></div>
+      <select data-k="${i}" aria-label="What this event is">${kinds.map(([k,l]) => `<option value="${k}"${e.kind===k?" selected":""}>${esc(l)}</option>`).join("")}</select></li>`).join("")}</ul>` : `<p>No events in ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}.</p>`}
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = () => { closeSheet(); render(); };
+  $("sheet").querySelectorAll("[data-k]").forEach(s => s.onchange = () => { const e = ev[+s.dataset.k]; if (s.value === e.auto) delete S.kinds[e.key]; else S.kinds[e.key] = s.value; save(); });
+}
+
+/* ---------- Ann & Chase ---------- */
+$("cpBtn").onclick = () => openCounterparts();
+function openCounterparts(){
+  derive();
+  const people = S.settings.counterparts.filter(Boolean);
+  const docsSorted = D.docs.slice().sort((a,b) => a.name.localeCompare(b.name));
+  openSheet(`<h2>${esc(people.join(" & "))} this week</h2>
+    <p>You won't be routed to a doctor on a day one of them is seeing that doctor. Dashed names are a best guess from a short or shared name; remove any that are wrong.</p>
+    ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso); return `<div class="cpday"><b>${fmtDay(iso)}</b>${v.length ? `<div class="chips">${v.map(x => `<span class="chip${x.sure===false?" maybe":""}">${esc(x.who)}: ${esc(docName(x.id))}${x.sure===false?"?":""}${x.src === "calendar" ? ` <span class="sub">(calendar)</span>` : `<button aria-label="Remove" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}">×</button>`}</span>`).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
+    <div class="field">Add one by hand
+      <div class="actions">
+        <select id="aWho">${people.map(p => `<option>${esc(p)}</option>`).join("")}</select>
+        <select id="aDay">${D.days.map(iso => `<option value="${iso}">${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"})}</option>`).join("")}</select>
+        <select id="aDoc">${docsSorted.map(d => `<option value="${esc(d.id)}">${esc(title(d.name))}</option>`).join("")}</select>
+        <button class="btn small" id="aAdd">Add</button>
+      </div>
+    </div>
+    <p class="sub">Visits from your calendar are changed in the calendar review.</p>
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = () => { closeSheet(); render(); };
+  $("sheet").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const [d,id,w] = b.dataset.rm.split("|"); S.cp = S.cp.filter(x => !(x.date === d && x.id === id && x.who === w)); save(); openCounterparts(); });
+  $("aAdd").onclick = () => { const v = {date:$("aDay").value, id:$("aDoc").value, who:$("aWho").value, src:"manual", sure:true}; if (!S.cp.some(x => x.date===v.date && x.id===v.id && x.who===v.who)) S.cp.push(v); save(); openCounterparts(); };
+}
+
+/* screenshots read on the iPad */
+function simdSupported(){ try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; } }
+const CORE_FILE = simdSupported() ? "tesseract-core-simd-lstm.wasm.js" : "tesseract-core-lstm.wasm.js";
+async function vendorBlob(url){
+  let res = null;
+  try { const c = await caches.open(VCACHE); res = await c.match(url);
+        if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw new Error("download failed"); await c.put(url, net.clone()); res = net; } }
+  catch(e){ if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw e; res = net; } }
+  return URL.createObjectURL(await res.blob());
+}
+let ocrWorker = null;
+async function getWorker(onProgress){
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract){ const src = await vendorBlob(TJS+"tesseract.min.js"); await new Promise((res,rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("engine")); document.head.appendChild(s); }); }
+  const workerPath = await vendorBlob(TJS+"worker.min.js"); const corePath = (await vendorBlob(CORE+CORE_FILE)) + "#core.js";
+  ocrWorker = await Tesseract.createWorker("eng", 1, {workerPath, corePath, langPath:LANG, workerBlobURL:false, cacheMethod:"write", logger: m => onProgress && onProgress(m)});
+  await ocrWorker.setParameters({tessedit_pageseg_mode:"11"});
+  return ocrWorker;
+}
+$("shotBtn").onclick = () => {
+  derive();
+  if (!D.docs.length){ toast("Load your remaining calls first, so names can be recognized"); return; }
+  const people = S.settings.counterparts.filter(Boolean);
+  let who = people[0];
+  openSheet(`<h2>Add a schedule screenshot</h2>
+    <p>Whose schedule is it? Pick their screenshots for ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}. </p>
+    <div class="seg" role="group" aria-label="Whose schedule">${people.map((p,i) => `<button data-who="${esc(p)}" aria-pressed="${i===0}">${esc(p)}</button>`).join("")}</div>
+    <div style="margin-top:12px"><label class="btn primary" for="shotF">Choose screenshots</label><input type="file" id="shotF" accept="image/*" multiple hidden></div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="sub" id="oStat" aria-live="polite" style="margin-top:8px"></div>
+    <div class="prog" id="oProg" hidden><i id="oBar"></i></div>
+    <div id="oRes"></div>
+    <div class="foot" id="oFoot"><button class="btn" id="closeS">Cancel</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-who]").forEach(b => b.onclick = () => { who = b.dataset.who; $("sheet").querySelectorAll("[data-who]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+  $("shotF").onchange = e => readShots([...e.target.files], () => who);
+};
+async function readShots(files, whoFn){
+  if (!files.length) return;
+  busy = true; ocrCtl = new AbortController(); const sig = ocrCtl.signal;
+  $("thumbs").innerHTML = files.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+  $("oProg").hidden = false; const bar = p => $("oBar").style.width = Math.round(p*100) + "%";
+  let worker;
+  try {
+    $("oStat").textContent = "Getting the reader ready…";
+    worker = await getWorker(m => { if (m.status === "recognizing text") bar(m.progress||0); else if (m.progress != null) { $("oStat").textContent = "Getting the reader ready… (the first time needs internet)"; bar(m.progress); } });
+  } catch(e){ busy = false; $("oProg").hidden = true; $("oStat").textContent = navigator.onLine ? "The reader couldn't start. Close the app fully and open it again." : "The first time, your device needs internet to set up the reader. After that it works offline."; return; }
+  const byDate = {}; D.days.forEach(d => byDate[d] = new Map()); let layouts = [];
+  for (let i=0;i<files.length && !sig.aborted;i++){
+    $("oStat").textContent = `Reading screenshot ${i+1} of ${files.length}…`; bar(0);
+    try {
+      const { data } = await worker.recognize(files[i], {}, {tsv:true, text:true});
+      const words = L.parseTSV(data.tsv || "");
+      const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
+      for (const d in r.byDate) r.byDate[d].forEach(x => { const prev = byDate[d].get(x.id); if (!prev || x.sure) byDate[d].set(x.id, x); });
+    } catch(e){ layouts.push("error"); }
+  }
+  busy = false; $("oProg").hidden = true;
+  const found = D.days.flatMap(d => [...byDate[d].values()].map(x => ({date:d, ...x})));
+  if (layouts.every(l => l === "none" || l === "error")){
+    $("oStat").textContent = "No weekdays or dates were found in those screenshots. Make sure the day names or dates for this week are visible, or add visits by hand in Review.";
+    return;
+  }
+  $("oStat").textContent = found.length ? `Found ${found.length} visit${found.length>1?"s":""}. Untick any that are wrong.` : "No doctors from your list were found in those screenshots.";
+  $("oRes").innerHTML = D.days.map(d => { const v = found.filter(x => x.date === d); return v.length ? `<div class="cpday"><b>${fmtDay(d)}</b><div class="chips">${v.map(x => `<label class="chip${x.sure?"":" maybe"}" style="padding-right:10px"><input type="checkbox" checked data-v="${esc(d+"|"+x.id+"|"+(x.sure?1:0))}"> ${esc(docName(x.id))}${x.sure?"":"?"}</label>`).join("")}</div></div>` : ""; }).join("");
+  $("oFoot").innerHTML = `<button class="btn" id="closeS">Cancel</button><button class="btn primary" id="oSave" ${found.length?"":"disabled"}>Add to this week</button>`;
+  $("closeS").onclick = closeSheet;
+  $("oSave").onclick = () => {
+    const who = whoFn();
+    // replace earlier screenshot visits for this person this week
+    S.cp = S.cp.filter(x => !(x.who === who && x.src === "screenshot" && D.days.includes(x.date)));
+    $("sheet").querySelectorAll("[data-v]:checked").forEach(c => { const [date,id,s] = c.dataset.v.split("|"); S.cp.push({date, id, who, src:"screenshot", sure: s === "1"}); });
+    save(); closeSheet(); render(); toast(`Saved ${who}'s week`);
+  };
+}
+
+/* ---------- add a doctor by hand ---------- */
+function openAdd(iso){
+  const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
+  const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  const row = c => { const o = D.offices[c.office]; const m = L.miles(c.near);
+    const warn = [c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : ""].filter(Boolean);
+    return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
+      <div class="sub">${esc(o.address)}, ${esc(o.city)}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
+      <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
+      ${warn.length ? `<div class="sub" style="color:var(--red-ink)">${esc(warn.join(" · "))}</div>` : ""}</div>
+      <div class="actions">${c.am || !c.inToday ? `<button class="btn small primary" data-addslot="${c.id}|am">Morning</button>` : ""}${c.pm || !c.inToday ? `<button class="btn small primary" data-addslot="${c.id}|pm">Afternoon</button>` : ""}</div></div>`; };
+  const same = all.filter(c => c.sameOffice && c.inToday), inDay = all.filter(c => !c.sameOffice && c.inToday).slice(0, 15), rest = all.filter(c => !c.inToday || (!c.sameOffice && !inDay.includes(c)));
+  openSheet(`<h2>Add a doctor on ${dayName}</h2>
+    <p>Your own pick, so the usual limits don't apply. Anything unusual is noted in red.</p>
+    <input type="search" id="addQ" placeholder="Search any doctor or city" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;min-height:44px;margin-top:8px">
+    <div id="addList">
+      ${same.length ? `<p style="margin-top:14px"><b>At offices you're visiting today</b></p><div class="cands">${same.map(row).join("")}</div>` : ""}
+      ${inDay.length ? `<p style="margin-top:14px"><b>In today nearby</b></p><div class="cands">${inDay.map(row).join("")}</div>` : ""}
+      <div id="addRest" hidden><p style="margin-top:14px"><b>Everyone else</b></p><div class="cands">${rest.map(row).join("")}</div></div>
+    </div>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("addQ").oninput = () => { const q = $("addQ").value.trim().toLowerCase(); $("addRest").hidden = !q;
+    $("addList").querySelectorAll(".cand").forEach(el => el.hidden = !!q && !el.dataset.name.includes(q)); };
+  $("sheet").querySelectorAll("[data-addslot]").forEach(b => b.onclick = () => {
+    const [id, slot] = b.dataset.addslot.split("|"); addWithConfirm(iso, all.find(x => x.id === id), slot, () => openAdd(iso));
+  });
+}
+
+function addWithConfirm(iso, c, slot, back){
+  const W = currentPlan(); const id = c.id;
+  const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  const slotName = slot === "am" ? "morning" : "afternoon";
+  const doAdd = () => { L.addManual(C, W.plan, iso, c, slot); save(); closeSheet(); render(); toast(`Added ${docName(id)} to ${dayName} ${slotName}`); };
+  const reasons = [];
+  if (!c.inToday) reasons.push(`<b>${esc(docName(id))} isn't usually in on ${dayName}.</b>`);
+  else if (!(slot === "am" ? c.am : c.pm)) reasons.push(`<b>${esc(docName(id))} is usually only in the ${slot === "am" ? "afternoon" : "morning"} on ${dayName}.</b>`);
+  if (c.elsewhere) reasons.push(`They're already planned for ${L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"})} this week.`);
+  if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
+  if (!reasons.length) return doAdd();
+  const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
+  const when = offs.map(o => `<li><span>${esc(o.address)}, ${esc(o.city)}</span><span>${esc(o.availText || "No days listed")}</span></li>`).join("");
+  openSheet(`<h2>Add ${esc(docName(id))}?</h2>
+    ${reasons.map(r => `<p style="color:var(--ink)">${r}</p>`).join("")}
+    <p style="margin-top:12px"><b>When they're usually in</b></p><ul class="ulist">${when}</ul>
+    <p class="sub" style="margin-top:12px">If you've checked with the office and they'll be there, add them anyway.</p>
+    <div class="foot"><button class="btn" id="noAdd">Don't add</button><button class="btn primary" id="yesAdd">Add anyway (${slotName})</button></div>`);
+  $("noAdd").onclick = back;
+  $("yesAdd").onclick = doAdd;
+}
+
+/* ---------- who's in: a day + a city ---------- */
+let who = {iso:null, city:"", near:false};
+$("whoBtn").onclick = () => openWho();
+function openWho(){
+  derive();
+  if (!S.sheet || !D.docs.length){ toast("Load your remaining calls and spreadsheet first"); return; }
+  const W = currentPlan(); if (W) C = L.buildContext(contextInput());
+  if (!who.iso || !D.days.includes(who.iso)) who.iso = D.days.includes(todayISO()) ? todayISO() : D.days[0];
+  const cities = [...new Set(D.offices.map(o => o.city).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  if (!who.city){ const p = W && W.plan.days[who.iso] && W.plan.days[who.iso].stops.find(s => s.office != null); who.city = p ? D.offices[p.office].city : cities[0]; }
+  const iso = who.iso, cityC = L.cityCoords(who.city);
+  const planned = {}; if (W) for (const k in W.plan.days) W.plan.days[k].stops.forEach(s => planned[s.id] = k);
+  const rows = [];
+  for (const d of D.docs){
+    let best = null;
+    for (const i of (D.match.byDoc[d.id] || [])){
+      const o = D.offices[i]; const a = L.availableOn(o, iso); if (!a) continue;
+      const inCity = L.cityKey(o.city) === L.cityKey(who.city);
+      const dist = cityC && o.coords ? L.km(cityC, o.coords) : (inCity ? 0 : 999);
+      if (!inCity && !(who.near && dist <= 16)) continue;
+      if (!best || dist < best.dist) best = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am:a.am, pm:a.pm, inToday:true, dist, doc:d,
+        elsewhere: planned[d.id] && planned[d.id] !== iso ? planned[d.id] : null, onRoute: planned[d.id] === iso,
+        counterpart: D.cp.some(v => v.date === iso && v.id === d.id)};
+    }
+    if (best) rows.push(best);
+  }
+  rows.sort((a,b) => (a.onRoute - b.onRoute) || (b.doc.score - a.doc.score));
+  const canAdd = W && W.plan.days[iso];
+  const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  const row = c => { const o = D.offices[c.office];
+    const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
+    const flags = [c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""}</div>
+      <div class="sub">${esc(o.address)}, ${esc(o.city)}${who.near && c.dist >= 1 ? " · about " + Math.round(L.miles(c.dist)) + " mi" : ""}</div>
+      <div class="sub">${when} · ${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
+      ${flags.length ? `<div class="sub" style="color:var(--red-ink)">${esc(flags.join(" · "))}</div>` : ""}</div>
+      ${canAdd && !c.onRoute ? `<div class="actions">${c.am ? `<button class="btn small primary" data-wadd="${c.id}|am">Morning</button>` : ""}${c.pm ? `<button class="btn small primary" data-wadd="${c.id}|pm">Afternoon</button>` : ""}</div>` : ""}</div>`; };
+  openSheet(`<h2>Who's in</h2>
+    <div class="seg" role="group" aria-label="Day" style="margin-top:8px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div>
+    <div class="actions" style="margin-top:10px;align-items:center">
+      <select id="wCity" aria-label="City" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:44px">${cities.map(c => `<option${c===who.city?" selected":""}>${esc(c)}</option>`).join("")}</select>
+      <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wNear" ${who.near?"checked":""}> Include nearby cities</label>
+    </div>
+    <p style="margin-top:12px"><b>${rows.length} doctor${rows.length===1?"":"s"} with calls left in on ${dayName}</b></p>
+    ${!canAdd && rows.length ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add doctors to a day."}</p>` : ""}
+    <div class="cands">${rows.map(row).join("") || `<p class="sub">No one on your list is in there that day.</p>`}</div>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { who.iso = b.dataset.wday; openWho(); });
+  $("wCity").onchange = e => { who.city = e.target.value; openWho(); };
+  $("wNear").onchange = e => { who.near = e.target.checked; openWho(); };
+  $("sheet").querySelectorAll("[data-wadd]").forEach(b => b.onclick = () => { const [id, slot] = b.dataset.wadd.split("|"); addWithConfirm(iso, rows.find(r => r.id === id), slot, openWho); });
+}
+
+/* ---------- notes & office contact ---------- */
+function openNotes(iso, i){
+  const W = currentPlan(); const s = W.plan.days[iso].stops[i]; const o = s.office != null ? D.offices[s.office] : null;
+  const c = S.contacts[s.addrKey] || {};
+  const sheetPhones = o && o.notes ? (o.notes.match(PHONE) || []) : [];
+  openSheet(`<h2>${esc(docName(s.id))}</h2>
+    ${o ? `<p>${esc(o.address)}, ${esc(o.city)}${o.org ? " · " + esc(o.org) : ""}</p>` : ""}
+    <label class="field" for="nDoc">Your notes about this doctor<textarea id="nDoc" placeholder="Prefers Tuesdays, samples low, lunch booked 10/21…">${esc(S.notes[s.id]||"")}</textarea></label>
+    <div class="field">Office contact for lunches and coffees<span class="sub">Saved for this office, so it shows for every doctor here.</span>
+      <input id="nName" placeholder="Name, e.g. Megan (front desk)" value="${esc(c.name||"")}" autocomplete="off">
+      <input id="nPhone" type="tel" inputmode="tel" placeholder="Phone" value="${esc(c.phone||"")}" autocomplete="off">
+      <input id="nNote" placeholder="e.g. books lunches 2 weeks out" value="${esc(c.note||"")}" autocomplete="off">
+    </div>
+    ${sheetPhones.length ? `<p class="sub">From your spreadsheet: ${sheetPhones.map(p => `<button class="btn small ghost" data-usephone="${esc(p)}">Use ${esc(p)}</button>`).join(" ")}</p>` : ""}
+    <div class="foot"><button class="btn" id="noS">Cancel</button><button class="btn primary" id="okS">Save</button></div>`);
+  $("noS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-usephone]").forEach(b => b.onclick = () => { $("nPhone").value = b.dataset.usephone; });
+  $("okS").onclick = () => {
+    const n = $("nDoc").value.trim(); if (n) S.notes[s.id] = n; else delete S.notes[s.id];
+    const cc = {name:$("nName").value.trim(), phone:$("nPhone").value.trim(), note:$("nNote").value.trim()};
+    if (cc.name || cc.phone || cc.note) S.contacts[s.addrKey] = cc; else delete S.contacts[s.addrKey];
+    save(); closeSheet(); render(); toast("Saved");
+  };
+}
+
+/* ---------- share my week ---------- */
+function weekText(){
+  const W = currentPlan(); if (!W) return "";
+  const lines = [`My week, ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}` + (D.zone ? ` (${D.zone.name})` : "")];
+  for (const iso of Object.keys(W.plan.days).sort()){
+    const d = W.plan.days[iso]; if (!d.stops.length) continue;
+    lines.push("", L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"}) + (d.area ? " · " + d.area : ""));
+    for (const slot of ["am","pm"]){
+      const st = d.stops.filter(s => s.slot === slot); if (!st.length) continue;
+      lines.push((slot === "am" ? "Morning: " : "Afternoon: ") + st.map(s => { const o = s.office != null ? D.offices[s.office] : null; return docName(s.id) + (o && o.city ? " (" + o.city + ")" : ""); }).join(", "));
+    }
+  }
+  return lines.join("\n");
+}
+async function shareWeek(){
+  const text = weekText(); if (!text) return;
+  try { if (navigator.share){ await navigator.share({text}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(text); toast("Copied. Paste it into Messages."); return; } catch(e){}
+  openSheet(`<h2>Share my week</h2><p>Select the text and copy it.</p><textarea readonly style="min-height:260px">${esc(text)}</textarea><div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = closeSheet;
+}
+
+/* ---------- backup of router data (spreadsheet, notes, contacts, settings) ---------- */
+async function saveRouterBackup(){
+  const name = "week-router-backup-" + todayISO() + ".json";
+  const blob = new Blob([JSON.stringify(S)], {type:"application/json"});
+  try { const f = new File([blob], name, {type:"application/json"}); if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- settings ---------- */
+$("settingsBtn").onclick = () => openSettings();
+function openSettings(){
+  const cities = Object.keys(L.CITIES).sort();
+  const sheetCities = [...new Set((S.sheet ? S.sheet.offices : []).map(o => L.cityKey(o.city)).filter(Boolean))].sort();
+  const wd = ["Mon","Tue","Wed","Thu","Fri"];
+  const st = S.settings;
+  const curZone = zoneIndexForWeek(weekMon);
+  openSheet(`<h2>Settings</h2>
+    <div class="field">How you plan your weeks
+      <div class="seg" role="group" aria-label="Planning style"><button data-mode="area" aria-pressed="${st.mode!=="zones"}">Anywhere, grouped by area</button><button data-mode="zones" aria-pressed="${st.mode==="zones"}">By zones</button></div>
+    </div>
+    <div id="zoneBox" ${st.mode==="zones"?"":"hidden"}>
+      <p class="sub">Each week stays inside one zone, and the zones take turns week by week. Tap the cities in each zone${sheetCities.length ? "" : " (load your spreadsheet first to see its cities)"}. ZIP codes are optional.</p>
+      ${st.zones.map((z,zi) => `<div class="zone">
+        <div class="actions"><input data-zname="${zi}" value="${esc(z.name)}" aria-label="Zone name" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">${st.zones.length > 1 ? `<button class="btn small ghost" data-zdel="${zi}">Remove</button>` : ""}</div>
+        <div class="chips" style="margin-top:8px">${sheetCities.map(c => `<button data-zc="${zi}|${c}" aria-pressed="${z.cities.includes(c)}">${esc(title(c))}</button>`).join("")}</div>
+        <input data-zzip="${zi}" placeholder="ZIP codes, e.g. 94596, 94598" value="${esc((z.zips||[]).join(", "))}" inputmode="numeric" style="margin-top:8px;width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">
+      </div>`).join("")}
+      <div class="actions" style="margin-top:10px">${st.zones.length < 4 ? `<button class="btn small" id="zAdd">Add a zone</button>` : ""}
+        <label class="sub" for="zNow" style="display:flex;align-items:center;gap:6px">This week (${fmtShort(D.days[0])}) is <select id="zNow">${st.zones.map((z,i) => `<option value="${i}"${i===curZone?" selected":""}>${esc(z.name)}</option>`).join("")}</select></label>
+      </div>
+    </div>
+    <label class="field" for="sHome">Start and end each day in<select id="sHome">${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
+    <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
+    <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
+    <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
+    <label class="field" for="sCp">Teammates in your territory<span class="sub">Separate names with commas. Used to read their screenshots and calendar events.</span><input id="sCp" value="${esc(st.counterparts.join(", "))}"></label>
+    <div class="field">Backup<span class="sub">Saves your spreadsheet, notes, office contacts and settings to a file.</span>
+      <div class="actions"><button class="btn small" id="bSave">Save backup</button><label class="btn small" for="bLoad">Restore backup</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  const sheet = $("sheet");
+  const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
+  sheet.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; pressSeg("data-mode", st.mode); $("zoneBox").hidden = st.mode !== "zones"; });
+  sheet.querySelectorAll("[data-ar]").forEach(b => b.onclick = () => { st.addrRule = b.dataset.ar; pressSeg("data-ar", st.addrRule); });
+  sheet.querySelectorAll("[data-wd]").forEach(b => b.onclick = () => { const v = +b.dataset.wd; const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); st.workDays = on ? [...new Set([...st.workDays, v])].sort() : st.workDays.filter(x => x !== v); });
+  sheet.querySelectorAll("[data-zc]").forEach(b => b.onclick = () => { const [zi, c] = b.dataset.zc.split("|"); const z = st.zones[+zi]; const on = !z.cities.includes(c); z.cities = on ? [...z.cities, c] : z.cities.filter(x => x !== c); b.setAttribute("aria-pressed", String(on)); });
+  const keepInputs = () => {
+    sheet.querySelectorAll("[data-zname]").forEach(i => st.zones[+i.dataset.zname].name = i.value.trim() || ("Zone " + "ABCD"[+i.dataset.zname]));
+    sheet.querySelectorAll("[data-zzip]").forEach(i => st.zones[+i.dataset.zzip].zips = (i.value.match(/\d{5}/g) || []));
+  };
+  sheet.querySelectorAll("[data-zdel]").forEach(b => b.onclick = () => { keepInputs(); st.zones.splice(+b.dataset.zdel, 1); S.zoneOverride = {}; save(); openSettings(); });
+  if ($("zAdd")) $("zAdd").onclick = () => { keepInputs(); st.zones.push({name:"Zone " + "ABCD"[st.zones.length], cities:[], zips:[]}); save(); openSettings(); };
+  $("bSave").onclick = saveRouterBackup;
+  $("bLoad").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const s = JSON.parse(await f.text()); if (!s.settings) throw 0; localStorage.setItem(KEY, JSON.stringify(s)); location.reload(); } catch(_){ toast("That file isn't a Week Router backup."); } };
+  $("closeS").onclick = () => {
+    keepInputs();
+    st.home = $("sHome").value; st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
+    st.counterparts = $("sCp").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6);
+    if (!st.counterparts.length) st.counterparts = ["Ann","Chase"];
+    if ($("zNow")){ const want = +$("zNow").value; if (want !== zoneIndexForWeek(weekMon)){ delete S.zoneOverride[weekMon]; st.zoneAnchor = {mon:weekMon, idx:want}; } else if (!st.zoneAnchor) st.zoneAnchor = {mon:weekMon, idx:want}; }
+    save(); closeSheet(); render();
+  };
+}
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+render();
+</script>
+</body>
+</html>
