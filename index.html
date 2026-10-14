@@ -43,7 +43,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .today .date{font-family:var(--f-disp);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em}
 .today .sub{font-size:13px;color:var(--muted)}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center;color:inherit;text-decoration:none}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .btn.ghost{background:transparent}
 .btn:disabled{opacity:.5}
@@ -148,7 +148,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
         <div class="sub" id="planLbl"></div>
       </div>
       <div class="actions">
-        <button class="btn primary" id="importBtn">Load from screenshots</button>
+        <button class="btn primary" id="importBtn">Load screenshots</button>
         <button class="btn" id="dayBtn">Today's calls</button>
         <button class="btn" id="exportBtn">Export for routing</button>
         <a class="btn" href="route/">Plan my week</a>
@@ -172,7 +172,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 
   <div class="install" id="installTip" hidden>
     <b>Put this on your Home Screen</b>
-    Tap the Share button <span aria-hidden="true">(square with an arrow)</span>, then <b style="display:inline">Add to Home Screen</b>. Open it from that icon from now on. It works with no internet, and everything stays on this iPad.
+    Tap Share, then <b style="display:inline">Add to Home Screen</b>, and open it from that icon from now on.
   </div>
 
   <div class="tools">
@@ -273,9 +273,8 @@ function renderHeader(){
 
 function renderList(){
   if (!state.doctors.length){
-    $("list").innerHTML = `<div class="empty"><h2>Load your call plan</h2>
-      <p>Take screenshots of your Call Plan report (every page, top to bottom), then tap below and pick them from Photos. The names and C / A / R numbers are read right here on the iPad. Nothing is sent anywhere.</p>
-      <button class="btn primary" id="emptyImport">Load from screenshots</button>
+    $("list").innerHTML = `<div class="empty">
+      <button class="btn primary" id="emptyImport">Load screenshots</button>
       <button class="btn ghost" id="emptyRestore">Restore a backup file</button></div>`;
     $("emptyImport").onclick = () => $("importBtn").click();
     $("emptyRestore").onclick = () => $("moreBtn").click();
@@ -376,7 +375,7 @@ $("dayBtn").onclick = () => {
 $("moreBtn").onclick = async () => {
   const ready = await ocrReady();
   openSheet(`<h2>Backup</h2>
-    <p>Your plan and call dates are saved only on this iPad. Save a backup file now and then (to Files, or AirDrop it to your own phone) so nothing is lost if the app is deleted.</p>
+    <p>Save a backup file now and then so nothing is lost if the app is deleted.</p>
     <div class="foot" style="justify-content:flex-start">
       <button class="btn primary" id="saveB" ${state.doctors.length?"":"disabled"}>Save backup file</button>
       <label class="btn" for="restoreF">Restore from backup</label>
@@ -442,7 +441,7 @@ function openExport(){
   const {rows, weeksLeft, end} = routingRows();
   const R = rows.reduce((n,r)=>n+r.remaining,0);
   openSheet(`<h2>Export for routing</h2>
-    <p>Saves every doctor who still has calls left, most behind first. Use it to plan the week's route. The file goes to Files or AirDrop only, never online.</p>
+    <p>Saves every doctor who still has calls left, most behind first.</p>
     <div class="logday" style="margin-top:12px">
       <label for="planEnd">Call plan ends on</label>
       <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
@@ -583,12 +582,11 @@ async function getWorker(onProgress){
 }
 
 $("importBtn").onclick = () => {
-  openSheet(`<h2>Load from screenshots</h2>
-    <p>Pick the screenshots of your Call Plan report: every page, top to bottom, including the last page with the “total” row. Screenshots taken with the iPad’s buttons read best. They're read here on the iPad and never leave it.</p>
+  openSheet(`<h2>Load screenshots</h2>
+    <p>Pick every page of your call plan, including the last one with the total row.</p>
     <div class="drop">
       <label class="btn primary" for="shotF">Choose screenshots</label>
       <input type="file" id="shotF" accept="image/*" multiple hidden>
-      <p class="small" style="margin-top:8px">You can pick several at once from Photos.</p>
     </div>
     <div class="thumbs" id="thumbs"></div>
     <div class="status" id="iStat" aria-live="polite"></div>
