@@ -54,6 +54,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:8px}
 .card h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
+.info{margin-left:auto;width:28px;height:28px;min-width:28px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--accent);font:italic 700 15px/1 Georgia,"Times New Roman",serif;display:grid;place-items:center;padding:0}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
 .dot.ok{background:var(--grn-edge)} .dot.warn{background:var(--yel-edge)}
 .card p{margin:0;font-size:14px;color:var(--muted)}
@@ -166,16 +167,16 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
 
   <section class="inputs" aria-label="This week's files">
     <div class="card">
-      <h3><span class="dot" id="d1"></span>Remaining calls</h3>
+      <h3><span class="dot" id="d1"></span>Remaining calls<button class="info" data-info="calls" aria-label="About remaining calls">i</button></h3>
       <p id="s1"></p>
       <div class="actions">
         <button class="btn small" id="useTracker" hidden>Use my Call Tracker</button>
-        <label class="btn small" for="f1">Load export file</label>
+        <label class="btn small" for="f1">Load from a file instead</label>
         <input type="file" id="f1" accept=".json,.csv,application/json,text/csv,text/plain" hidden>
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d2"></span>Territory spreadsheet</h3>
+      <h3><span class="dot" id="d2"></span>Territory spreadsheet<button class="info" data-info="sheet" aria-label="About the territory spreadsheet">i</button></h3>
       <p id="s2"></p>
       <div class="actions">
         <label class="btn small" for="f2">Load spreadsheet</label>
@@ -184,7 +185,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d3"></span><span id="cpTitle">Ann &amp; Chase this week</span></h3>
+      <h3><span class="dot" id="d3"></span><span id="cpTitle">Counterparts this week</span><button class="info" data-info="cp" aria-label="About counterparts">i</button></h3>
       <p id="s3"></p>
       <div class="actions">
         <button class="btn small" id="shotBtn">Add schedule screenshots</button>
@@ -192,7 +193,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d4"></span>Calendar (.ics)</h3>
+      <h3><span class="dot" id="d4"></span>Calendar (.ics)<button class="info" data-info="cal" aria-label="About the calendar file">i</button></h3>
       <p id="s4"></p>
       <div class="actions">
         <label class="btn small" for="f4">Load .ics file</label>
@@ -227,7 +228,7 @@ const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUp
 /* ---------- state (kept only on this iPad) ---------- */
 let S = load() || {};
 S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, notes:{}, contacts:{}, zoneOverride:{}}, S);
-S.settings = Object.assign({home:"concord", perDay:6, workDays:[1,2,3,4,5], counterparts:["Ann","Chase"], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null}, S.settings||{});
+S.settings = Object.assign({home:"concord", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null}, S.settings||{});
 function load(){
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (!s) return null;
     if (s.ics) s.ics.events.forEach(e => { ["start","end","recurrenceId"].forEach(k => { if (e[k]) e[k].date = new Date(e[k].date); }); e.exdates = (e.exdates||[]).map(d => new Date(d)); });
@@ -282,25 +283,27 @@ function render(){
   derive();
   const end = D.days[4];
   $("weekLbl").textContent = fmtShort(D.days[0]) + " – " + (L.fromISO(end).getMonth() === L.fromISO(D.days[0]).getMonth() ? L.fromISO(end).getDate() : fmtShort(end));
-  $("cpTitle").textContent = S.settings.counterparts.filter(Boolean).join(" & ") + " this week";
   // inputs
   const trackerData = readTracker();
   $("useTracker").hidden = !trackerData;
   $("useTracker").textContent = S.docs && S.docs.src === "tracker" ? "Refresh from Call Tracker" : "Use my Call Tracker";
-  setCard(1, S.docs ? "ok" : "", S.docs ? `${S.docs.list.length} doctors with calls left · ${S.docs.list.reduce((n,d)=>n+d.remaining,0)} calls · from ${S.docs.label}, ${fmtShort(S.docs.at.slice(0,10))}` : (trackerData ? "Tap “Use my Call Tracker” to pull in your numbers." : "Load the remaining-calls file you exported from the Call Tracker."));
+  setCard(1, S.docs ? "ok" : "", S.docs ? `${S.docs.list.length} doctors with calls left · ${S.docs.list.reduce((n,d)=>n+d.remaining,0)} calls · ` + (S.docs.src === "tracker" ? "from your Call Tracker, always up to date" : `from ${S.docs.label}, ${fmtShort(S.docs.at.slice(0,10))}`) : (trackerData ? "Tap “Use my Call Tracker” to pull in your numbers." : "Load your call plan in the Call Tracker first, then come back here."));
   if (S.sheet){
     const found = D.docs.length ? D.docs.length - D.match.unmatched.length : 0;
-    setCard(2, D.match.unmatched.length ? "warn" : "ok", `${S.sheet.offices.length} offices · ${S.sheet.name}` + (D.docs.length ? ` · ${found} of ${D.docs.length} doctors found` : ""));
+    const unsure = D.docs.filter(d => D.match.how[d.id] === "close").length, look = D.match.unmatched.length + unsure;
+    setCard(2, look ? "warn" : "ok", `${S.sheet.offices.length} offices · ${S.sheet.name}` + (D.docs.length ? ` · ${found} of ${D.docs.length} doctors found.` + (look ? ` ${look} need a look: tap Check doctor matches.` : "") : ""));
   } else setCard(2, "", "Your Excel list of doctors, addresses and best days. You only need to load it again when it changes.");
   const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
-  setCard(3, D.cp.length ? "ok" : "", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${w}: ${n} visit${n>1?"s":""}`).join(" · ") + ". You won't be routed to these doctors on those days." : "Add their Sunday screenshots so you're never at the same doctor on the same day.");
+  setCard(3, D.cp.length ? "ok" : "", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${w}: ${n} visit${n>1?"s":""}`).join(" · ") + ". You won't be routed to these doctors on those days." : (cpNames().length ? `Add weekly schedule screenshots from ${cpList()} so you're never at the same doctor on the same day.` : "Add your counterparts' weekly schedule screenshots so you're never at the same doctor on the same day."));
   if (S.ics){
     const c = k => D.cal.filter(e => e.kind === k).length;
-    setCard(4, "ok", `${S.ics.name} · this week: ${c("busy")} busy time${c("busy")===1?"":"s"}, ${c("mine")} doctor visit${c("mine")===1?"":"s"} of yours, ${c("counterpart")} ${S.settings.counterparts.join("/")} visit${c("counterpart")===1?"":"s"}, ${c("ignore")} ignored`);
-  } else setCard(4, "", "Your calendar export. Meetings and time off are kept free, and Ann's and Chase's visits are avoided.");
+    setCard(4, "ok", `${S.ics.name} · this week: ${c("busy")} busy time${c("busy")===1?"":"s"}, ${c("mine")} doctor visit${c("mine")===1?"":"s"} of yours, ${c("counterpart")} counterpart visit${c("counterpart")===1?"":"s"}, ${c("ignore")} ignored`);
+  } else setCard(4, "", "Your calendar export. Meetings and time off are kept free, and counterparts' scheduled in-services are avoided.");
   $("buildBtn").disabled = !(S.docs && S.sheet);
   renderRoute();
 }
+const cpNames = () => S.settings.counterparts.filter(Boolean);
+const cpList = (joiner) => { const n = cpNames(); return n.length ? (n.length > 1 ? n.slice(0,-1).join(", ") + (joiner || " and ") + n[n.length-1] : n[0]) : "your counterparts"; };
 function setCard(n, st, txt){ $("d"+n).className = "dot " + st; $("s"+n).textContent = txt; }
 
 let C = null; // context for the current week's plan
@@ -489,7 +492,7 @@ function openSubstitute(iso, i){
   const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
   const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(o.address)}, ${esc(o.city)} · ${mi(c.near)}</div><div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
   openSheet(`<h2>Substitute for ${esc(docName(cur.id))}</h2>
-    <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, isn't at an office you're visiting this week, and isn't being seen by ${esc(S.settings.counterparts.join(" or "))} that day. Most behind and closest first.</p>
+    <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, isn't at an office you're visiting this week, and isn't being seen by ${esc(cpList(" or "))} that day. Most behind and closest first.</p>
     ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
     ${sameL.length ? `<p style="margin-top:14px"><b>Also at this office today</b></p><div class="cands">${sameL.map((c,j) => card(c,j)).join("")}</div>` : ""}
     ${nearL.length > sameL.length ? `<p style="margin-top:14px"><b>${sameL.length ? "Nearby" : "Best fits"}</b></p><div class="cands">${nearL.slice(sameL.length).map((c,j) => card(c, sameL.length + j)).join("")}</div>` : (!sameL.length && farL.length ? `<p><b>No one nearby fits.</b></p>` : "")}
@@ -609,11 +612,10 @@ $("calBtn").onclick = () => openCalendar();
 function openCalendar(){
   derive();
   if (!S.ics){ toast("Load your .ics file first"); return; }
-  const who = S.settings.counterparts.filter(Boolean).join("/");
-  const kinds = [["busy","Blocks my time"],["mine","My doctor visit"],["counterpart",who+" visit"],["ignore","Ignore"]];
+  const kinds = [["busy","Blocks my time"],["mine","My doctor visit"],["counterpart","Counterpart visit"],["ignore","Ignore"]];
   const ev = D.cal;
   openSheet(`<h2>Calendar this week</h2>
-    <p>Each event is sorted automatically. Change any that are wrong: <b>Blocks my time</b> keeps that time free, <b>My doctor visit</b> puts that doctor in your route, <b>${esc(who)} visit</b> keeps you away from that doctor that day.</p>
+    <p>Each event is sorted automatically. Change any that are wrong: <b>Blocks my time</b> keeps that time free, <b>My doctor visit</b> puts that doctor in your route, <b>Counterpart visit</b> keeps you away from that doctor that day.${cpNames().length ? "" : " Add your counterparts' names in Settings so their events are spotted automatically."}</p>
     ${ev.length ? `<ul class="list">${ev.map((e,i) => `<li><div class="grow"><b>${esc(e.summary || "(no title)")}</b><div class="sub">${L.fromISO(L.isoDay(e.start)).toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"})} · ${e.allDay ? "all day" : e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + "–" + e.end.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}${e.docs.length ? " · " + e.docs.map(x => docName(x.id) + (x.sure ? "" : "?")).join(", ") : ""}</div></div>
       <select data-k="${i}" aria-label="What this event is">${kinds.map(([k,l]) => `<option value="${k}"${e.kind===k?" selected":""}>${esc(l)}</option>`).join("")}</select></li>`).join("")}</ul>` : `<p>No events in ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}.</p>`}
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
@@ -625,9 +627,10 @@ function openCalendar(){
 $("cpBtn").onclick = () => openCounterparts();
 function openCounterparts(){
   derive();
-  const people = S.settings.counterparts.filter(Boolean);
+  const people = cpNames();
   const docsSorted = D.docs.slice().sort((a,b) => a.name.localeCompare(b.name));
-  openSheet(`<h2>${esc(people.join(" & "))} this week</h2>
+  if (!people.length){ needNames(openCounterparts); return; }
+  openSheet(`<h2>Counterparts this week</h2>
     <p>You won't be routed to a doctor on a day one of them is seeing that doctor. Dashed names are a best guess from a short or shared name; remove any that are wrong.</p>
     ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso); return `<div class="cpday"><b>${fmtDay(iso)}</b>${v.length ? `<div class="chips">${v.map(x => `<span class="chip${x.sure===false?" maybe":""}">${esc(x.who)}: ${esc(docName(x.id))}${x.sure===false?"?":""}${x.src === "calendar" ? ` <span class="sub">(calendar)</span>` : `<button aria-label="Remove" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}">×</button>`}</span>`).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
     <div class="field">Add one by hand
@@ -645,6 +648,37 @@ function openCounterparts(){
   $("aAdd").onclick = () => { const v = {date:$("aDay").value, id:$("aDoc").value, who:$("aWho").value, src:"manual", sure:true}; if (!S.cp.some(x => x.date===v.date && x.id===v.id && x.who===v.who)) S.cp.push(v); save(); openCounterparts(); };
 }
 
+const INFO = {
+  calls: ["Remaining calls", [
+    "Who still needs calls this cycle, and how far behind each doctor is. Doctors furthest behind are planned first.",
+    "<b>Use my Call Tracker</b> pulls this straight from your tracker and stays up to date as you log calls.",
+    "<b>Load from a file instead</b> is only for when your tracker is on a different device. Use the file from the tracker's Export for routing button."]],
+  sheet: ["Territory spreadsheet", [
+    "Your Excel list of doctors with their office address, city and the days (and morning or afternoon) they're in. Load it once, and again only when it changes.",
+    "<b>Check doctor matches:</b> your call plan lists full names (Aamir Faruqui) while your spreadsheet may use last names (Faruqui). The app pairs them up automatically. This screen shows anyone it couldn't pair or wasn't sure about, so you can pick the right name from your spreadsheet.",
+    "A doctor without a match can't be routed, because the app doesn't know where or when to find them."]],
+  cp: ["Counterparts this week", [
+    "The weekly schedules your counterparts send you, as screenshots. The app reads which doctors they're seeing on each day.",
+    "You won't be routed to a doctor on a day a counterpart is seeing them. Other days that week are fine.",
+    "<b>Review</b> shows what was read. Remove anything wrong, or add a visit by hand."]],
+  cal: ["Calendar (.ics)", [
+    "Your calendar exported as an .ics file. To get it onto your phone, email it to yourself, then press and hold the attachment in Mail and tap Save to Files.",
+    "Meetings shorten that day, and time off clears it. Doctor visits already on your calendar are kept in your route. Counterparts' scheduled in-services are avoided, the same as their screenshots.",
+    "<b>Review</b> shows how each event was sorted, and lets you change any that are wrong."]]
+};
+document.querySelector(".inputs").addEventListener("click", e => {
+  const b = e.target.closest("[data-info]"); if (!b) return;
+  const [t, ps] = INFO[b.dataset.info];
+  openSheet(`<h2>${t}</h2>${ps.map(p => `<p style="color:var(--ink)">${p}</p>`).join("")}<div class="foot"><button class="btn primary" id="closeS">Got it</button></div>`);
+  $("closeS").onclick = closeSheet;
+});
+function needNames(next){
+  openSheet(`<h2>Who are your counterparts?</h2><p>Type the first names of the people who share your territory, separated by commas. They're used to read their schedules and calendar events.</p>
+    <input id="cpIn" placeholder="e.g. Ann, Chase" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:44px;margin-top:8px" autocomplete="off">
+    <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="cpOk">Save</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("cpOk").onclick = () => { const n = $("cpIn").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6); if (!n.length){ $("cpIn").focus(); return; } S.settings.counterparts = n; save(); render(); next(); };
+}
 /* screenshots read on the iPad */
 function simdSupported(){ try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; } }
 const CORE_FILE = simdSupported() ? "tesseract-core-simd-lstm.wasm.js" : "tesseract-core-lstm.wasm.js";
@@ -667,7 +701,8 @@ async function getWorker(onProgress){
 $("shotBtn").onclick = () => {
   derive();
   if (!D.docs.length){ toast("Load your remaining calls first, so names can be recognized"); return; }
-  const people = S.settings.counterparts.filter(Boolean);
+  const people = cpNames();
+  if (!people.length){ needNames(() => $("shotBtn").click()); return; }
   let who = people[0];
   openSheet(`<h2>Add a schedule screenshot</h2>
     <p>Whose schedule is it? Pick their screenshots for ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}. </p>
@@ -908,7 +943,7 @@ function openSettings(){
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
     <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
-    <label class="field" for="sCp">Teammates in your territory<span class="sub">Separate names with commas. Used to read their screenshots and calendar events.</span><input id="sCp" value="${esc(st.counterparts.join(", "))}"></label>
+    <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Ann, Chase" value="${esc(st.counterparts.join(", "))}"></label>
     <div class="field">Backup<span class="sub">Saves your spreadsheet, notes, office contacts and settings to a file.</span>
       <div class="actions"><button class="btn small" id="bSave">Save backup</button><label class="btn small" for="bLoad">Restore backup</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
@@ -930,7 +965,6 @@ function openSettings(){
     keepInputs();
     st.home = $("sHome").value; st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
     st.counterparts = $("sCp").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6);
-    if (!st.counterparts.length) st.counterparts = ["Ann","Chase"];
     if ($("zNow")){ const want = +$("zNow").value; if (want !== zoneIndexForWeek(weekMon)){ delete S.zoneOverride[weekMon]; st.zoneAnchor = {mon:weekMon, idx:want}; } else if (!st.zoneAnchor) st.zoneAnchor = {mon:weekMon, idx:want}; }
     save(); closeSheet(); render();
   };

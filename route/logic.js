@@ -661,7 +661,7 @@ function explainUnscheduled(C, plan){
     else {
       const avDays = C.days.filter(iso => optionsFor(C, d.id, iso).length);
       if (!avDays.length) why = "Not in on the days you're working";
-      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = "Ann or Chase sees them on the only days they're in";
+      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = "A counterpart sees them on the only days they're in";
       else why = "Didn't fit this week's areas";
     }
     return {id:d.id, why};
