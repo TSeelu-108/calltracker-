@@ -98,35 +98,110 @@ function officeInZone(o, zone){
   if (o.zip && (zone.zips||[]).includes(o.zip)) return true;
   return (zone.cities||[]).includes(cityKey(o.city));
 }
-function officesFromRows(rows){
-  // rows: array of arrays (first row may be header somewhere in the first 6)
-  let hi = rows.findIndex((r,i) => i < 8 && r.some(c => /name|doctor|provider|physician/i.test(String(c||""))) && r.some(c => /address|street/i.test(String(c||""))));
-  if (hi < 0) throw new Error("Couldn't find the header row. The sheet needs columns named Name, Address, City and Availability (or Days).");
-  const H = rows[hi].map(c => String(c||"").trim());
-  const col = re => H.findIndex(h => re.test(h));
-  const cName = col(/^(name|doctor|provider|physician|hcp)/i), cCity = col(/city/i), cAvail = col(/avail|best time|days|schedule/i);
-  const cNotes = col(/note|contact/i), cOrg = col(/org|group|practice|clinic|company/i), cSpec = col(/special/i), cZip = col(/zip|postal/i);
-  const addrCols = H.map((h,i) => /address|street/i.test(h) ? i : -1).filter(i => i >= 0);
-  const missing = []; if (cName<0) missing.push("Name"); if (!addrCols.length) missing.push("Address"); if (cCity<0) missing.push("City"); if (cAvail<0) missing.push("Availability");
-  if (missing.length) throw new Error("The spreadsheet is missing a column for: " + missing.join(", ") + ".");
-  const body = rows.slice(hi+1);
+/* availability helpers: {days:{1:{am,pm}..5}, appt, nth:[]} */
+const ANYTIME = () => ({days:{1:{am:true,pm:true},2:{am:true,pm:true},3:{am:true,pm:true},4:{am:true,pm:true},5:{am:true,pm:true}}, appt:false, nth:[], unknown:true});
+const DAY_SHORT = ["","Mon","Tue","Wed","Thu","Fri"];
+function availText(av){
+  if (!av) return "";
+  if (av.unknown) return "Days not set";
+  const parts = [];
+  for (let d = 1; d <= 5; d++){ const x = av.days[d]; if (!x || !(x.am || x.pm)) continue; parts.push(DAY_SHORT[d] + (x.am && x.pm ? "" : x.am ? " AM" : " PM")); }
+  return (parts.join(", ") || "No days") + (av.appt ? " · appointment only" : "");
+}
+
+/* where the city is inside the address: "123 Main St, Ste 4, Walnut Creek, CA 94596" */
+function splitCity(address){
+  const s = String(address||"").replace(/\s+/g," ").trim(); if (!s) return {street:"", city:""};
+  const parts = s.split(",").map(x => x.trim()).filter(Boolean);
+  const stateZip = x => /^(ca|calif|california|usa|us|united states)?\.?\s*(\d{5}(-\d{4})?)?$/i.test(x) && x.length;
+  while (parts.length > 1 && stateZip(parts[parts.length-1])) parts.pop();
+  // "Walnut Creek CA 94596" as the last part
+  if (parts.length > 1){ const last = parts[parts.length-1].replace(/\s+(ca|calif|california)\.?(\s+\d{5}(-\d{4})?)?$/i,"").replace(/\s+\d{5}(-\d{4})?$/,"").trim();
+    if (last && !/\d/.test(last)) return {street: parts.slice(0,-1).join(", "), city: last}; }
+  // no commas: look for a known city name near the end
+  const k = " " + cityKey(s) + " "; let best = null;
+  for (const name in CITIES) if (k.includes(" " + name + " ") && (!best || name.length > best.length)) best = name;
+  if (best){ const i = s.toLowerCase().lastIndexOf(best); if (i > 0) return {street: s.slice(0, i).replace(/[,\s]+$/,""), city: s.slice(i, i + best.length)}; }
+  return {street:s, city:""};
+}
+
+/* Which column is which. Works out the header row and columns by their names. */
+const DAYCOL = /^(mon|tue|wed|thu|fri)[a-z]*\.?\s*(am|pm|a\.m\.|p\.m\.|morning|afternoon)?$/i;
+const HEADER_WORDS = /name|location|note|office|doctor|provider|physician|hcp|prescriber|address|street|city|town|avail|best time|days|schedule|hours|zip|postal|specialty|practice|clinic|group|^(mon|tue|wed|thu|fri)/i;
+function detectColumns(rows){
+  let hi = -1, best = 0;
+  for (let i = 0; i < Math.min(rows.length, 10); i++){
+    const r = rows[i] || []; const n = r.filter(c => HEADER_WORDS.test(String(c||"").trim()) && String(c||"").length < 40).length;
+    if (n > best){ best = n; hi = i; }
+  }
+  if (hi < 0 || best < 2) return {hi:-1, headers:[], map:{}, missing:["Name","Address"]};
+  const H = (rows[hi] || []).map(c => String(c||"").trim());
+  const col = (re, not) => H.findIndex(h => h && re.test(h) && !(not && not.test(h)));
+  const map = {};
+  map.first = col(/^first(\s*name)?$|^given/i);
+  map.last = col(/^(last|sur)\s*name$|^last$|^surname/i);
+  map.name = col(/^(name|doctor|provider|physician|hcp|prescriber|target|full\s*name|hcp\s*name|doctor\s*name|provider\s*name|physician\s*name)/i, /practice|office|org|clinic|group|first|last|account/i);
+  if (map.name < 0 && !(map.first >= 0 && map.last >= 0)) map.name = col(/name/i, /practice|office|org|clinic|group|first|last|account|street/i);
+  map.addr = H.map((h,i) => /address|street/i.test(h) && !/e-?mail|web/i.test(h) ? i : -1).filter(i => i >= 0);
+  if (!map.addr.length){ const l = col(/location|office/i, /name|manager|phone/i); if (l >= 0) map.addr = [l]; }
+  map.city = col(/city|town/i);
+  map.avail = col(/avail|best time|days|schedule|hours|when/i, DAYCOL);
+  map.dayCols = []; H.forEach((h,i) => { const m = h.match(DAYCOL); if (m) map.dayCols.push(i); });
+  if (map.dayCols.length < 2) map.dayCols = [];
+  map.notes = col(/note|contact|comment/i); map.org = col(/org|group|practice|clinic|company|account/i); map.spec = col(/special/i); map.zip = col(/zip|postal/i);
+  const missing = [];
+  if (map.name < 0 && !(map.first >= 0 && map.last >= 0)) missing.push("Name");
+  if (!map.addr.length && map.city < 0) missing.push("Address");
+  return {hi, headers:H, map, missing};
+}
+const FALSEY = /^(no|n|-+|—|0|none|off|out|closed|false|x?\s*no|n\/a|na)$/i;
+function dayCell(v, slot){
+  v = String(v ?? "").trim(); if (!v || FALSEY.test(v)) return null;
+  if (slot) return {am: slot === "am", pm: slot === "pm"};
+  if (/all\s*day|both|full/i.test(v)) return {am:true, pm:true};
+  const a = parseAvailability("Mon " + v.replace(/morning/i,"AM").replace(/afternoon/i,"PM"));
+  if (a && a.days[1] && /am|pm|\d/i.test(v)) return a.days[1];
+  return {am:true, pm:true};
+}
+function officesFromRows(rows, given){
+  const det = given || detectColumns(rows);
+  if (det.hi < 0) throw Object.assign(new Error("Couldn't find the column headings in that spreadsheet."), {needsMap:true});
+  if (det.missing && det.missing.length) throw Object.assign(new Error("The spreadsheet is missing a column for: " + det.missing.join(", ") + "."), {needsMap:true});
+  const {hi, map} = det; const H = det.headers || (rows[hi] || []).map(c => String(c||"").trim());
+  const cell = (r, i) => i != null && i >= 0 ? String(r[i] ?? "").trim() : "";
+  const body = Array.from(rows.slice(hi+1), r => r || []);
   const goodAddr = v => { v = String(v||"").trim(); return v && !/^=|https?:|hyperlink/i.test(v); };
   const score = i => body.reduce((n,r) => n + (goodAddr(r[i]) && /^\d/.test(String(r[i]).trim()) ? 1 : 0), 0);
-  const order = addrCols.slice().sort((a,b) => score(b)-score(a));
+  const order = (map.addr || []).slice().sort((a,b) => score(b)-score(a));
+  const hasDays = (map.dayCols || []).length >= 2, hasAvail = map.avail != null && map.avail >= 0;
   const offices = [];
   body.forEach((r, idx) => {
-    const name = String(r[cName]||"").trim(); if (!name) return;
+    if (!r) return;
+    let name = cell(r, map.name);
+    if (!name && map.first >= 0 && map.last >= 0){ const l = cell(r, map.last), f = cell(r, map.first); name = l ? (f ? l + ", " + f : l) : ""; }
+    else if (name && map.name === map.last && map.first >= 0 && cell(r, map.first)) name = name + ", " + cell(r, map.first);
+    if (!name || name.length > 80) return;
     let address = ""; for (const i of order) if (goodAddr(r[i])) { address = String(r[i]).trim(); break; }
-    const city = String(r[cCity]||"").trim().replace(/\s+/g," ");
-    if (city) address = address.replace(new RegExp("[,\\s]+" + city.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "\\s*$", "i"), "").trim();
-    const notes = cNotes >= 0 ? String(r[cNotes]||"").trim() : "";
-    const avail = parseAvailability(r[cAvail]);
+    let city = cell(r, map.city).replace(/\s+/g," ");
+    if (city) address = address.replace(new RegExp("[,\\s]+" + city.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "(,?\\s*(CA|California)\\.?)?(\\s*\\d{5}(-\\d{4})?)?\\s*$", "i"), "").trim();
+    else { const sp = splitCity(address); address = sp.street; city = sp.city; }
+    if (!address && !city) return;
+    const notes = cell(r, map.notes);
+    let avail = null, aText = "";
+    if (hasDays){
+      const days = {};
+      map.dayCols.forEach(i => { const m = H[i].match(DAYCOL); const d = DAYS[m[1].toLowerCase()]; const slot = m[2] ? (/^a/i.test(m[2]) || /morning/i.test(m[2]) ? "am" : "pm") : null;
+        const x = dayCell(r[i], slot); if (!x) return; const cur = days[d] || {am:false, pm:false}; days[d] = {am: cur.am || x.am, pm: cur.pm || x.pm}; });
+      if (Object.keys(days).length) avail = {days, appt: /appt|appointment/i.test(notes + " " + cell(r, map.avail)), nth:[]};
+      aText = availText(avail);
+    }
+    if (!avail && hasAvail){ aText = cell(r, map.avail); avail = parseAvailability(aText); }
+    if (!hasDays && !hasAvail){ avail = ANYTIME(); aText = "Days not set"; }
     offices.push({
       row: hi + idx + 2, rawName: name, ...splitSheetName(name),
-      specialty: cSpec >= 0 ? String(r[cSpec]||"").trim() : "",
-      address, city, availText: String(r[cAvail]||"").trim(), avail,
-      notes, org: cOrg >= 0 ? String(r[cOrg]||"").trim() : "",
-      zip: zipOf(cZip >= 0 ? r[cZip] : "", address),
+      specialty: cell(r, map.spec), address, city, availText: aText, avail,
+      notes, org: cell(r, map.org),
+      zip: zipOf(cell(r, map.zip), address),
       onLeave: /maternity leave|on leave|leave of absence|retired|no longer (here|with|at)/i.test(notes),
       coords: cityCoords(city, address), addrKey: addressKey(address || city, city)
     });
@@ -407,6 +482,9 @@ function buildContext(input){
   const C = {...input};
   C.docById = Object.fromEntries(input.docs.map(d => [d.id, d]));
   C.blocked = new Set(input.counterpartVisits.map(v => v.date + "|" + v.id));
+  // doctors already called this week (logged in the tracker or shown in the call plan report) aren't planned again
+  const wkEnd = addDays(input.weekMon, 6);
+  C.seen = {}; input.docs.forEach(d => { if (d.lastCall && d.lastCall >= input.weekMon && d.lastCall <= wkEnd) C.seen[d.id] = d.lastCall; });
   C.caps = {}; C.fixed = {}; C.busyNotes = {}; C.addrRule = input.addrRule || "week";
   C.allowed = input.zone ? new Set(input.offices.map((o,i) => officeInZone(o, input.zone) ? i : -1).filter(i => i >= 0)) : null;
   for (const iso of input.days){
@@ -508,7 +586,7 @@ function fillDay(C, plan, iso, opts){
   const avoid = opts.avoid || new Set();
   const all = [];
   for (const d of C.docs){
-    if (usedDoc.has(d.id) || C.blocked.has(iso + "|" + d.id)) continue;
+    if (usedDoc.has(d.id) || C.blocked.has(iso + "|" + d.id) || C.seen[d.id]) continue;
     for (const o of optionsFor(C, d.id, iso)) if (!usedAddr.has(o.addrKey)) all.push({...o, w: d.score * (1 + 0.6 / Math.max(1, feas[d.id])) - (avoid.has(d.id) ? 0.5 : 0)});
   }
   if (!all.length){ day.short = total; return; }
@@ -588,7 +666,7 @@ function substitutes(C, plan, iso, idx, limit){
   const center = others.length ? [others.reduce((a,c)=>a+c[0],0)/others.length, others.reduce((a,c)=>a+c[1],0)/others.length] : (cur.coords || C.home);
   const res = [];
   for (const d of C.docs){
-    if (d.id === cur.id || usedD.has(d.id) || C.blocked.has(iso + "|" + d.id)) continue;
+    if (d.id === cur.id || usedD.has(d.id) || C.blocked.has(iso + "|" + d.id) || C.seen[d.id]) continue;
     for (const o of optionsFor(C, d.id, iso)){
       if (usedA.has(o.addrKey)) continue;
       if (!(cur.slot === "am" ? o.am : o.pm)) continue;
@@ -615,7 +693,7 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id)};
+        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
@@ -629,7 +707,46 @@ function addManual(C, plan, iso, cand, slot){
   finishDay(C, plan, iso);
 }
 function removeStop(C, plan, iso, idx){
-  const day = plan.days[iso]; const s = day.stops.splice(idx, 1)[0]; finishDay(C, plan, iso); return s;
+  const day = plan.days[iso]; const s = day.stops.splice(idx, 1)[0];
+  if (!s.manual) (day.removed = day.removed || []).push(s);   // planned stops can be put back
+  finishDay(C, plan, iso); return s;
+}
+function restoreStop(C, plan, iso, k){
+  const day = plan.days[iso]; const s = (day.removed || [])[k]; if (!s) return {ok:false};
+  const {d, a} = weekUse(plan, null, -1, C.addrRule);
+  if (d.has(s.id)) return {ok:false, reason:"conflict-doc", id:s.id};
+  if (!s.fixed && C.addrRule !== "day" && a.has(s.addrKey)) return {ok:false, reason:"conflict-addr", id:s.id};
+  day.removed.splice(k, 1); day.stops.push(s); finishDay(C, plan, iso); return {ok:true, id:s.id};
+}
+function moveOptions(C, plan, iso, idx){
+  // For every other planned day: can this doctor go there without breaking a rule?
+  const s = plan.days[iso].stops[idx];
+  const {d:usedD, a:usedA} = weekUse(plan, iso, idx, C.addrRule);
+  const out = [];
+  for (const k of Object.keys(plan.days).sort()){
+    if (k === iso) continue;
+    const day = plan.days[k];
+    const dayAddr = new Set(day.stops.map(x => x.addrKey));
+    const opts = optionsFor(C, s.id, k);
+    let reason = null, pick = null;
+    if (!(C.match.byDoc[s.id] || []).length) reason = "Not in your spreadsheet";
+    else if (!opts.length) reason = "Not in that day, per your spreadsheet";
+    else if (C.blocked.has(k + "|" + s.id)) reason = "A counterpart is seeing them that day";
+    else if (usedD.has(s.id)) reason = "Already planned another day";
+    else {
+      pick = opts.find(o => !(C.addrRule === "day" ? dayAddr.has(o.addrKey) : usedA.has(o.addrKey)));
+      if (!pick) reason = C.addrRule === "day" ? "You're already at that office that day" : "You're visiting that office another day";
+    }
+    const pts = day.stops.filter(x => x.coords).map(x => x.coords);
+    const near = pick && pts.length ? Math.min(...pts.map(c => km(c, pick.coords))) : null;
+    out.push({iso:k, ok: !reason, reason, opt: pick, count: day.stops.length, near});
+  }
+  return out;
+}
+function moveStop(C, plan, iso, idx, toIso, opt){
+  const s = plan.days[iso].stops.splice(idx, 1)[0];
+  plan.days[toIso].stops.push({id:s.id, office:opt.office, slot: opt.am ? "am" : "pm", am:opt.am, pm:opt.pm, coords:opt.coords, addrKey:opt.addrKey, history:[], movedFrom: iso});
+  finishDay(C, plan, iso); finishDay(C, plan, toIso);
 }
 function applySubstitute(C, plan, iso, idx, opt){
   const day = plan.days[iso], cur = day.stops[idx];
@@ -653,7 +770,8 @@ function explainUnscheduled(C, plan){
   const out = C.docs.filter(d => !used.has(d.id)).sort((a,b) => b.score - a.score).map(d => {
     const offs = (C.match.byDoc[d.id]||[]).map(i => C.offices[i]);
     let why;
-    if (!offs.length) why = "Not found in your spreadsheet";
+    if (C.seen[d.id]) why = "Already called this week (" + fromISO(C.seen[d.id]).toLocaleDateString(undefined,{weekday:"short"}) + ")";
+    else if (!offs.length) why = "Not found in your spreadsheet";
     else if (offs.every(o => !o.avail)) why = "No days listed in your spreadsheet";
     else if (offs.every(o => o.onLeave)) why = "Spreadsheet notes say on leave";
     else if (offs.every(o => !o.coords)) why = "City not recognized";
@@ -692,7 +810,7 @@ function docsFromTrackerFile(obj){
     const end = obj.planEnd && obj.planEnd >= todayISO ? obj.planEnd : null;
     const weeksLeft = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO))/864e5)+1)/7)) : null;
     return obj.doctors.map(d => {
-      const rem = Math.max(0, d.r0 - d.log.length); const lc = d.log.length ? d.log.slice().sort()[d.log.length-1] : null;
+      const rem = Math.max(0, d.r0 - d.log.length); const lc = d.log.concat(d.hist || [], d.lastRpt ? [d.lastRpt] : []).sort().pop() || null;
       return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed:d.c0 + d.log.length, lastCall:lc,
         daysSinceLastCall: lc ? Math.round((fromISO(todayISO)-fromISO(lc))/864e5) : null, callsPerWeekNeeded: weeksLeft ? rem/weeksLeft : null};
     }).filter(d => d.remaining > 0);
@@ -720,9 +838,9 @@ function csvRows(text){
   return rows.filter(r => r.some(c => String(c).trim()));
 }
 
-const api = {isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
+const api = {ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, parseTSV,
-  scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, fillDay, addCandidates, addManual, removeStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
+  scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};
 if (typeof module !== "undefined") module.exports = api; else root.RouteLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);
