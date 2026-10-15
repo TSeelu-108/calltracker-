@@ -47,6 +47,15 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .btn.ghost{background:transparent}
 .btn:disabled{opacity:.5}
+.staffrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 40px;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.staffrow select{grid-column:1 / 3}
+.staffrow select,.staffrow input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:42px;min-width:0;width:100%;font:inherit;color:inherit}
+.staffx{grid-row:1;grid-column:3;border:1px solid var(--line);background:transparent;border-radius:8px;min-height:42px;font-size:20px;color:var(--muted)}
+.staffline{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-size:14px;padding:4px 0}
+.staffline a{color:var(--accent);font-weight:600}
+.btn.small{min-height:36px;padding:6px 10px;font-size:14px}
+.offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+
 
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
@@ -150,14 +159,13 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
       <div class="actions">
         <button class="btn primary" id="importBtn">Load screenshots</button>
         <button class="btn" id="dayBtn">Today's calls</button>
-        <button class="btn" id="exportBtn">Export for routing</button>
         <a class="btn" href="route/">Plan my week</a>
-        <button class="btn ghost" id="moreBtn">Backup</button>
+        <button class="btn ghost" id="moreBtn">More</button>
       </div>
     </div>
     <div class="stats">
       <div class="stat"><b id="sToday">0</b><span>Calls today</span></div>
-      <div class="stat"><b id="sC">0</b><span>Completed</span></div>
+      <div class="stat"><b id="sC">0%</b><span id="sCl">Completed</span></div>
       <div class="stat"><b id="sR">0</b><span>Remaining</span></div>
       <div class="stat"><b id="sDone">0</b><span>Doctors done</span></div>
     </div>
@@ -220,11 +228,68 @@ const daysAgo = s => Math.round((fromISO(todayISO()) - fromISO(s))/864e5);
 
 /* ---------- state (saved only on this device) ---------- */
 const norm = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
-function makeDoc(name, city, c, a, r){
+function makeDoc(name, city, c, a, r, last){
   a = Math.max(0, +a||0); c = Math.max(0, +c||0);
   r = (r===""||r==null||isNaN(+r)) ? Math.max(0,a-c) : Math.max(0,+r);
-  return {id:norm(name), name:String(name).trim().toUpperCase(), city:String(city||"").trim().toUpperCase(), c0:c, a, r0:r, log:[]};
+  const lastRpt = /^\d{4}-\d{2}-\d{2}$/.test(last||"") && last <= todayISO() ? last : null;
+  return {id:norm(name), name:String(name).trim().toUpperCase(), city:String(city||"").trim().toUpperCase(), c0:c, a, r0:r, lastRpt, log:[]};
 }
+/* ---------- office staff contacts (shared by the Call Tracker and Plan my week) ----------
+   Only a title from a fixed list, a name (letters only) and a phone number (digits only)
+   can be saved. There is no free-text note anywhere. */
+const STAFF_KEY = "office.staff.v1", DOCOFF_KEY = "doctor.offices.v1";
+const STAFF_TITLES = ["Office manager","Medical assistant","Scribe","Front desk","Nurse","Practice administrator"];
+try { localStorage.removeItem("doctor.notes.v1"); } catch(e){}
+function staffClean(c){
+  const n = staffName(c && c.n).trim(), p = staffPhone(c && c.p);
+  const t = STAFF_TITLES.includes(c && c.t) ? c.t : "Front desk";
+  return n || p ? {t, n, p} : null;
+}
+function staffName(s){
+  s = String(s || "").normalize("NFC").replace(/[^\p{L}\s'\-]/gu, "").replace(/\s+/g, " ").replace(/^[\s'\-]+/, "").slice(0, 30);
+  return s.replace(/(^|[\s\-'])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+}
+function staffPhone(s){ let d = String(s || "").replace(/\D/g, ""); if (d.length === 11 && d[0] === "1") d = d.slice(1); return d.slice(0, 10); }
+function staffFmtPhone(d){ d = staffPhone(d); return d.length === 10 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : d.length > 6 ? d.slice(0,3) + "-" + d.slice(3,6) + "-" + d.slice(6) : d.length > 3 ? d.slice(0,3) + "-" + d.slice(3) : d; }
+function staffAll(){ try { const o = JSON.parse(localStorage.getItem(STAFF_KEY)) || {}; const out = {}; for (const k in o) if (Array.isArray(o[k])){ const l = o[k].map(staffClean).filter(Boolean); if (l.length) out[k] = l; } return out; } catch(e){ return {}; } }
+function staffFor(k){ return staffAll()[k] || []; }
+function staffSet(k, list){ const all = staffAll(); const l = (list || []).map(staffClean).filter(Boolean).slice(0, 8); if (l.length) all[k] = l; else delete all[k]; try { localStorage.setItem(STAFF_KEY, JSON.stringify(all)); } catch(e){} }
+function staffMerge(obj){ if (!obj || typeof obj !== "object") return; for (const k in obj){ if (!Array.isArray(obj[k])) continue; const cur = staffFor(k); obj[k].forEach(c => { const x = staffClean(c); if (x && !cur.some(y => y.n === x.n && y.p === x.p)) cur.push(x); }); staffSet(k, cur); } }
+function staffOfficesFor(docId){ try { return (JSON.parse(localStorage.getItem(DOCOFF_KEY)) || {})[docId] || []; } catch(e){ return []; } }
+function staffLineHtml(c){
+  const p = c.p ? staffFmtPhone(c.p) : "";
+  return `<div class="staffline"><span><b>${staffEsc(c.n || "No name")}</b> · ${staffEsc(c.t)}</span>${c.p && c.p.length >= 7 ? `<span><a href="tel:${c.p}">${p}</a> · <a href="sms:${c.p}">Text</a></span>` : (p ? `<span>${p}</span>` : "")}</div>`;
+}
+const staffEsc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+function staffRowHtml(c, i){
+  return `<div class="staffrow" data-srow="${i}">
+    <select data-st aria-label="Title">${STAFF_TITLES.map(t => `<option${t === c.t ? " selected" : ""}>${t}</option>`).join("")}</select>
+    <input data-sn value="${staffEsc(c.n)}" placeholder="Name" aria-label="Name" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="30">
+    <input data-sp value="${staffEsc(staffFmtPhone(c.p))}" placeholder="Phone" aria-label="Phone" type="tel" inputmode="tel" autocomplete="off">
+    <button type="button" class="staffx" data-sx aria-label="Remove this contact">×</button>
+  </div>`;
+}
+/* A block that edits the contacts for one office. Call staffWire(box) after inserting it and staffRead(box) to get the list. */
+function staffEditorHtml(list){
+  const l = list.length ? list : [{t:"Front desk", n:"", p:""}];
+  return `<div class="staffed">${l.map(staffRowHtml).join("")}</div><button type="button" class="btn small ghost" data-sadd>+ Add a staff contact</button>`;
+}
+function staffWire(box){
+  const ed = box.querySelector(".staffed");
+  const hook = row => {
+    const n = row.querySelector("[data-sn]"), p = row.querySelector("[data-sp]");
+    n.oninput = () => { const v = staffName(n.value); if (v !== n.value) n.value = v; };
+    p.oninput = () => { const v = staffFmtPhone(p.value.replace(/\D/g, "")); if (v !== p.value) p.value = v; };
+    row.querySelector("[data-sx]").onclick = () => { row.remove(); if (!ed.children.length) add(); };
+  };
+  const add = () => { const t = document.createElement("div"); t.innerHTML = staffRowHtml({t:"Front desk", n:"", p:""}, ed.children.length); const row = t.firstElementChild; ed.appendChild(row); hook(row); return row; };
+  ed.querySelectorAll(".staffrow").forEach(hook);
+  box.querySelector("[data-sadd]").onclick = () => { if (ed.children.length < 8) add().querySelector("[data-sn]").focus(); };
+}
+function staffRead(box){
+  return [...box.querySelectorAll(".staffrow")].map(r => staffClean({t: r.querySelector("[data-st]").value, n: r.querySelector("[data-sn]").value.trim(), p: r.querySelector("[data-sp]").value})).filter(Boolean);
+}
+
 function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
 let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
 let logDay = todayISO();
@@ -241,7 +306,9 @@ function status(d){
   if (d.a > 0 && r / d.a > 0.5) return "red";
   return "yel";
 }
-const lastCall = d => d.log.length ? d.log.slice().sort()[d.log.length-1] : null;
+const allDates = d => d.log.concat(d.hist || []);
+// most recent call: from calls logged here, or the "My Last Call Date" in the report screenshots
+const lastCall = d => { const ad = allDates(d); const l = ad.length ? ad.slice().sort()[ad.length-1] : null; return [l, d.lastRpt].filter(Boolean).sort().pop() || null; };
 
 /* ---------- render ---------- */
 const $ = id => document.getElementById(id);
@@ -258,10 +325,11 @@ function renderHeader(){
   for (const d of state.doctors){
     C += done(d); A += d.a; R += rem(d);
     const s = status(d); if (s==="grn") g++; else if (s==="yel") y++; else r++;
-    today += d.log.filter(x => x === t).length;
+    today += allDates(d).filter(x => x === t).length;
   }
   $("sToday").textContent = today;
-  $("sC").textContent = C + " / " + A;
+  $("sC").textContent = (A ? Math.round(C / A * 100) : 0) + "%";
+  $("sCl").textContent = `Completed · ${C} of ${A}`;
   $("sR").textContent = R;
   $("sDone").textContent = g + " / " + state.doctors.length;
   const n = state.doctors.length || 1;
@@ -293,7 +361,7 @@ function renderList(){
   if (!rows.length){ $("list").innerHTML = `<div class="empty"><p>No doctors match. Clear the search or filters.</p></div>`; return; }
   $("list").innerHTML = rows.map(d => {
     const lc = lastCall(d), s = status(d);
-    const lastTxt = lc ? (lc === todayISO() ? "Called today" : "Last logged " + shortDate(lc) + " · " + daysAgo(lc) + "d ago") : "";
+    const lastTxt = lc ? (lc === todayISO() ? "Called today" : "Last call " + shortDate(lc) + " · " + daysAgo(lc) + "d ago") : "";
     return `<div class="doc${ui.flash===d.id?" flash":""}">
       <button class="name s-${s}" data-h="${esc(d.id)}" aria-label="${esc(d.name)}, show call dates">
         <div class="n">${esc(d.name)}</div>
@@ -349,19 +417,40 @@ function openHistory(id){
   const d = find(id); const days = d.log.slice().sort().reverse();
   openSheet(`<h2>${esc(d.name)}</h2>
     <p>${esc(d.city||"No city listed")} · ${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining</p>
-    <p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded.</p>
-    ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here yet.</p>`}
-    <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
-  $("closeS").onclick = closeSheet;
+    <div id="staffArea"></div>
+    <p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>
+    ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
+    ${(d.hist||[]).length ? `<p class="small" style="margin-top:12px">Logged before your latest report (already counted in its numbers): ${d.hist.slice().sort().reverse().map(shortDate).join(", ")}</p>` : ""}
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  renderStaff(d);
+  $("closeS").onclick = () => { closeSheet(); renderList(); };
   $("sheet").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     const i = d.log.indexOf(b.dataset.del); if (i>=0) d.log.splice(i,1); save(); render(); openHistory(id);
   });
 }
 
+/* office staff for a doctor: shown by office, edited one office at a time */
+function renderStaff(d){
+  const box = $("staffArea"); if (!box) return;
+  const offs = staffOfficesFor(d.id);
+  if (!offs.length){ box.innerHTML = `<p style="margin-top:12px"><b style="color:var(--ink)">Office staff</b></p><p class="small">Staff contacts are saved by office. Open Plan my week once so this doctor's office is known, then add them here or there.</p>`; return; }
+  box.innerHTML = `<p style="margin-top:12px"><b style="color:var(--ink)">Office staff</b></p>` + offs.map((o, i) => {
+    const l = staffFor(o.k);
+    return `<div class="offbox"><div class="small">${esc(o.a)}</div>${l.map(staffLineHtml).join("") || `<p class="small" style="margin:4px 0">No contacts yet.</p>`}<button class="btn small ghost" data-sedit="${i}">${l.length ? "Edit contacts" : "+ Add a staff contact"}</button></div>`;
+  }).join("");
+  box.querySelectorAll("[data-sedit]").forEach(b => b.onclick = () => {
+    const o = offs[+b.dataset.sedit], wrap = b.parentElement;
+    wrap.innerHTML = `<div class="small">${esc(o.a)}</div>${staffEditorHtml(staffFor(o.k))}<p class="small">Title, name and phone number only. Shared by every doctor at this office.</p><div class="foot" style="margin-top:8px"><button class="btn small" data-scancel>Cancel</button><button class="btn small primary" data-ssave>Save</button></div>`;
+    staffWire(wrap);
+    wrap.querySelector("[data-scancel]").onclick = () => renderStaff(d);
+    wrap.querySelector("[data-ssave]").onclick = () => { staffSet(o.k, staffRead(wrap)); renderStaff(d); toast("Saved"); };
+  });
+}
+
 $("dayBtn").onclick = () => {
   const t = logDay, grouped = {}; let total = 0;
-  state.doctors.forEach(d => { const n = d.log.filter(x => x===t).length; if (n){ grouped[d.id]=n; total+=n; } });
-  const all = {}; state.doctors.forEach(d => d.log.forEach(x => all[x]=(all[x]||0)+1));
+  state.doctors.forEach(d => { const n = allDates(d).filter(x => x===t).length; if (n){ grouped[d.id]=n; total+=n; } });
+  const all = {}; state.doctors.forEach(d => allDates(d).forEach(x => all[x]=(all[x]||0)+1));
   const recent = Object.keys(all).sort().reverse().slice(0,10);
   openSheet(`<h2>Calls on ${shortDate(t)}</h2>
     <p>${total} call${total===1?"":"s"} logged on ${longDate(t)}.</p>
@@ -374,7 +463,16 @@ $("dayBtn").onclick = () => {
 /* ---------- backup (stays on the device: Files, or AirDrop to your own iPhone) ---------- */
 $("moreBtn").onclick = async () => {
   const ready = await ocrReady();
-  openSheet(`<h2>Backup</h2>
+  const end = state.planEnd && state.planEnd >= todayISO() ? state.planEnd : null;
+  const R = state.doctors.reduce((n,d)=>n+rem(d),0);
+  const wl = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO()))/864e5)+1)/7)) : null;
+  openSheet(`<h2>More</h2>
+    <div class="logday" style="margin-top:4px">
+      <label for="planEnd"><b style="color:var(--ink)">Call plan ends on</b></label>
+      <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
+    </div>
+    <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Backup</b></p>
     <p>Save a backup file now and then so nothing is lost if the app is deleted.</p>
     <div class="foot" style="justify-content:flex-start">
       <button class="btn primary" id="saveB" ${state.doctors.length?"":"disabled"}>Save backup file</button>
@@ -382,16 +480,21 @@ $("moreBtn").onclick = async () => {
       <input type="file" id="restoreF" accept=".json,application/json,text/plain,*/*" hidden>
     </div>
     <p class="small" id="bMsg"></p>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Remaining calls</b></p>
+    <div class="foot" style="justify-content:flex-start"><button class="btn" id="saveCSV2" ${state.doctors.length?"":"disabled"}>Save as a spreadsheet</button></div>
     <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
+  $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
+  $("saveCSV2").onclick = async () => { const how = await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(routingRows().rows), "text/csv", "Remaining calls"); if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files”." : "Saved to Downloads in the Files app."; };
   $("saveB").onclick = async () => {
-    const how = await saveFile("call-plan-backup-" + todayISO() + ".json", JSON.stringify(state), "application/json", "Call plan backup");
-    if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files” to keep it on this iPad." : "Backup saved to Downloads in the Files app.";
+    const how = await saveFile("call-plan-backup-" + todayISO() + ".json", JSON.stringify({...state, staff: staffAll()}), "application/json", "Call plan backup");
+    if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files” to keep it on this device." : "Backup saved to Downloads in the Files app.";
   };
   $("restoreF").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
+      if (s.staff) staffMerge(s.staff); delete s.staff; delete s.notes;
       state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} doctors`); }
     catch(_){ $("bMsg").textContent = "That file isn't a call plan backup."; }
   };
@@ -435,7 +538,6 @@ function routingCSV(rows){
   const body = rows.map(r => [r.priority,r.name,r.city,r.completed,r.assigned,r.remaining,r.lastCall||"",r.daysSinceLastCall??"",r.callsThisWeek,r.callsPerWeekNeeded??"",r.status].map(csvCell).join(","));
   return [head.join(","), ...body].join("\n");
 }
-$("exportBtn").onclick = () => openExport();
 function openExport(){
   if (!state.doctors.length){ toast("Load your call plan first"); return; }
   const {rows, weeksLeft, end} = routingRows();
@@ -490,7 +592,10 @@ function parseCallPlanText(text){
     // split head into identity part and the C/A/R cluster
     let di = head.findIndex(t => DATE.test(t));
     let ident, cluster;
-    if (di >= 0){ ident = head.slice(0,di); cluster = head.slice(di+1); }
+    let last = null;
+    if (di >= 0){ ident = head.slice(0,di); cluster = head.slice(di+1);
+      const dm = head[di].match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (dm){ const y = dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]; if (+dm[1] >= 1 && +dm[1] <= 12 && +dm[2] >= 1 && +dm[2] <= 31) last = y + "-" + String(dm[1]).padStart(2,"0") + "-" + String(dm[2]).padStart(2,"0"); } }
     else {
       // no date: cluster = trailing tokens that contain digits or look like OCR noise
       let k = head.length;
@@ -540,7 +645,7 @@ function parseCallPlanText(text){
       else if (d.length===1){ a=d[0]; r=a; c=0; }
     }
     if (a==null) continue;
-    rows.push({name, city, c, a, r, guess: !sure && sdA==null});
+    rows.push({name, city, c, a, r, last, guess: !sure && sdA==null});
   }
   return {rows, total};
 }
@@ -631,7 +736,7 @@ async function runImport(files){
       const out = parseCallPlanText(data.text || "");
       let n = 0;
       for (const r of out.rows){
-        const d = makeDoc(r.name, r.city, r.c, r.a, r.r); d.guess = !!r.guess;
+        const d = makeDoc(r.name, r.city, r.c, r.a, r.r, r.last); d.guess = !!r.guess;
         if (d.id && !byId.has(d.id)) { byId.set(d.id, d); n++; }
       }
       if (out.total) reportTotal = out.total;
@@ -672,17 +777,23 @@ function renderReview(){
     <div id="confirmBox"></div>`;
   $("review").querySelectorAll("input[data-k]").forEach(inp => inp.onchange = () => { const d = parsed[+inp.dataset.i]; d[inp.dataset.k] = Math.max(0, +inp.value||0); d.guess = false; renderReview(); });
   $("review").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { parsed.splice(+b.dataset.rm,1); renderReview(); });
-  const clean = d => ({id:d.id, name:d.name, city:d.city, c0:d.c0, a:d.a, r0:d.r0, log:[]});
+  const clean = d => ({id:d.id, name:d.name, city:d.city, c0:d.c0, a:d.a, r0:d.r0, lastRpt:d.lastRpt || null, log:[]});
   $("iFoot").innerHTML = `
     <label class="btn" for="moreF">Add more screenshots</label>
     <input type="file" id="moreF" accept="image/*" multiple hidden>
-    ${state.doctors.length ? `<button class="btn" id="addI">Add new doctors to my list</button>` : ""}
+    ${state.doctors.length ? `<button class="btn" id="updI">Update my numbers</button>` : ""}
     <button class="btn primary" id="replI">${state.doctors.length ? "Start a fresh plan with these" : `Use these ${parsed.length} doctors`}</button>`;
   $("moreF").onchange = e => runImport([...e.target.files]);
-  if ($("addI")) $("addI").onclick = () => {
-    const have = new Set(state.doctors.map(d=>d.id)); const add = parsed.filter(d=>!have.has(d.id));
-    state.doctors.push(...add.map(clean)); save(); render(); closeSheet();
-    toast(add.length ? `Added ${add.length} new doctor${add.length>1?"s":""}` : "Those doctors were already on your list");
+  if ($("updI")) $("updI").onclick = () => {
+    // Numbers come from the newer report; calls logged here are kept as dates (already counted in the report)
+    let upd = 0, add = 0;
+    for (const p of parsed){
+      const d = state.doctors.find(x => x.id === p.id);
+      if (d){ d.c0 = p.c0; d.a = p.a; d.r0 = p.r0; d.lastRpt = [p.lastRpt, d.lastRpt].filter(Boolean).sort().pop() || null; d.hist = (d.hist || []).concat(d.log); d.log = []; d.city = p.city || d.city; upd++; }
+      else { state.doctors.push(clean(p)); add++; }
+    }
+    state.source = "updated " + shortDate(todayISO()); save(); render(); closeSheet();
+    toast(`Updated ${upd} doctor${upd===1?"":"s"}` + (add ? `, added ${add} new` : ""));
   };
   const replace = () => {
     state = {doctors: parsed.map(clean), source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
