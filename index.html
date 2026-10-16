@@ -107,6 +107,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .days14 button[aria-current=true]{background:var(--accent-soft);border-radius:8px}
 .days14 .zero{color:var(--muted)}
 .dd svg{width:20px;height:20px;flex:none}
+.btn.dd{background:#fff;color:#17202b;border-color:#c9d2dc;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .bz{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .bz span{font-size:11px;font-weight:700;border:1px solid var(--yel-edge);background:var(--yel-fill);color:var(--yel-ink);border-radius:6px;padding:1px 6px}
 .bz span.away{border-color:var(--line);background:var(--surface);color:var(--muted)}
@@ -217,7 +218,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
         <button class="btn" id="dayBtn">Today's calls</button>
         <a class="btn" href="route/">Plan my week</a>
         <button class="btn ghost" id="moreBtn">Settings</button>
-        <button class="btn ghost dd" id="ddBtn" aria-label="Open DoorDash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>DoorDash</button>
+        <button class="btn dd" id="ddBtn" aria-label="Open DoorDash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>DoorDash</button>
       </div>
     </div>
     <div class="stats">
@@ -464,7 +465,10 @@ const find = id => state.doctors.find(d => d.id === id);
 
 $("list").addEventListener("click", e => {
   const c = e.target.closest("[data-c]"), u = e.target.closest("[data-u]"), h = e.target.closest("[data-h]");
-  if (c){ const d = find(c.dataset.c); d.log.push(logDay); ui.flash = d.id; save(); render();
+  if (c){ const d = find(c.dataset.c);
+    // a call already logged for this doctor on this day: ask before adding a second one
+    if (allDates(d).includes(logDay)){ confirmSecondCall(d); return; }
+    d.log.push(logDay); ui.flash = d.id; save(); render();
     toast(`Logged call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`) + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : "")); }
   else if (u){ const d = find(u.dataset.u); if (!d.log.length) return;
     const i = d.log.lastIndexOf(logDay); const removed = d.log.splice(i>=0?i:d.log.length-1,1)[0];
@@ -485,6 +489,15 @@ function dayCheck(){ const t = todayISO(); if (t !== lastSeenDay){ if (logDay ==
 setInterval(dayCheck, 30000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) dayCheck(); });
 
+function confirmSecondCall(d){
+  const n = allDates(d).filter(x => x === logDay).length;
+  openSheet(`<h2>Log another call?</h2>
+    <p><b style="color:var(--ink)">${esc(d.name)}</b> already has ${n === 1 ? "a call" : n + " calls"} logged on ${longDate(logDay)}. It may have been logged from Plan my week when the visit was marked Done.</p>
+    <p>Only log another if you really made a second call that day.</p>
+    <div class="foot"><button class="btn primary" id="scNo">Don't add</button><button class="btn" id="scYes">Log another call</button></div>`);
+  $("scNo").onclick = closeSheet;
+  $("scYes").onclick = () => { d.log.push(logDay); ui.flash = d.id; save(); closeSheet(); render(); toast(`Logged a second call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`)); };
+}
 /* ---------- sheets ---------- */
 let busy = false, importCtl = null;
 function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
