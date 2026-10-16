@@ -2,6 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* For iPad only. Phones see a short message and nothing else loads.
+   A device that already had this app's data before this check was added keeps working,
+   and a device can be let in with a private key (only its fingerprint is here). */
+(function(){
+  var ALLOW = "device.allow.v1", FP = "2dff1c1cfc1e4f49f476a28c1fbcfbe3e54ec98d468c590ec2f246fe41227c79";
+  function sha256(s){
+    function r(n,x){return (x>>>n)|(x<<(32-n));}
+    var K=[],H=[],p=2,i,j;
+    for(i=0;i<64;p++){var pr=1;for(j=2;j*j<=p;j++)if(p%j===0){pr=0;break;}if(pr){if(i<8)H[i]=(Math.pow(p,1/2)*4294967296)|0;K[i++]=(Math.pow(p,1/3)*4294967296)|0;}}
+    s=unescape(encodeURIComponent(s));var l=s.length*8,w=[];
+    for(i=0;i<s.length;i++)w[i>>2]|=s.charCodeAt(i)<<((3-i%4)*8);
+    w[l>>5]|=0x80<<(24-l%32);w[((l+64>>9)<<4)+15]=l;
+    for(i=0;i<w.length;i+=16){var a=H.slice(0),W=[];
+      for(j=0;j<64;j++){if(j<16)W[j]=w[i+j]|0;else{var s0=r(7,W[j-15])^r(18,W[j-15])^(W[j-15]>>>3),s1=r(17,W[j-2])^r(19,W[j-2])^(W[j-2]>>>10);W[j]=(W[j-16]+s0+W[j-7]+s1)|0;}
+        var t1=(a[7]+(r(6,a[4])^r(11,a[4])^r(25,a[4]))+((a[4]&a[5])^(~a[4]&a[6]))+K[j]+W[j])|0,t2=((r(2,a[0])^r(13,a[0])^r(22,a[0]))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2])))|0;
+        a=[(t1+t2)|0].concat(a);a[4]=(a[4]+t1)|0;a.pop();}
+      for(j=0;j<8;j++)H[j]=(H[j]+a[j])|0;}
+    return H.map(function(x){return ("00000000"+(x>>>0).toString(16)).slice(-8);}).join("");
+  }
+  function get(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function set(){try{localStorage.setItem(ALLOW,"1");}catch(e){}}
+  window.__gateKey = function(k){ if (k && sha256("calltracker:" + String(k).trim()) === FP){ set(); return true; } return false; };
+  var ua = navigator.userAgent, tp = navigator.maxTouchPoints || 0, side = Math.min(screen.width, screen.height);
+  var phone = /iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) || (tp > 0 && side < 600);
+  var ipad = !phone && side >= 700 && (/iPad/.test(ua) || (/Macintosh/.test(ua) && tp > 0));
+  var m = location.search.match(/[?&]k=([^&]+)/); if (m) window.__gateKey(decodeURIComponent(m[1]));
+  var ok = ipad || get(ALLOW) === "1";
+  if (!ok && (get("callplan.tracker.v1") || get("weekrouter.v1"))){ set(); ok = true; }   // already in use before this check
+  if (ok) return;
+  document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#f3f5f7;color:#17202b;font:600 20px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}@media (prefers-color-scheme:dark){html,body{background:#0f141a;color:#e7edf3}}.g{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;text-align:center}.g input{font-size:16px;font-weight:400;padding:10px;border-radius:8px;border:1px solid #9aa8b6;width:min(320px,90%);background:transparent;color:inherit}<\/style>'
+    + '<div class="g"><div id="gm">For iPad only.<\/div><input id="gk" hidden autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Key"><\/div>'
+    + '<script>(function(){var n=0,t;document.getElementById("gm").addEventListener("click",function(){clearTimeout(t);t=setTimeout(function(){n=0;},2000);if(++n>=5){var i=document.getElementById("gk");i.hidden=false;i.focus();}});'
+    + 'document.getElementById("gk").addEventListener("input",function(e){if(window.__gateKey(e.target.value))location.replace(location.pathname);});})();<\/script>'
+    + '<plaintext style="display:none">');
+})();
+</script>
+
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -54,6 +92,24 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .staffline{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-size:14px;padding:4px 0}
 .staffline a{color:var(--accent);font-weight:600}
 .btn.small{min-height:36px;padding:6px 10px;font-size:14px}
+.wk{display:grid;grid-template-columns:52px 1fr 1fr;gap:6px;align-items:center;margin-top:6px}
+.wk button{border:1px solid var(--line);background:var(--bg);border-radius:8px;min-height:40px;font-size:14px;font-weight:600;color:var(--muted)}
+.wk button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wk .dl{border:0;background:transparent;text-align:left;padding:0;color:var(--ink);font-weight:700}
+.fld{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-weight:600;font-size:14px}
+.fld input,.fld select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px;font:inherit;font-weight:400;color:inherit;width:100%}
+.s-add{--f:var(--surface);--k:var(--accent);--t:var(--accent)}
+.addtag{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:12px;color:var(--muted);font-weight:600;line-height:1.3}
+.addtag b{font-family:var(--f-disp);font-size:22px;color:var(--ink)}
+.days14{max-height:300px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;padding:4px 8px;margin-top:6px}
+.days14 button{display:flex;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;padding:10px 4px;font-size:15px;color:var(--ink);text-align:left}
+.days14 button:last-child{border-bottom:0}
+.days14 button[aria-current=true]{background:var(--accent-soft);border-radius:8px}
+.days14 .zero{color:var(--muted)}
+.dd svg{width:20px;height:20px;flex:none}
+.bz{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.bz span{font-size:11px;font-weight:700;border:1px solid var(--yel-edge);background:var(--yel-fill);color:var(--yel-ink);border-radius:6px;padding:1px 6px}
+.bz span.away{border-color:var(--line);background:var(--surface);color:var(--muted)}
 .offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
 
 
@@ -160,7 +216,8 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
         <button class="btn primary" id="importBtn">Load screenshots</button>
         <button class="btn" id="dayBtn">Today's calls</button>
         <a class="btn" href="route/">Plan my week</a>
-        <button class="btn ghost" id="moreBtn">More</button>
+        <button class="btn ghost" id="moreBtn">Settings</button>
+        <button class="btn ghost dd" id="ddBtn" aria-label="Open DoorDash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>DoorDash</button>
       </div>
     </div>
     <div class="stats">
@@ -192,7 +249,8 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
       <button data-f="done" aria-pressed="false">Done</button>
     </div>
     <select id="sort" aria-label="Sort">
-      <option value="name">A–Z</option>
+      <option value="lastAZ">Last name A–Z</option>
+      <option value="lastZA">Last name Z–A</option>
       <option value="rem">Most remaining</option>
       <option value="city">By city</option>
       <option value="stale">Longest since call</option>
@@ -293,7 +351,7 @@ function staffRead(box){
 function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
 let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
 let logDay = todayISO();
-let ui = {q:"", city:"", f:"all", sort:"name", flash:null};
+let ui = {q:"", city:"", f:"all", sort:"lastAZ", flash:null};
 function save(){ state.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ toast("Couldn't save on this iPad. Free up storage space."); } }
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 
@@ -301,6 +359,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 const done = d => d.c0 + d.log.length;
 const rem = d => Math.max(0, d.r0 - d.log.length);
 function status(d){
+  if (d.added) return "add";
   const r = rem(d);
   if (r === 0) return "grn";
   if (d.a > 0 && r / d.a > 0.5) return "red";
@@ -316,29 +375,42 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":
 
 function renderHeader(){
   const t = todayISO();
+  $("ddBtn").hidden = !!state.hideDD;
   $("todayLbl").textContent = longDate(t);
   $("planLbl").textContent = state.doctors.length ? state.doctors.length + " doctors · " + (state.source || "loaded from screenshots") : "No call plan loaded yet";
   $("logDate").value = logDay; $("logDate").max = t;
   const off = logDay !== t;
   $("logWarn").hidden = !off; $("backToday").hidden = !off;
   let C=0,A=0,R=0,g=0,y=0,r=0,today=0;
+  const plan = state.doctors.filter(d => !d.added);
   for (const d of state.doctors){
+    today += allDates(d).filter(x => x === t).length;
+    if (d.added) continue;
     C += done(d); A += d.a; R += rem(d);
     const s = status(d); if (s==="grn") g++; else if (s==="yel") y++; else r++;
-    today += allDates(d).filter(x => x === t).length;
   }
   $("sToday").textContent = today;
   $("sC").textContent = (A ? Math.round(C / A * 100) : 0) + "%";
   $("sCl").textContent = `Completed · ${C} of ${A}`;
   $("sR").textContent = R;
-  $("sDone").textContent = g + " / " + state.doctors.length;
-  const n = state.doctors.length || 1;
+  $("sDone").textContent = g + " / " + plan.length;
+  const n = plan.length || 1;
   $("barG").style.width = (g/n*100)+"%"; $("barY").style.width = (y/n*100)+"%"; $("barR").style.width = (r/n*100)+"%";
   const cities = [...new Set(state.doctors.map(d => d.city).filter(Boolean))].sort();
-  $("city").innerHTML = '<option value="">All cities</option>' + cities.map(c => `<option${c===ui.city?" selected":""}>${esc(c)}</option>`).join("");
+  const bzs = blitzesNow(); if (ui.city.startsWith("blitz:") && !bzs.some(b => "blitz:" + b.id === ui.city)) ui.city = "";
+  $("city").innerHTML = '<option value="">All cities</option>' + bzs.map(b => `<option value="blitz:${esc(b.id)}"${"blitz:" + b.id === ui.city ? " selected" : ""}>${esc(b.name)}</option>`).join("") + cities.map(c => `<option${c===ui.city?" selected":""}>${esc(c)}</option>`).join("");
   $("colhead").hidden = !state.doctors.length;
 }
 
+/* blitzes are set up in Plan my week; the tracker shows them and lets you take a doctor off one */
+function routerRaw(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
+function blitzesNow(){ const t = todayISO(); return (routerRaw().blitzes || []).filter(b => !b.stopped && b.start <= isoDay(new Date(Date.now() + 6*864e5)) && (!b.end || b.end >= t)); }
+function blitzOf(id){ return blitzesNow().filter(b => b.docs.includes(id)); }
+function blitzRemove(bid, id){ const r = routerRaw(); const b = (r.blitzes || []).find(x => x.id === bid); if (!b) return; b.docs = b.docs.filter(x => x !== id); try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} }
+/* out of office (shared with Plan my week) */
+function awayOf(id){ return ((routerRaw().away || {})[id] || []).filter(r => r.to >= todayISO()).sort((a,b) => a.from.localeCompare(b.from)); }
+function awaySet(id, list){ const r = routerRaw(); r.away = r.away || {}; if (list.length) r.away[id] = list; else delete r.away[id]; try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} }
+const awayLbl = r => r.from === r.to ? shortDate(r.from) : shortDate(r.from) + " – " + shortDate(r.to);
 function renderList(){
   if (!state.doctors.length){
     $("list").innerHTML = `<div class="empty">
@@ -349,14 +421,18 @@ function renderList(){
     return;
   }
   const q = norm(ui.q);
+  const AW = routerRaw().away || {};
+  const BZ = {}, BZN = {}; blitzesNow().forEach(b => { BZ[b.id] = b.docs; b.docs.forEach(id => (BZN[id] = BZN[id] || []).push(b.name)); });
   let rows = state.doctors.filter(d =>
     (!q || d.id.includes(q) || norm(d.city).includes(q)) &&
-    (!ui.city || d.city === ui.city) &&
-    (ui.f === "all" || (ui.f === "done" ? rem(d) === 0 : rem(d) > 0)));
-  const byName = (a,b) => a.name.localeCompare(b.name);
+    (!ui.city || (ui.city.startsWith("blitz:") ? (BZ[ui.city.slice(6)] || []).includes(d.id) : d.city === ui.city)) &&
+    (ui.f === "all" || (ui.f === "done" ? (!d.added && rem(d) === 0) : (d.added || rem(d) > 0))));
+  const lastN = d => { const w = d.name.split(" "); return w[w.length-1] + " " + w.slice(0,-1).join(" "); };
+  const byName = (a,b) => lastN(a).localeCompare(lastN(b));
   if (ui.sort === "rem") rows.sort((a,b) => rem(b)-rem(a) || byName(a,b));
   else if (ui.sort === "city") rows.sort((a,b) => (a.city||"~").localeCompare(b.city||"~") || byName(a,b));
   else if (ui.sort === "stale") rows.sort((a,b) => (lastCall(a)||"0").localeCompare(lastCall(b)||"0") || byName(a,b));
+  else if (ui.sort === "lastZA") rows.sort((a,b) => byName(b,a));
   else rows.sort(byName);
   if (!rows.length){ $("list").innerHTML = `<div class="empty"><p>No doctors match. Clear the search or filters.</p></div>`; return; }
   $("list").innerHTML = rows.map(d => {
@@ -365,10 +441,12 @@ function renderList(){
     return `<div class="doc${ui.flash===d.id?" flash":""}">
       <button class="name s-${s}" data-h="${esc(d.id)}" aria-label="${esc(d.name)}, show call dates">
         <div class="n">${esc(d.name)}</div>
-        <div class="c">${esc(d.city || "No city listed")}</div>
+        <div class="c">${esc(d.city || "No city listed")}${d.added ? " · " + esc(KIND_LBL[d.kind] || "Added") : ""}</div>
         ${lastTxt ? `<div class="last">${lastTxt}</div>` : ""}
+        ${(() => { const a = AW[d.id] && AW[d.id].find(r => r.to >= todayISO()); return a ? `<div class="bz"><span class="away">${a.from <= todayISO() ? "Out until " + shortDate(a.to) : "Out " + awayLbl(a)}</span></div>` : ""; })()}
+        ${BZN[d.id] ? `<div class="bz">${BZN[d.id].map(n => `<span>${esc(n)}</span>`).join("")}</div>` : ""}
       </button>
-      <div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>
+      ${d.added ? `<div class="addtag"><b>${d.log.length + (d.hist||[]).length}</b>calls · added by you</div>` : `<div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>`}
       <div class="act">
         <button class="undo" data-u="${esc(d.id)}" ${d.log.length ? "" : "disabled"} aria-label="Undo last call for ${esc(d.name)}">↶</button>
         <button class="call" data-c="${esc(d.id)}">+ Call</button>
@@ -387,7 +465,7 @@ const find = id => state.doctors.find(d => d.id === id);
 $("list").addEventListener("click", e => {
   const c = e.target.closest("[data-c]"), u = e.target.closest("[data-u]"), h = e.target.closest("[data-h]");
   if (c){ const d = find(c.dataset.c); d.log.push(logDay); ui.flash = d.id; save(); render();
-    toast(`Logged call · ${d.name} · ${rem(d)} left` + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : "")); }
+    toast(`Logged call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`) + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : "")); }
   else if (u){ const d = find(u.dataset.u); if (!d.log.length) return;
     const i = d.log.lastIndexOf(logDay); const removed = d.log.splice(i>=0?i:d.log.length-1,1)[0];
     save(); render(); toast(`Removed ${shortDate(removed)} call · ${d.name}`); }
@@ -416,14 +494,24 @@ $("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy
 function openHistory(id){
   const d = find(id); const days = d.log.slice().sort().reverse();
   openSheet(`<h2>${esc(d.name)}</h2>
-    <p>${esc(d.city||"No city listed")} · ${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining</p>
+    <p>${esc(d.city||"No city listed")} · ${d.added ? `${esc(KIND_LBL[d.kind] || "Provider")} you added · not on your call plan` : `${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining`}</p>
+    ${d.added ? `<div class="foot" style="justify-content:flex-start;margin-top:4px"><button class="btn small" id="hEdit">Edit office and days</button><button class="btn small ghost" id="hDel">Remove from my list</button></div>` : ""}
+    ${blitzOf(d.id).length ? `<p style="margin-top:12px"><b style="color:var(--ink)">Blitzes</b></p>${blitzOf(d.id).map(b => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${esc(b.name)} <span class="small">· ${b.freq === 14 ? "every other week" : "weekly"}</span></span><button class="btn small ghost" data-bzrm="${esc(b.id)}">Remove</button></div>`).join("")}` : ""}
+    <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
+    ${awayOf(d.id).map((r,k) => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${awayLbl(r)}</span><button class="btn small ghost" data-awrm="${k}">Remove</button></div>`).join("")}
+    <div class="logday" style="margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="awF" value="${todayISO()}"></label><label class="small">Through <input type="date" id="awT"></label><button class="btn small" id="awAdd">Add</button></div>
     <div id="staffArea"></div>
-    <p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>
+    ${d.added ? "" : `<p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>`}
     ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
     ${(d.hist||[]).length ? `<p class="small" style="margin-top:12px">Logged before your latest report (already counted in its numbers): ${d.hist.slice().sort().reverse().map(shortDate).join(", ")}</p>` : ""}
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
   renderStaff(d);
   $("closeS").onclick = () => { closeSheet(); renderList(); };
+  $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const l = awayOf(d.id); l.splice(+b.dataset.awrm, 1); awaySet(d.id, l); render(); openHistory(d.id); });
+  $("awAdd").onclick = () => { let f = $("awF").value, to = $("awT").value || f; if (!f){ toast("Pick a start date"); return; } if (to < f) [f, to] = [to, f]; awaySet(d.id, awayOf(d.id).concat({from:f, to})); render(); openHistory(d.id); toast(`${d.name} out ${awayLbl({from:f, to})}`); };
+  $("sheet").querySelectorAll("[data-bzrm]").forEach(b => b.onclick = () => { blitzRemove(b.dataset.bzrm, d.id); render(); openHistory(d.id); toast("Removed from the blitz"); });
+  if ($("hEdit")) $("hEdit").onclick = () => openAddProvider(d.id);
+  if ($("hDel")) $("hDel").onclick = () => { if (!confirmTap($("hDel"), "Tap again to remove")) return; state.doctors = state.doctors.filter(x => x.id !== d.id); routerInfo(d.id, null); save(); render(); closeSheet(); toast("Removed " + d.name); };
   $("sheet").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     const i = d.log.indexOf(b.dataset.del); if (i>=0) d.log.splice(i,1); save(); render(); openHistory(id);
   });
@@ -432,8 +520,9 @@ function openHistory(id){
 /* office staff for a doctor: shown by office, edited one office at a time */
 function renderStaff(d){
   const box = $("staffArea"); if (!box) return;
-  const offs = staffOfficesFor(d.id);
-  if (!offs.length){ box.innerHTML = `<p style="margin-top:12px"><b style="color:var(--ink)">Office staff</b></p><p class="small">Staff contacts are saved by office. Open Plan my week once so this doctor's office is known, then add them here or there.</p>`; return; }
+  let offs = staffOfficesFor(d.id);
+  // office not known yet: keep them with the doctor; Plan my week moves them to the office once it knows it
+  if (!offs.length) offs = [{k:"doc|" + d.id, a:(d.city ? titleCase(d.city) + " office" : "Office")}];
   box.innerHTML = `<p style="margin-top:12px"><b style="color:var(--ink)">Office staff</b></p>` + offs.map((o, i) => {
     const l = staffFor(o.k);
     return `<div class="offbox"><div class="small">${esc(o.a)}</div>${l.map(staffLineHtml).join("") || `<p class="small" style="margin:4px 0">No contacts yet.</p>`}<button class="btn small ghost" data-sedit="${i}">${l.length ? "Edit contacts" : "+ Add a staff contact"}</button></div>`;
@@ -447,18 +536,79 @@ function renderStaff(d){
   });
 }
 
-$("dayBtn").onclick = () => {
-  const t = logDay, grouped = {}; let total = 0;
+$("dayBtn").onclick = () => openDay(logDay);
+function openDay(t){
+  const grouped = {}; let total = 0;
   state.doctors.forEach(d => { const n = allDates(d).filter(x => x===t).length; if (n){ grouped[d.id]=n; total+=n; } });
-  const all = {}; state.doctors.forEach(d => allDates(d).forEach(x => all[x]=(all[x]||0)+1));
-  const recent = Object.keys(all).sort().reverse().slice(0,10);
-  openSheet(`<h2>Calls on ${shortDate(t)}</h2>
+  const count = {}; state.doctors.forEach(d => allDates(d).forEach(x => count[x]=(count[x]||0)+1));
+  const days = []; for (let i = 0; i < 15; i++){ const d = new Date(); d.setDate(d.getDate() - i); const iso = isoDay(d); const wd = d.getDay(); if (wd === 0 || wd === 6){ if (!count[iso]) continue; } days.push(iso); }
+  const lbl = t === todayISO() ? "today" : shortDate(t);
+  openSheet(`<h2>Calls ${t === todayISO() ? "today" : "on " + shortDate(t)}</h2>
     <p>${total} call${total===1?"":"s"} logged on ${longDate(t)}.</p>
-    ${total ? `<ul class="hist">${Object.entries(grouped).map(([id,n])=>{const d=find(id);return `<li><span><b>${esc(d.name)}</b> <span class="small">${esc(d.city)}</span></span><span>${n>1?n+" calls":"1 call"} · ${rem(d)} left</span></li>`}).join("")}</ul>` : ""}
-    ${recent.length ? `<p style="margin-top:16px"><b>Recent days</b></p><ul class="hist">${recent.map(x=>`<li><span>${longDate(x)}</span><b>${all[x]} call${all[x]===1?"":"s"}</b></li>`).join("")}</ul>` : ""}
+    ${total ? `<ul class="hist">${Object.entries(grouped).map(([id,n])=>{const d=find(id);return `<li><span><b>${esc(d.name)}</b> <span class="small">${esc(d.city)}</span></span><span>${n>1?n+" calls":"1 call"}${d.added ? "" : " · " + rem(d) + " left"}</span></li>`}).join("")}</ul>` : ""}
+    <p style="margin-top:16px"><b style="color:var(--ink)">Last two weeks</b> <span class="small">· tap a day to see its calls</span></p>
+    <div class="days14">${days.map(x => `<button data-day="${x}" aria-current="${x===t}"><span>${x === todayISO() ? "Today" : fromISO(x).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"})}</span><b class="${count[x] ? "" : "zero"}">${count[x] ? count[x] + " call" + (count[x]===1?"":"s") : "none"}</b></button>`).join("")}</div>
     <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
-};
+  $("sheet").querySelectorAll("[data-day]").forEach(b => b.onclick = () => openDay(b.dataset.day));
+}
+
+/* ---------- providers you add yourself (not on the call plan) ---------- */
+const CITY_NAMES = ["concord", "walnut creek", "pleasant hill", "martinez", "lafayette", "orinda", "moraga", "danville", "alamo", "san ramon", "dublin", "pleasanton", "livermore", "castro valley", "hayward", "san leandro", "san lorenzo", "union city", "fremont", "newark", "milpitas", "san jose", "santa clara", "sunnyvale", "mountain view", "palo alto", "oakland", "emeryville", "berkeley", "albany", "el cerrito", "richmond", "san pablo", "pinole", "hercules", "rodeo", "el sobrante", "alameda", "piedmont", "antioch", "pittsburg", "bay point", "brentwood", "oakley", "discovery bay", "clayton", "benicia", "vallejo", "fairfield", "vacaville", "napa", "tracy", "mountain house", "manteca", "lathrop", "ripon", "stockton", "lodi", "galt", "modesto", "ceres", "turlock", "riverbank", "oakdale", "escalon", "patterson", "newman", "merced", "atwater", "livingston", "los banos", "sonora", "sacramento", "elk grove", "san francisco", "daly city", "south san francisco", "san mateo", "redwood city", "burlingame"];
+const KIND_LBL = {md:"Physician", np:"Nurse practitioner", pa:"Physician assistant"};
+const titleCase = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
+function confirmTap(btn, msg){ if (btn.dataset.armed) return true; btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = msg; setTimeout(() => { if (btn.isConnected){ btn.textContent = old; delete btn.dataset.armed; } }, 3000); return false; }
+// the office and days live with Plan my week's data on this device
+function routerInfo(id, info){
+  let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
+  if (info === undefined) return (r.docInfo || {})[id] || null;
+  r.docInfo = r.docInfo || {}; if (info) r.docInfo[id] = info; else delete r.docInfo[id];
+  try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
+}
+const cleanPerson = s => String(s||"").replace(/[^\p{L}\s'\-.]/gu,"").replace(/\s+/g," ").trim().slice(0,30);
+function openAddProvider(editId){
+  const ed = editId ? find(editId) : null; const info = editId ? routerInfo(editId) : null;
+  const parts = ed ? ed.name.split(" ") : [];
+  const v = {first: ed ? titleCase(parts.slice(0,-1).join(" ")) : "", last: ed ? titleCase(parts[parts.length-1]) : "", kind: ed ? ed.kind || "md" : "md",
+    street: info && info.locs[0] ? info.locs[0].address : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
+    days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
+  let err = "";
+  const WD = ["","Mon","Tue","Wed","Thu","Fri"];
+  const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
+  const draw = () => {
+    openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add a provider"}</h2>
+      <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the doctors on your plan.</p>
+      <div class="fld">Provider type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
+      <label class="fld">First name<input id="apF" value="${esc(v.first)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
+      <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
+      <label class="fld">Office street address<input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
+      <label class="fld">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label>
+      <datalist id="apCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
+      <div class="fld">When they're in<span class="small" style="font-weight:400">Tap morning and afternoon for each day. None ticked means any day.</span>
+        ${[1,2,3,4,5].map(k => { const x = v.days[k] || {}; return `<div class="wk"><button type="button" class="dl" data-dall="${k}">${WD[k]}</button><button type="button" data-g="${k}|am" aria-pressed="${!!x.am}">Morning</button><button type="button" data-g="${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
+        <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:400"><input type="checkbox" id="apA" ${v.appt ? "checked" : ""}> Appointment only</label></div>
+      ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
+      <div class="foot"><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apOk">${ed ? "Save" : "Add to my list"}</button></div>`);
+    $("sheet").querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { sync(); v.kind = b.dataset.kind; draw(); });
+    $("sheet").querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const [k,sl] = b.dataset.g.split("|"); const x = v.days[k] = v.days[k] || {am:false,pm:false}; x[sl] = !x[sl]; b.setAttribute("aria-pressed", String(x[sl])); });
+    $("sheet").querySelectorAll("[data-dall]").forEach(b => b.onclick = () => { const k = b.dataset.dall; const x = v.days[k] || {}; const on = !(x.am && x.pm); v.days[k] = {am:on, pm:on}; $("sheet").querySelectorAll(`[data-g^="${k}|"]`).forEach(g => g.setAttribute("aria-pressed", String(on))); });
+    $("apX").onclick = () => ed ? openHistory(ed.id) : closeSheet();
+    $("apOk").onclick = () => {
+      sync();
+      const name = (v.first + " " + v.last).trim().toUpperCase(), id = norm(name);
+      if (!ed && (!v.first || !v.last)){ err = "Add a first and last name."; return draw(); }
+      if (!ed && find(id)){ err = "That name is already on your list."; return draw(); }
+      if (!v.city){ err = "Add the city."; return draw(); }
+      if (!CITY_NAMES.includes(v.city.toLowerCase())){ err = `“${v.city}” isn't a city the app knows. Pick one from the list as you type.`; return draw(); }
+      for (const k in v.days) if (!v.days[k].am && !v.days[k].pm) delete v.days[k];
+      if (ed){ ed.kind = v.kind; ed.city = v.city.toUpperCase(); }
+      else state.doctors.push({id, name, city:v.city.toUpperCase(), c0:0, a:0, r0:0, lastRpt:null, log:[], added:true, kind:v.kind});
+      routerInfo(id, {locs:[{address:v.street, city:titleCase(v.city), days:v.days, appt:v.appt}], at:new Date().toISOString()});
+      save(); ui.flash = id; render(); closeSheet(); toast(ed ? "Saved" : `Added ${titleCase(name)}`);
+    };
+  };
+  draw();
+}
 
 /* ---------- backup (stays on the device: Files, or AirDrop to your own iPhone) ---------- */
 $("moreBtn").onclick = async () => {
@@ -466,12 +616,19 @@ $("moreBtn").onclick = async () => {
   const end = state.planEnd && state.planEnd >= todayISO() ? state.planEnd : null;
   const R = state.doctors.reduce((n,d)=>n+rem(d),0);
   const wl = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO()))/864e5)+1)/7)) : null;
-  openSheet(`<h2>More</h2>
+  let me = ""; try { me = (JSON.parse(localStorage.getItem("weekrouter.v1")) || {}).settings?.myName || ""; } catch(e){}
+  openSheet(`<h2>Settings</h2>
     <div class="logday" style="margin-top:4px">
-      <label for="planEnd"><b style="color:var(--ink)">Call plan ends on</b></label>
+      <label for="planEnd"><b style="color:var(--ink)">Quarter end date</b></label>
       <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
     </div>
     <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
+    <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Providers</b></p>
+    <div class="foot" style="justify-content:flex-start"><button class="btn" id="addProv">Add a provider not on my call plan</button></div>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Plan my week</b></p>
+    <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
     <p style="margin-top:16px"><b style="color:var(--ink)">Backup</b></p>
     <p>Save a backup file now and then so nothing is lost if the app is deleted.</p>
     <div class="foot" style="justify-content:flex-start">
@@ -484,7 +641,12 @@ $("moreBtn").onclick = async () => {
     <div class="foot" style="justify-content:flex-start"><button class="btn" id="saveCSV2" ${state.doctors.length?"":"disabled"}>Save as a spreadsheet</button></div>
     <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
-  $("closeS").onclick = closeSheet;
+  const keepMe = () => { const n = staffName($("meName").value).trim(); let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
+    if ((r.settings && r.settings.myName || "") !== n){ r.settings = Object.assign(r.settings || {}, {myName:n}); try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} } };
+  $("meName").onchange = keepMe;
+  $("closeS").onclick = () => { keepMe(); closeSheet(); };
+  $("addProv").onclick = () => { keepMe(); openAddProvider(); };
+  $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
   $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
   $("saveCSV2").onclick = async () => { const how = await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(routingRows().rows), "text/csv", "Remaining calls"); if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files”." : "Saved to Downloads in the Files app."; };
   $("saveB").onclick = async () => {
@@ -615,7 +777,7 @@ function parseCallPlanText(text){
           name = ident.slice(0,s).join(" "); city = ident.slice(s+m).join(" "); break;
         }
       }
-      // OCR sometimes glues a short name together: "DAIPARK PARK" -> "DAI PARK"
+      // OCR sometimes glues a short name together: "JOHNDOE DOE" -> "JOHN DOE"
       if (!name && ident[s].length>=2 && ident[s-1].length>ident[s].length+1 && ident[s-1].endsWith(ident[s])){
         const first = ident[s-1].slice(0, ident[s-1].length-ident[s].length);
         name = [...ident.slice(0,s-1), first, ident[s]].join(" "); city = ident.slice(s+1).join(" ");
@@ -789,15 +951,16 @@ function renderReview(){
     let upd = 0, add = 0;
     for (const p of parsed){
       const d = state.doctors.find(x => x.id === p.id);
-      if (d){ d.c0 = p.c0; d.a = p.a; d.r0 = p.r0; d.lastRpt = [p.lastRpt, d.lastRpt].filter(Boolean).sort().pop() || null; d.hist = (d.hist || []).concat(d.log); d.log = []; d.city = p.city || d.city; upd++; }
+      if (d){ delete d.added; delete d.kind; d.c0 = p.c0; d.a = p.a; d.r0 = p.r0; d.lastRpt = [p.lastRpt, d.lastRpt].filter(Boolean).sort().pop() || null; d.hist = (d.hist || []).concat(d.log); d.log = []; d.city = p.city || d.city; upd++; }
       else { state.doctors.push(clean(p)); add++; }
     }
     state.source = "updated " + shortDate(todayISO()); save(); render(); closeSheet();
     toast(`Updated ${upd} doctor${upd===1?"":"s"}` + (add ? `, added ${add} new` : ""));
   };
   const replace = () => {
-    state = {doctors: parsed.map(clean), source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
-    save(); ui = {q:"",city:"",f:"all",sort:"name",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
+    const keepAdded = state.doctors.filter(d => d.added && !parsed.some(p => p.id === d.id));
+    state = {doctors: parsed.map(clean).concat(keepAdded), hideDD: state.hideDD, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
   };
   $("replI").onclick = () => {
     if (!state.doctors.length) return replace();
@@ -810,6 +973,11 @@ function renderReview(){
   };
 }
 
+/* DoorDash: just opens the app, where your saved addresses already are. Nothing is sent from here. */
+$("ddBtn").onclick = () => {
+  const t0 = Date.now(); location.href = "doordash://";
+  setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
+};
 /* ---------- Home Screen + offline ---------- */
 const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
 $("installTip").hidden = standalone;
