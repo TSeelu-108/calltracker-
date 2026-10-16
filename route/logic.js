@@ -103,10 +103,11 @@ const ANYTIME = () => ({days:{1:{am:true,pm:true},2:{am:true,pm:true},3:{am:true
 const DAY_SHORT = ["","Mon","Tue","Wed","Thu","Fri"];
 function availText(av){
   if (!av) return "";
-  if (av.unknown) return "Days not set";
+  if (av.unknown) return "Days not set" + (av.nth && av.nth.length ? " · " + av.nth.map(n => ["","1st","2nd","3rd","4th","5th"][n]).join(" & ") + " week" : "");
   const parts = [];
   for (let d = 1; d <= 5; d++){ const x = av.days[d]; if (!x || !(x.am || x.pm)) continue; parts.push(DAY_SHORT[d] + (x.am && x.pm ? "" : x.am ? " AM" : " PM")); }
-  return (parts.join(", ") || "No days") + (av.appt ? " · appointment only" : "");
+  const ord = ["","1st","2nd","3rd","4th","5th"];
+  return (parts.join(", ") || "No days") + (av.alt ? " · every other week" : "") + (av.nth && av.nth.length ? " · " + av.nth.map(n => ord[n]).join(" & ") + " week" : "") + (av.appt ? " · appointment only" : "");
 }
 
 /* where the city is inside the address: "123 Main St, Ste 4, Walnut Creek, CA 94596" */
@@ -257,7 +258,9 @@ function matchDoctors(planDocs, offices, overrides){
 }
 
 /* ---------------- finding doctor names in free text (calendar, screenshots) ---------------- */
-const NEEDS_CONTEXT = new Set(["PARK","HEAL","LONG","LEE","HO","LU","SU","JUAN","KONG","LIANG","LIU","CHU","MAA","WONG","LOWERY","HUANG"]);
+// last names that are also everyday words, street names or common first names, or very common surnames: need a first name, "Dr." or a city nearby
+const NEEDS_CONTEXT = new Set(["PARK","LONG","YOUNG","HILL","KING","WOOD","BROWN","WHITE","GREEN","GRAY","BELL","HALL","LANE","HEAL","BAKER","CROSS","CHURCH","ROSE","WELLS",
+  "JUAN","JOSE","JOHN","JAMES","MARK","PAUL","GEORGE","KONG","WONG","LIANG","HUANG","CHAN","CHEN","WANG","ZHANG","LIN","LIM","NGUYEN","TRAN","KIM","PATEL","SHAH","SINGH","LOWE"]);
 function buildNameIndex(planDocs, offices, match){
   const idx = []; // {id, last, first, cities:[...]}
   for (const d of planDocs){
@@ -284,7 +287,7 @@ function findDoctorsInText(text, nameIndex){
     if (full.length){ full.forEach(e => put(e.id, true)); continue; }
     if (group.length === 1){
       const e = group[0];
-      const risky = NEEDS_CONTEXT.has(e.last) || e.last.length < 3;
+      const risky = NEEDS_CONTEXT.has(e.last) || e.last.length <= 3;
       put(e.id, !risky || drHit || initial.length === 1 || byCity.length === 1);
       continue;
     }
@@ -331,7 +334,7 @@ function parseICS(text){
     else if (N === "RECURRENCE-ID") cur.recurrenceId = icsDate(val, params);
     else if (N === "STATUS") cur.status = val.toUpperCase();
     else if (N === "TRANSP") cur.transp = val.toUpperCase();
-    else if (N === "ORGANIZER" || N === "ATTENDEE"){ const cn = params.match(/CN="?([^";:]+)"?/i); cur.attendees.push(cn ? cn[1] : val.replace(/^mailto:/i,"")); }
+    else if (N === "ORGANIZER" || N === "ATTENDEE"){ if (N === "ORGANIZER"){ const cn0 = params.match(/CN="?([^";:]+)"?/i); cur.organizer = (cn0 ? cn0[1] + " " : "") + val.replace(/^mailto:/i,""); } const cn = params.match(/CN="?([^";:]+)"?/i); cur.attendees.push(cn ? cn[1] : val.replace(/^mailto:/i,"")); }
   }
   return evs.filter(e => e.start && e.status !== "CANCELLED");
 }
@@ -344,7 +347,7 @@ function expandEvents(evs, fromISO_, toISO_){
   const push = (e, s) => {
     const len = e.end ? e.end.date - e.start.date : (e.duration ? durMs(e.duration) : (e.start.allDay ? 864e5 : 36e5));
     const en = new Date(s.getTime() + Math.max(len, 0));
-    if (en > from && s < to) out.push({start:s, end:en, allDay:e.start.allDay, summary:e.summary||"", location:e.location||"", description:e.description||"", attendees:e.attendees, transp:e.transp, uid:e.uid});
+    if (en > from && s < to) out.push({start:s, end:en, allDay:e.start.allDay, summary:e.summary||"", location:e.location||"", description:e.description||"", attendees:e.attendees, organizer:e.organizer||"", transp:e.transp, uid:e.uid});
   };
   for (const e of evs){
     if (!e.rrule || e.recurrenceId){ push(e, e.start.date); continue; }
@@ -385,19 +388,63 @@ function expandEvents(evs, fromISO_, toISO_){
   return out.sort((a,b) => a.start - b.start);
 }
 function wordIn(text, w){ return new RegExp("(^|[^A-Za-z])" + w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "([^A-Za-z]|$)", "i").test(text); }
-function classifyEvent(ev, counterparts, nameIndex){
-  const text = [ev.summary, ev.location, ev.description, (ev.attendees||[]).join(" ")].join(" \n ");
-  const who = counterparts.filter(c => c && wordIn(text, c));
-  const docs = findDoctorsInText([ev.summary, ev.location, ev.description].join(" \n "), nameIndex);
+const MEAL = /\b(lunch|lunches|breakfast|coffee|snacks?|dinner|in-?service|program|bagels?|donuts?|pizza|treats?)\b/i;
+// does an organizer line ("Jordan Smith jordan.smith@...") belong to this person?
+function isPerson(text, person){
+  const t = String(text||"").toLowerCase(), w = String(person||"").toLowerCase().split(/[^a-z]+/).filter(x => x.length > 1);
+  if (!t || !w.length) return false;
+  if (w.every(x => new RegExp("(^|[^a-z])" + x + "([^a-z]|$)").test(t))) return true;
+  return w.length > 1 && (t.includes(w[0] + "." + w[w.length-1]) || t.includes(w[0] + w[w.length-1]) || t.includes(w[0][0] + w[w.length-1] + "@"));
+}
+function classifyEvent(ev, counterparts, nameIndex, myName){
+  const own = [ev.summary, ev.location, ev.description].join(" \n ");
+  const text = own + " \n " + (ev.attendees||[]).join(" ");
+  let who = counterparts.filter(c => c && wordIn(text, c));
+  const docs = findDoctorsInText(own, nameIndex);
+  // "Lunch - Lee" or "Coffee w/ Lee": a meal word next to a single name is enough to be sure
+  if (docs.length === 1 && docs[0].sure === false && MEAL.test(ev.summary || "")) docs[0].sure = true;
+  const mine = !!(myName && ev.organizer && isPerson(ev.organizer, myName));
+  // your own event: a counterpart who is only on the invite list is a guest, not their visit
+  if (mine) who = who.filter(c => wordIn(own, c));
+  else if (ev.organizer){ const orgCp = counterparts.filter(c => c && wordIn(ev.organizer, c)); if (orgCp.length) who = [...new Set(orgCp.concat(who))]; }
   let kind;
   if (who.length && docs.length) kind = "counterpart";
   else if (who.length) kind = "ignore";
   else if (docs.length) kind = "mine";
   else kind = ev.transp === "TRANSPARENT" ? "ignore" : "busy";
-  return {kind, who, docs};
+  return {kind, who, docs, mine};
 }
 
-/* ---------------- Ann / Chase screenshots (OCR TSV) ---------------- */
+/* ---------------- a counterpart's "Share my week" text, pasted from a text or email ----------------
+   "Sam's week, Oct 19 – Oct 23" / "Monday, Oct 19 · Springfield" / "Morning: Pat Doe (Springfield) – lunch 12:00 PM, ..." */
+const WDAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+function parseSharedWeek(text, weekMon, nameIndex){
+  const lines = String(text||"").replace(/\r/g,"").split("\n").map(s => s.trim()).filter(Boolean);
+  const head = lines[0] || ""; const hm = head.match(/^([A-Za-z][A-Za-z'\- ]{0,30}?)['’]s week\b/i);
+  const who = hm ? hm[1].trim() : null;
+  const byDate = {}; let cur = null; const ref = fromISO(weekMon);
+  for (const ln of lines){
+    const m = ln.match(/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s*(?:([A-Za-z]{3,})\.?\s+(\d{1,2}))?/i);
+    if (m && !/^(morning|afternoon)/i.test(ln) && (m[2] || /^(mon|tues|wednes|thurs|fri)day\b/i.test(ln))){
+      if (m[2] && MONTHS.includes(m[2].slice(0,3).toLowerCase())){
+        const mo = MONTHS.indexOf(m[2].slice(0,3).toLowerCase()), dd = +m[3];
+        let best = null; for (const y of [ref.getFullYear()-1, ref.getFullYear(), ref.getFullYear()+1]){ const d = new Date(y, mo, dd); if (!best || Math.abs(d - ref) < Math.abs(best - ref)) best = d; }
+        cur = isoDay(best);
+      } else { const k = WDAYS.findIndex(w => w.startsWith(m[1].toLowerCase())); cur = addDays(weekMon, (k + 6) % 7); }
+      byDate[cur] = byDate[cur] || []; continue;
+    }
+    if (!cur) continue;
+    const body = ln.replace(/^(morning|afternoon|am|pm)\s*:\s*/i, "");
+    for (const part of body.split(/,(?![^(]*\))/)){
+      const nm = part.replace(/\([^)]*\)/g, " ").replace(/\s[–-]\s.*$/, "");
+      for (const x of findDoctorsInText(nm, nameIndex)) if (!byDate[cur].some(y => y.id === x.id)) byDate[cur].push(x);
+    }
+  }
+  const dates = Object.keys(byDate).filter(d => byDate[d].length).sort();
+  return {who, byDate, weekOf: dates.length ? mondayOf(dates[0]) : null};
+}
+
+/* ---------------- counterpart schedule screenshots (OCR TSV) ---------------- */
 const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 function parseTSV(tsv){
   return String(tsv||"").split("\n").slice(1).map(l => l.split("\t")).filter(c => c.length >= 12 && c[0] === "5" && c[11].trim())
@@ -458,7 +505,7 @@ function scoreDoctors(docs){
   const maxNeed = Math.max(0.0001, ...docs.map(need));
   docs.forEach(d => {
     const stale = d.daysSinceLastCall == null ? 1 : Math.min(d.daysSinceLastCall, 60) / 60;
-    d.score = 0.8 * need(d) / maxNeed + 0.2 * stale;
+    d.score = d.added ? 0.1 * stale : 0.8 * need(d) / maxNeed + 0.2 * stale;
   });
   return docs;
 }
@@ -468,6 +515,8 @@ function availableOn(office, iso){
   if (!office.avail || office.onLeave || !office.coords) return null;
   const a = office.avail.days[dow(iso)]; if (!a) return null;
   if (office.avail.nth.length && !office.avail.nth.includes(Math.ceil(fromISO(iso).getDate()/7))) return null;
+  // every other week: in on the weeks an even number of weeks from the week they were last known to be in
+  if (office.avail.alt && Math.abs(Math.round((fromISO(mondayOf(iso)) - fromISO(office.avail.alt)) / (7*864e5))) % 2 === 1) return null;
   return a;
 }
 function slotCaps(perDay){ return {am: Math.ceil(perDay/2), pm: Math.floor(perDay/2)}; }
@@ -481,7 +530,12 @@ function buildContext(input){
   //         counterpartVisits:[{date,id,who}], calendar:[{start,end,allDay,kind,docs:[{id}],summary}], today}
   const C = {...input};
   C.docById = Object.fromEntries(input.docs.map(d => [d.id, d]));
+  // doctors with no calls left are still known (for calendar visits and adding by hand) but aren't planned on their own
+  C.allDocs = input.docs; C.docs = input.docs.filter(d => !d.noAuto);
   C.blocked = new Set(input.counterpartVisits.map(v => v.date + "|" + v.id));
+  // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
+  C.away = new Set();
+  for (const id in (input.away || {})) for (const r of input.away[id]) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])) if (iso >= r.from && iso <= r.to){ C.away.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
   // doctors already called this week (logged in the tracker or shown in the call plan report) aren't planned again
   const wkEnd = addDays(input.weekMon, 6);
   C.seen = {}; input.docs.forEach(d => { if (d.lastCall && d.lastCall >= input.weekMon && d.lastCall <= wkEnd) C.seen[d.id] = d.lastCall; });
@@ -502,7 +556,7 @@ function buildContext(input){
         (ev.docs||[]).filter(x => x.sure !== false).forEach(x => {
           if (!C.docById[x.id]) return;
           const slot = ev.allDay ? "am" : (ev.start.getHours() < 12 ? "am" : "pm");
-          (C.fixed[iso] = C.fixed[iso] || []).push({id:x.id, slot, from:"calendar", note:ev.summary, time:ev.allDay ? "" : ev.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})});
+          (C.fixed[iso] = C.fixed[iso] || []).push({id:x.id, slot, from:"calendar", note:ev.summary, hour: ev.allDay ? null : ev.start.getHours() + ev.start.getMinutes()/60, time:ev.allDay ? "" : ev.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})});
         });
       }
     }
@@ -546,6 +600,25 @@ function orderDay(stops, home, capAM, capPM){
   const curAM = stops.filter(s => s.slot === "am").length;
   capAM = capAM == null ? n : capAM; capPM = capPM == null ? n : capPM;
   const tour = bestTour(stops, home);
+  // a visit at a set time around midday (a lunch): everything before it in the loop is the morning
+  const noon = stops.find(s => s.fixed && s.hour != null && s.hour >= 11 && s.hour < 14);
+  if (noon){
+    let best = null;
+    for (const seq of [tour, tour.slice().reverse()]){
+      const k = seq.indexOf(noon);
+      const ok = seq.every((s,i) => i < k ? s.am : (s === noon || s.pm));
+      const score = (ok ? 0 : 100) + Math.abs(k - n/2) + (k > capAM ? 50 : 0) + (n - k > capPM + 1 ? 50 : 0);
+      if (!best || score < best.score) best = {seq, k, score};
+    }
+    if (best.score < 100){
+      best.seq.forEach((s,i) => s.slot = i < best.k ? "am" : "pm");
+      return {stops: best.seq, miles: Math.round(miles(tourLength(best.seq, home)))};
+    }
+    // otherwise: the morning stops as a path from home, then the midday visit, then the afternoon from there
+    const amS = bestTour(stops.filter(s => s !== noon && s.slot === "am"), home), pmS = bestTour(stops.filter(s => s !== noon && s.slot !== "am"), noon.coords);
+    noon.slot = "pm"; const seq = amS.concat([noon], pmS);
+    return {stops: seq, miles: Math.round(miles(tourLength(seq, home)))};
+  }
   const ks = []; for (let k = Math.max(0, n - capPM); k <= Math.min(n, capAM); k++) ks.push(k);
   ks.sort((a,b) => Math.abs(a-curAM) - Math.abs(b-curAM));
   for (const k of ks) for (const seq of [tour, tour.slice().reverse()]){
@@ -565,7 +638,7 @@ function orderDay(stops, home, capAM, capPM){
 function makeFixedStop(C, f, iso){
   const opts = optionsFor(C, f.id, iso); const o = opts[0] || null;
   const off = o ? C.offices[o.office] : (C.match.byDoc[f.id]||[]).map(i => C.offices[i])[0];
-  return {id:f.id, office: o ? o.office : ((C.match.byDoc[f.id]||[])[0] ?? null), slot:f.slot, coords: off ? off.coords : null, addrKey: off ? off.addrKey : "cal|"+f.id, fixed:true, am:f.slot === "am", pm:f.slot === "pm", note:f.note, time:f.time, history:[]};
+  return {id:f.id, office: o ? o.office : ((C.match.byDoc[f.id]||[])[0] ?? null), slot:f.slot, coords: off ? off.coords : null, addrKey: off ? off.addrKey : "cal|"+f.id, fixed:true, am:f.slot === "am", pm:f.slot === "pm", note:f.note, time:f.time, hour:f.hour, history:[]};
 }
 function fillDay(C, plan, iso, opts){
   // Plans the open spots of one day. opts: {variant: n (0 = best area, 1 = next best...), avoid: Set of ids to leave out if possible}
@@ -579,7 +652,7 @@ function fillDay(C, plan, iso, opts){
   const feas = C.feas || (C.feas = Object.fromEntries(C.docs.map(d => [d.id, feasibleDays(C, d.id).length])));
   const fixedAM = day.stops.filter(s => s.slot === "am").length, fixedPM = day.stops.filter(s => s.slot === "pm").length;
   day.capAM = C.caps[iso].am; day.capPM = C.caps[iso].pm;
-  const capAM = Math.max(0, C.caps[iso].am - fixedAM), capPM = Math.max(0, C.caps[iso].pm - fixedPM);
+  let capAM = Math.max(0, C.caps[iso].am - fixedAM), capPM = Math.max(0, C.caps[iso].pm - fixedPM);
   const total = Math.max(0, Math.min(C.caps[iso].total - day.stops.length, capAM + capPM));
   day.short = 0;
   if (!total) return;
@@ -590,9 +663,11 @@ function fillDay(C, plan, iso, opts){
     for (const o of optionsFor(C, d.id, iso)) if (!usedAddr.has(o.addrKey)) all.push({...o, w: d.score * (1 + 0.6 / Math.max(1, feas[d.id])) - (avoid.has(d.id) ? 0.5 : 0)});
   }
   if (!all.length){ day.short = total; return; }
-  const adj = (o, center) => o.w - 0.02 * km(o.coords, center) - 0.12 * (cityDays[C.offices[o.office].city] || 0);
-  const fill = (center, radius) => {
-    const P = all.filter(o => km(o.coords, center) <= radius).sort((a,b) => adj(b, center) - adj(a, center));
+  // center may be one point or several (e.g. the chosen area plus a fixed lunch); distance is to the nearest one
+  const dist = (p, center) => Array.isArray(center[0]) ? Math.min(...center.map(c => km(p, c))) : km(p, center);
+  const adj = (o, center) => o.w - 0.02 * dist(o.coords, center) - 0.12 * (cityDays[C.offices[o.office].city] || 0);
+  const fill = (center, radius, extra) => {
+    const P = all.filter(o => dist(o.coords, center) <= radius || (extra && extra(o))).sort((a,b) => adj(b, center) - adj(a, center));
     const picked = [], dU = new Set(), aU = new Set(); let am = capAM, pm = capPM, n = 0, val = 0;
     for (const o of P){
       if (n >= total || am + pm === 0) break;
@@ -608,15 +683,47 @@ function fillDay(C, plan, iso, opts){
   };
   let centers;
   const fixedC = day.stops.filter(s => s.coords).map(s => s.coords);
-  if (fixedC.length) centers = [[fixedC.reduce((a,c)=>a+c[0],0)/fixedC.length, fixedC.reduce((a,c)=>a+c[1],0)/fixedC.length]];
-  else { const seen = new Set(); centers = []; all.forEach(o => { const k = o.coords.join(","); if (!seen.has(k)){ seen.add(k); centers.push(o.coords); } }); }
-  const ranked = centers.map(c => { const r = fill(c, 20); return {c, r, v: r.val - 0.0025 * km(C.home, c) - 0.4 * r.left}; }).sort((a,b) => b.v - a.v);
+  const fc = fixedC.length ? [fixedC.reduce((a,c)=>a+c[0],0)/fixedC.length, fixedC.reduce((a,c)=>a+c[1],0)/fixedC.length] : null;
+  const seenC = new Set(); centers = fc ? [fc] : [];
+  // with a visit already fixed (a calendar lunch, say), the rest of the day may lean into a neighbouring area, but stays within reach of it
+  all.forEach(o => { const k = o.coords.join(","); if (!seenC.has(k) && (!fc || km(o.coords, fc) <= 40)){ seenC.add(k); centers.push(o.coords); } });
+  // fixed visits far apart (e.g. a Turlock anchor and an Alameda lunch): fill around each of them, not the midpoint
+  let spread = 0; fixedC.forEach(a => fixedC.forEach(b => { spread = Math.max(spread, km(a, b)); }));
+  if (spread > 45){
+    // with a midday visit (lunch) on one side, the other side gets one half of the day and the lunch side the other
+    const fixedS = day.stops.filter(s => s.coords);
+    const noon = fixedS.find(s => s.hour != null && s.hour >= 11 && s.hour < 14);
+    if (noon){
+      const far = fixedS.filter(s => s !== noon && km(s.coords, noon.coords) > 45);
+      const nearFar = o => Math.min(...far.map(s => km(s.coords, o.coords))) < km(noon.coords, o.coords);
+      let half = far.some(s => s.anchor && s.am && !s.pm) ? "am" : far.some(s => s.anchor && s.pm && !s.am) ? "pm" : null;
+      if (!half){ const cnt = h => all.filter(o => nearFar(o) && o[h]).length + (far.every(s => s[h]) ? 3 : 0); half = cnt("am") >= cnt("pm") ? "am" : "pm"; }
+      const other = half === "am" ? "pm" : "am";
+      far.forEach(s => { s.slot = half; s.am = half === "am"; s.pm = half === "pm"; });
+      for (let i = all.length - 1; i >= 0; i--){ const o = all[i], h = nearFar(o) ? half : other; if (!o[h]) all.splice(i, 1); else all[i] = {...o, am: h === "am", pm: h === "pm"}; }
+      // the half-day caps now count what's already fixed on each side
+      const fa = day.stops.filter(s => s.slot === "am").length, fp = day.stops.filter(s => s.slot === "pm").length;
+      capAM = Math.max(0, C.caps[iso].am - fa); capPM = Math.max(0, C.caps[iso].pm - fp);
+    }
+    let res = fill(fixedC, 20); if (res.left > 0){ const r2 = fill(fixedC, 32); if (r2.left < res.left) res = r2; }
+    if (res.left > 0){ const base = fixedC.map(c => km(c, C.home)); const r4 = fill(fixedC, 32, o => fixedC.some((c,i) => km(c, o.coords) + km(o.coords, C.home) - base[i] <= 20)); if (r4.left < res.left) res = r4; }
+    res.picked.forEach(o => day.stops.push({id:o.id, office:o.office, slot:o.slot, am:o.am, pm:o.pm, coords:o.coords, addrKey:o.addrKey, history:[]}));
+    day.short = res.left; day.center = fc; day.variants = 1; return;
+  }
+  const ranked = centers.map(c => { const r = fill(c, 20); return {c, r, v: r.val - 0.0025 * km(C.home, c) - 0.4 * r.left - (fc ? 0.012 * km(fc, c) : 0)}; }).sort((a,b) => b.v - a.v);
   // alternatives: distinct areas (skip centres within 8 km of a better one)
   const distinct = []; ranked.forEach(x => { if (!distinct.some(y => km(y.c, x.c) < 8)) distinct.push(x); });
   const pickI = (opts.variant || 0) % Math.max(1, distinct.length);
   const best = distinct[pickI] || ranked[0];
   let res = best.r;
   if (res.left > 0){ const r2 = fill(best.c, 32); if (r2.left < res.left) res = r2; }
+  if (res.left > 0 && fc){ const r3 = fill([best.c, fc], 25); if (r3.left < res.left) res = r3; }
+  // still short: top up with doctors on the way out or back (a small detour from the drive between home and the day's area)
+  if (res.left > 0){
+    const c0 = best.c, base = km(c0, C.home);
+    const onTheWay = o => km(c0, o.coords) + km(o.coords, C.home) - base <= 20;
+    const r4 = fill(fc ? [c0, fc] : c0, 32, onTheWay); if (r4.left < res.left) res = r4;
+  }
   res.picked.forEach(o => day.stops.push({id:o.id, office:o.office, slot:o.slot, am:o.am, pm:o.pm, coords:o.coords, addrKey:o.addrKey, history:[]}));
   day.short = res.left; day.center = best.c; day.variants = distinct.length;
 }
@@ -626,9 +733,36 @@ function planWeek(input){
   const used = new Set();
   for (const iso of C.days){
     plan.days[iso] = {stops:[], area:"", miles:0, short:0, notes:C.busyNotes[iso], variant:0};
+    for (const k of ((input.keep || {})[iso] || [])){ if (used.has(k.id)) continue; plan.days[iso].stops.push(JSON.parse(JSON.stringify(k))); used.add(k.id); }
+    // anchors: doctors the rep has pinned to this day; they count toward the day and the day is planned around them
+    for (const a of (input.anchors || []).filter(a => a.iso === iso)){
+      if (used.has(a.id)) continue;
+      const opts = optionsFor(C, a.id, iso); let o = opts.find(x => a.addrKey && x.addrKey === a.addrKey) || opts[0];
+      if (a.addrKey && (!o || o.addrKey !== a.addrKey)){ const i = (C.match.byDoc[a.id] || []).find(j => C.offices[j].addrKey === a.addrKey); if (i != null){ const of = C.offices[i]; o = {office:i, coords:of.coords, addrKey:of.addrKey, am:true, pm:true}; } }
+      if (!o){ const i = (C.match.byDoc[a.id] || [])[0]; if (i == null) continue; const of = C.offices[i]; o = {office:i, coords:of.coords, addrKey:of.addrKey, am:true, pm:true}; }
+      const slot = a.slot || (o.am ? "am" : "pm");
+      plan.days[iso].stops.push({id:a.id, office:o.office, slot, am: a.slot ? a.slot === "am" : !!o.am, pm: a.slot ? a.slot === "pm" : !!o.pm, coords:o.coords, addrKey:o.addrKey, fixed:true, anchor:true, history:[]});
+      used.add(a.id);
+    }
     for (const f of (C.fixed[iso] || [])){ if (used.has(f.id)) continue; plan.days[iso].stops.push(makeFixedStop(C, f, iso)); used.add(f.id); }
   }
-  for (const iso of C.days) fillDay(C, plan, iso);
+  // days anchored by a visit already on the calendar get first pick of the doctors around it
+  const order = C.days.slice().sort((a,b) => (plan.days[b].stops.length > 0) - (plan.days[a].stops.length > 0) || a.localeCompare(b));
+  for (const iso of order) fillDay(C, plan, iso);
+  // a day that came up short: try re-planning it together with each other day (short day first) and keep the swap if more visits fit overall
+  const auto = s => !s.fixed && !s.done && !s.manual;
+  for (const iso of C.days){
+    if (!(plan.days[iso].short > 0)) continue;
+    for (const other of C.days){
+      if (other === iso || !(plan.days[iso].short > 0)) continue;
+      const A = plan.days[iso], B = plan.days[other];
+      const before = A.stops.length + B.stops.length, saveA = JSON.stringify(A), saveB = JSON.stringify(B);
+      A.stops = A.stops.filter(s => !auto(s)); B.stops = B.stops.filter(s => !auto(s));
+      fillDay(C, plan, iso); fillDay(C, plan, other);
+      if (A.stops.length + B.stops.length > before) continue;
+      plan.days[iso] = JSON.parse(saveA); plan.days[other] = JSON.parse(saveB);
+    }
+  }
   for (const iso of C.days) finishDay(C, plan, iso);
   plan.unscheduled = explainUnscheduled(C, plan);
   return {plan, C};
@@ -650,6 +784,8 @@ function finishDay(C, plan, iso){
   const o = orderDay(day.stops.filter(s => s.coords), C.home, (day.capAM ?? 4) + extra, (day.capPM ?? 5) + extra);
   day.stops = o.stops.concat(day.stops.filter(s => !s.coords)); day.miles = o.miles;
   const cities = []; day.stops.forEach(s => { const of = s.office != null ? C.offices[s.office] : null; const c = of ? of.city : ""; if (c && !cities.includes(c)) cities.push(c); });
+  const fx = day.stops.filter(s => s.fixed && s.coords); day.farApart = null;
+  for (let i = 0; i < fx.length; i++) for (let j = i+1; j < fx.length; j++){ const m = miles(km(fx[i].coords, fx[j].coords)); if (m > 40 && (!day.farApart || m > day.farApart.mi)) day.farApart = {a:fx[i].id, b:fx[j].id, mi: Math.round(m)}; }
   day.area = cities.slice(0,3).join(" · ") + (cities.length > 3 ? " +" + (cities.length-3) : "");
 }
 function weekUse(plan, exceptIso, exceptIdx, addrRule){
@@ -685,7 +821,7 @@ function addCandidates(C, plan, iso){
   const elsewhere = {}; for (const k in plan.days) if (k !== iso) plan.days[k].stops.forEach(s => elsewhere[s.id] = k);
   const pts = day.stops.filter(s => s.coords).map(s => s.coords);
   const out = [];
-  for (const d of C.docs){
+  for (const d of C.allDocs || C.docs){
     if (todayIds.has(d.id)) continue;
     let best = null;
     for (const i of (C.match.byDoc[d.id] || [])){
@@ -693,7 +829,7 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
+        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
@@ -731,6 +867,7 @@ function moveOptions(C, plan, iso, idx){
     let reason = null, pick = null;
     if (!(C.match.byDoc[s.id] || []).length) reason = "Not in your spreadsheet";
     else if (!opts.length) reason = "Not in that day, per your spreadsheet";
+    else if (C.away.has(k + "|" + s.id)) reason = "Out of office that day";
     else if (C.blocked.has(k + "|" + s.id)) reason = "A counterpart is seeing them that day";
     else if (usedD.has(s.id)) reason = "Already planned another day";
     else {
@@ -779,7 +916,8 @@ function explainUnscheduled(C, plan){
     else {
       const avDays = C.days.filter(iso => optionsFor(C, d.id, iso).length);
       if (!avDays.length) why = "Not in on the days you're working";
-      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = "A counterpart sees them on the only days they're in";
+      else if (avDays.every(iso => C.away.has(iso + "|" + d.id))) why = "Out of office";
+      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = avDays.some(iso => C.away.has(iso + "|" + d.id)) ? "Out of office or a counterpart is seeing them" : "A counterpart sees them on the only days they're in";
       else why = "Didn't fit this week's areas";
     }
     return {id:d.id, why};
@@ -794,7 +932,8 @@ function checkPlan(C, plan){
     if (seenD.has(s.id)) probs.push("doctor twice: " + s.id); seenD.set(s.id, iso);
     const ak = C.addrRule === "day" ? iso + "|" + s.addrKey : s.addrKey;
     if (seenA.has(ak)) probs.push("address twice: " + s.addrKey); seenA.set(ak, iso);
-    if (C.blocked.has(iso + "|" + s.id)) probs.push("counterpart same day: " + s.id + " " + iso);
+    if (C.away.has(iso + "|" + s.id)) probs.push("out of office: " + s.id + " " + iso);
+    else if (C.blocked.has(iso + "|" + s.id)) probs.push("counterpart same day: " + s.id + " " + iso);
     if (!s.fixed){ const a = s.office != null ? availableOn(C.offices[s.office], iso) : null; if (!a || !(s.slot === "am" ? a.am : a.pm)) probs.push("not available: " + s.id + " " + iso + " " + s.slot); }
   });
   return probs;
@@ -811,9 +950,10 @@ function docsFromTrackerFile(obj){
     const weeksLeft = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO))/864e5)+1)/7)) : null;
     return obj.doctors.map(d => {
       const rem = Math.max(0, d.r0 - d.log.length); const lc = d.log.concat(d.hist || [], d.lastRpt ? [d.lastRpt] : []).sort().pop() || null;
-      return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed:d.c0 + d.log.length, lastCall:lc,
-        daysSinceLastCall: lc ? Math.round((fromISO(todayISO)-fromISO(lc))/864e5) : null, callsPerWeekNeeded: weeksLeft ? rem/weeksLeft : null};
-    }).filter(d => d.remaining > 0);
+      return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed:d.c0 + d.log.length, lastCall:lc, added: !!d.added, kind: d.kind || "",
+        daysSinceLastCall: lc ? Math.round((fromISO(todayISO)-fromISO(lc))/864e5) : null, callsPerWeekNeeded: d.added ? 0 : (weeksLeft ? rem/weeksLeft : null),
+        noAuto: !d.added && rem <= 0};
+    });
   }
   throw new Error("That file isn't a remaining-calls export from the Call Tracker.");
 }
@@ -838,7 +978,7 @@ function csvRows(text){
   return rows.filter(r => r.some(c => String(c).trim()));
 }
 
-const api = {ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
+const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, parseTSV,
   scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};

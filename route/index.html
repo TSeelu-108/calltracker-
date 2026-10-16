@@ -2,6 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* For iPad only. Phones see a short message and nothing else loads.
+   A device that already had this app's data before this check was added keeps working,
+   and a device can be let in with a private key (only its fingerprint is here). */
+(function(){
+  var ALLOW = "device.allow.v1", FP = "2dff1c1cfc1e4f49f476a28c1fbcfbe3e54ec98d468c590ec2f246fe41227c79";
+  function sha256(s){
+    function r(n,x){return (x>>>n)|(x<<(32-n));}
+    var K=[],H=[],p=2,i,j;
+    for(i=0;i<64;p++){var pr=1;for(j=2;j*j<=p;j++)if(p%j===0){pr=0;break;}if(pr){if(i<8)H[i]=(Math.pow(p,1/2)*4294967296)|0;K[i++]=(Math.pow(p,1/3)*4294967296)|0;}}
+    s=unescape(encodeURIComponent(s));var l=s.length*8,w=[];
+    for(i=0;i<s.length;i++)w[i>>2]|=s.charCodeAt(i)<<((3-i%4)*8);
+    w[l>>5]|=0x80<<(24-l%32);w[((l+64>>9)<<4)+15]=l;
+    for(i=0;i<w.length;i+=16){var a=H.slice(0),W=[];
+      for(j=0;j<64;j++){if(j<16)W[j]=w[i+j]|0;else{var s0=r(7,W[j-15])^r(18,W[j-15])^(W[j-15]>>>3),s1=r(17,W[j-2])^r(19,W[j-2])^(W[j-2]>>>10);W[j]=(W[j-16]+s0+W[j-7]+s1)|0;}
+        var t1=(a[7]+(r(6,a[4])^r(11,a[4])^r(25,a[4]))+((a[4]&a[5])^(~a[4]&a[6]))+K[j]+W[j])|0,t2=((r(2,a[0])^r(13,a[0])^r(22,a[0]))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2])))|0;
+        a=[(t1+t2)|0].concat(a);a[4]=(a[4]+t1)|0;a.pop();}
+      for(j=0;j<8;j++)H[j]=(H[j]+a[j])|0;}
+    return H.map(function(x){return ("00000000"+(x>>>0).toString(16)).slice(-8);}).join("");
+  }
+  function get(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function set(){try{localStorage.setItem(ALLOW,"1");}catch(e){}}
+  window.__gateKey = function(k){ if (k && sha256("calltracker:" + String(k).trim()) === FP){ set(); return true; } return false; };
+  var ua = navigator.userAgent, tp = navigator.maxTouchPoints || 0, side = Math.min(screen.width, screen.height);
+  var phone = /iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) || (tp > 0 && side < 600);
+  var ipad = !phone && side >= 700 && (/iPad/.test(ua) || (/Macintosh/.test(ua) && tp > 0));
+  var m = location.search.match(/[?&]k=([^&]+)/); if (m) window.__gateKey(decodeURIComponent(m[1]));
+  var ok = ipad || get(ALLOW) === "1";
+  if (!ok && (get("callplan.tracker.v1") || get("weekrouter.v1"))){ set(); ok = true; }   // already in use before this check
+  if (ok) return;
+  document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#f3f5f7;color:#17202b;font:600 20px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}@media (prefers-color-scheme:dark){html,body{background:#0f141a;color:#e7edf3}}.g{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;text-align:center}.g input{font-size:16px;font-weight:400;padding:10px;border-radius:8px;border:1px solid #9aa8b6;width:min(320px,90%);background:transparent;color:inherit}<\/style>'
+    + '<div class="g"><div id="gm">For iPad only.<\/div><input id="gk" hidden autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Key"><\/div>'
+    + '<script>(function(){var n=0,t;document.getElementById("gm").addEventListener("click",function(){clearTimeout(t);t=setTimeout(function(){n=0;},2000);if(++n>=5){var i=document.getElementById("gk");i.hidden=false;i.focus();}});'
+    + 'document.getElementById("gk").addEventListener("input",function(e){if(window.__gateKey(e.target.value))location.replace(location.pathname);});})();<\/script>'
+    + '<plaintext style="display:none">');
+})();
+</script>
+
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -173,8 +211,8 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       <div class="actions">
         <a class="btn ghost" href="../" id="trackerLink">Call Tracker</a>
         <button class="btn ghost" id="settingsBtn">Settings</button>
-        <button class="btn ghost" id="ddBtn">DoorDash</button>
         <button class="btn" id="whoBtn">Who's in</button>
+        <button class="btn" id="blitzBtn">Blitzes</button>
         <button class="btn primary" id="buildBtn">Build my week</button>
       </div>
     </div>
@@ -206,6 +244,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       <p id="s3"></p>
       <div class="actions">
         <button class="btn small" id="shotBtn">Add schedule screenshots</button>
+        <button class="btn small" id="pasteBtn">Paste a shared week</button>
         <button class="btn small" id="cpBtn">Review</button>
       </div>
     </div>
@@ -244,8 +283,8 @@ const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUp
 
 /* ---------- state (kept only on this iPad) ---------- */
 let S = load() || {};
-S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null}, S);
-S.settings = Object.assign({home:"concord", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null, chargers:"off", doordash:true}, S.settings||{});
+S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, blitzes:[], away:{}, anchors:{}}, S);
+S.settings = Object.assign({home:"", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null, chargers:"off", myName:""}, S.settings||{});
 function load(){
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (!s) return null;
     if (s.ics) s.ics.events.forEach(e => { ["start","end","recurrenceId"].forEach(k => { if (e[k]) e[k].date = new Date(e[k].date); }); e.exdates = (e.exdates||[]).map(d => new Date(d)); });
@@ -357,19 +396,24 @@ function derive(){
   try { const js = JSON.stringify(docOff); if (localStorage.getItem(DOCOFF_KEY) !== js) localStorage.setItem(DOCOFF_KEY, js); } catch(e){}
   D.names = L.buildNameIndex(D.docs, D.offices, D.match);
   D.days = L.weekDays(weekMon);
+  applyBlitzes();
   D.workDays = D.days.filter(iso => S.settings.workDays.includes(L.fromISO(iso).getDay()) && iso >= todayISO());
   D.cal = [];
   if (S.ics){
     const occ = L.expandEvents(S.ics.events, D.days[0], D.days[4]);
-    D.cal = occ.map(e => { const c = L.classifyEvent(e, S.settings.counterparts, D.names); const key = (e.uid||e.summary) + "|" + e.start.getTime(); return {...e, ...c, key, auto:c.kind, kind: S.kinds[key] || c.kind}; });
+    D.cal = occ.map(e => { const c = L.classifyEvent(e, S.settings.counterparts, D.names, S.settings.myName); const key = (e.uid||e.summary) + "|" + e.start.getTime();
+      const ok = S.calOk[key] || []; c.docs = c.docs.map(x => ok.includes(x.id) ? {...x, sure:true} : x);
+      return {...e, ...c, key, auto:c.kind, kind: S.kinds[key] || c.kind}; });
   }
-  // counterpart visits this week: screenshots/manual + calendar events marked as Ann/Chase
+  // counterpart visits this week: screenshots/manual + calendar events marked as a counterpart's
   D.cp = S.cp.filter(v => D.days.includes(v.date));
   D.cal.filter(e => e.kind === "counterpart").forEach(e => {
     const date = L.isoDay(e.start);
     e.docs.forEach(x => { if (!D.cp.some(v => v.date === date && v.id === x.id)) D.cp.push({date, id:x.id, who:(e.who[0]||"Calendar"), src:"calendar", sure:x.sure}); });
   });
-  D.home = L.cityCoords(S.settings.home) || L.CITIES.concord;
+  // no start city chosen yet: use the middle of your offices until one is picked in Settings
+  const oc = D.offices.filter(o => o.coords);
+  D.home = L.cityCoords(S.settings.home) || (oc.length ? [oc.reduce((a,o) => a + o.coords[0], 0) / oc.length, oc.reduce((a,o) => a + o.coords[1], 0) / oc.length] : [37.8, -122.2]);
   D.zone = zoneForWeek(weekMon);
 }
 function zoneIndexForWeek(mon){
@@ -386,7 +430,8 @@ function zoneForWeek(mon){
 }
 function dayAvail(loc){
   const days = {}; for (let k = 1; k <= 5; k++){ const x = (loc.days || {})[k]; if (x && (x.am || x.pm)) days[k] = {am:!!x.am, pm:!!x.pm}; }
-  return Object.keys(days).length ? {days, appt:!!loc.appt, nth:[]} : Object.assign(L.ANYTIME(), {appt:!!loc.appt});
+  const nth = loc.alt ? [] : (loc.nth || []).filter(n => n >= 1 && n <= 5), alt = loc.alt || null;
+  return Object.keys(days).length ? {days, appt:!!loc.appt, nth, alt} : Object.assign(L.ANYTIME(), {appt:!!loc.appt, nth, alt});
 }
 function appOffice(d, loc){
   const avail = dayAvail(loc);
@@ -397,7 +442,7 @@ function appOffice(d, loc){
 const addrOf = o => o ? [o.address, o.city].filter(Boolean).join(", ") : "";
 function officeOf(s){ if (s.office == null) return null; const o = D.offices[s.office]; if (o && o.addrKey === s.addrKey) return o; return D.offices.find(x => x.addrKey === s.addrKey) || o || null; }
 const docName = id => { const d = D.docs.find(x => x.id === id); return d ? title(d.name) : title(id); };
-function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone]); }
+function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone]); }
 
 /* ---------- render ---------- */
 function render(){
@@ -408,7 +453,7 @@ function render(){
   const trackerData = readTracker();
   $("useTracker").hidden = !trackerData;
   $("useTracker").textContent = S.docs && S.docs.src === "tracker" ? "Refresh from Call Tracker" : "Use my Call Tracker";
-  setCard(1, S.docs ? "ok" : "", S.docs ? `${S.docs.list.length} doctors with calls left · ${S.docs.list.reduce((n,d)=>n+d.remaining,0)} calls · ` + (S.docs.src === "tracker" ? "from your Call Tracker, always up to date" : `from ${S.docs.label}, ${fmtShort(S.docs.at.slice(0,10))}`) + planPct() : (trackerData ? "Tap “Use my Call Tracker” to pull in your numbers." : "Load your call plan in the Call Tracker first, then come back here."));
+  setCard(1, S.docs ? "ok" : "", S.docs ? `${S.docs.list.filter(d => d.remaining > 0).length} doctors with calls left · ${S.docs.list.reduce((n,d)=>n+d.remaining,0)} calls · ` + (S.docs.src === "tracker" ? "from your Call Tracker, always up to date" : `from ${S.docs.label}, ${fmtShort(S.docs.at.slice(0,10))}`) + planPct() : (trackerData ? "Tap “Use my Call Tracker” to pull in your numbers." : "Load your call plan in the Call Tracker first, then come back here."));
   const need = needInfo().length, nApp = D.docs.filter(d => D.src[d.id] === "app").length;
   $("colsBtn").hidden = !(S.sheet && S.sheet.rows);
   if (S.sheet){
@@ -423,11 +468,172 @@ function render(){
     setCard(4, "ok", `${S.ics.name} · this week: ${c("busy")} busy time${c("busy")===1?"":"s"}, ${c("mine")} doctor visit${c("mine")===1?"":"s"} of yours, ${c("counterpart")} counterpart visit${c("counterpart")===1?"":"s"}, ${c("ignore")} ignored`);
   } else setCard(4, "", "Your calendar export. Meetings and time off are kept free, and counterparts' scheduled in-services are avoided.");
   $("buildBtn").disabled = !S.docs;
-  $("ddBtn").hidden = S.settings.doordash === false;
   renderRoute();
 }
 // doctors without a sure spreadsheet match or entered office/days
-function needInfo(){ return D.docs.filter(d => D.src[d.id] === "city" || D.src[d.id] === "none" || D.match.how[d.id] === "close"); }
+/* ---------- anchors: doctors pinned to a day of this week, planned around and kept on rebuild ---------- */
+const anchorsNow = () => (S.anchors[weekMon] = S.anchors[weekMon] || []);
+function setAnchor(id, iso, slot, addrKey){ const l = anchorsNow().filter(a => a.id !== id); l.push({id, iso, slot: slot || "", addrKey: addrKey || ""}); S.anchors[weekMon] = l; Object.keys(S.anchors).filter(k => k < L.addDays(L.mondayOf(todayISO()), -28)).forEach(k => delete S.anchors[k]); }
+function dropAnchor(id){ S.anchors[weekMon] = anchorsNow().filter(a => a.id !== id); }
+function anchorWarn(id, iso, slot){
+  const dn = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}); const out = [];
+  const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]); const av = offs.map(o => L.availableOn(o, iso)).filter(Boolean);
+  if (!av.length) out.push(`Not usually in on ${dn}`); else if (slot && !av.some(a => slot === "am" ? a.am : a.pm)) out.push(`Usually only in the ${slot === "am" ? "afternoon" : "morning"} on ${dn}`);
+  const cp = D.cp.find(v => v.date === iso && v.id === id); if (cp) out.push(`${cp.who} is seeing them on ${dn}`);
+  if (awayNow(id, iso)) out.push(`Marked out of office on ${dn}`);
+  const here = offs[0] && offs[0].coords;
+  if (here){
+    const others = anchorsNow().filter(a => a.iso === iso && a.id !== id).map(a => a.id).concat(D.cal.filter(e => e.kind === "mine" && L.isoDay(e.start) === iso).flatMap(e => e.docs.filter(x => x.sure !== false).map(x => x.id)));
+    for (const oid of others){ const o2 = (D.match.byDoc[oid] || []).map(i => D.offices[i]).find(o => o.coords); if (o2 && L.miles(L.km(here, o2.coords)) > 40){ out.push(`About ${Math.round(L.miles(L.km(here, o2.coords)))} miles from ${docName(oid)} (${o2.city}), who's also set for ${dn}`); break; } }
+  }
+  return out;
+}
+function openAnchors(back){
+  derive();
+  const list = anchorsNow();
+  openSheet(`<h2>Anchors</h2><p>Doctors you want to see on a certain day this week, for any reason. Each one counts toward that day's ${+S.settings.perDay||6}, and the rest of the day is planned around them. They stay put when you rebuild.</p>
+    ${list.length ? `<ul class="ulist">${list.slice().sort((a,b) => a.iso.localeCompare(b.iso)).map(a => `<li><span>📌 ${esc(docName(a.id))}</span><span>${L.fromISO(a.iso).toLocaleDateString(undefined,{weekday:"short"})}${a.slot ? " " + (a.slot === "am" ? "morning" : "afternoon") : ""} <button class="btn small ghost" data-anrm="${esc(a.id)}">Remove</button></span></li>`).join("")}</ul>` : `<p class="sub">No anchors this week.</p>`}
+    <div class="foot"><button class="btn" id="anAdd">+ Add an anchor</button><button class="btn primary" id="anDone">Done</button></div>`);
+  $("anDone").onclick = () => back ? back() : (closeSheet(), render());
+  $("anAdd").onclick = () => openAnchorAdd(() => openAnchors(back));
+  $("sheet").querySelectorAll("[data-anrm]").forEach(b => b.onclick = () => { dropAnchor(b.dataset.anrm); save(); render(); openAnchors(back); });
+}
+function openAnchorAdd(back){
+  const days = D.days.filter(iso => iso >= todayISO()); let pick = {id:null, iso: days[0] || D.days[0], slot:""}, q = "";
+  const draw = () => {
+    const w = pick.id ? anchorWarn(pick.id, pick.iso, pick.slot) : [];
+    const list = D.docs.slice().sort((a,b) => a.name.split(" ").pop().localeCompare(b.name.split(" ").pop()));
+    openSheet(`<h2>Add an anchor</h2>
+      <div class="field">Day<div class="seg" role="group">${days.map(d => `<button data-and="${d}" aria-pressed="${d===pick.iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div></div>
+      <div class="field">Time<div class="seg" role="group"><button data-ans="" aria-pressed="${!pick.slot}">Either</button><button data-ans="am" aria-pressed="${pick.slot==="am"}">Morning</button><button data-ans="pm" aria-pressed="${pick.slot==="pm"}">Afternoon</button></div></div>
+      <div class="field">Doctor${pick.id ? `: <b>${esc(docName(pick.id))}</b>` : ""}<input type="search" id="anQ" placeholder="Search a doctor or city" value="${esc(q)}"></div>
+      <div class="cands" id="anList" style="max-height:260px;overflow:auto">${list.map(d => `<button class="cand" style="text-align:left;${d.id===pick.id ? "border-color:var(--accent);background:var(--accent-soft)" : ""}" data-anp="${esc(d.id)}" data-ann="${esc((d.name + " " + d.city).toLowerCase())}"><div><div class="n">${esc(title(d.name))}</div><div class="sub">${esc(title(d.city))}</div></div></button>`).join("")}</div>
+      ${w.length ? `<p style="color:var(--red-ink)"><b>${w.map(esc).join(". ")}.</b> You can anchor them anyway.</p>` : ""}
+      <div class="foot"><button class="btn" id="anX">Cancel</button><button class="btn primary" id="anOk" ${pick.id ? "" : "disabled"}>${w.length ? "Anchor anyway" : "Anchor"}</button></div>`);
+    const filt = () => { q = $("anQ").value.trim().toLowerCase(); $("anList").querySelectorAll("[data-ann]").forEach(el => el.hidden = !!q && !el.dataset.ann.includes(q)); };
+    $("anQ").oninput = filt; filt();
+    $("sheet").querySelectorAll("[data-and]").forEach(b => b.onclick = () => { pick.iso = b.dataset.and; draw(); });
+    $("sheet").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => { pick.slot = b.dataset.ans; draw(); });
+    $("sheet").querySelectorAll("[data-anp]").forEach(b => b.onclick = () => { pick.id = b.dataset.anp; q = ""; draw(); });
+    $("anX").onclick = back;
+    $("anOk").onclick = () => { setAnchor(pick.id, pick.iso, pick.slot); save(); render(); toast(`Anchored ${docName(pick.id)} to ${L.fromISO(pick.iso).toLocaleDateString(undefined,{weekday:"long"})}. ${currentPlan() ? "Rebuild to plan around it." : ""}`); back(); };
+  };
+  draw();
+}
+
+/* ---------- out of office: date ranges per doctor; never planned on those days ---------- */
+(function tidyAway(){ const cut = L.addDays(todayISO(), -14); let ch = false; for (const id in S.away){ const l = S.away[id].filter(r => r.to >= cut); if (l.length !== S.away[id].length){ ch = true; if (l.length) S.away[id] = l; else delete S.away[id]; } } if (ch) save(); })();
+function awayNow(id, iso){ return (S.away[id] || []).find(r => iso >= r.from && iso <= r.to) || null; }
+function awayLabel(r){ return r.from === r.to ? fmtShort(r.from) : fmtShort(r.from) + " – " + fmtShort(r.to); }
+function openAway(id, back, dayIso){
+  const list = (S.away[id] || []).slice().sort((a,b) => a.from.localeCompare(b.from));
+  // quick picks follow the week you're looking at, not just today
+  const t0 = todayISO(), mon = weekMon > L.mondayOf(t0) ? weekMon : L.mondayOf(t0), start = mon > t0 ? mon : t0;
+  const quick = (dayIso ? [["Just " + L.fromISO(dayIso).toLocaleDateString(undefined,{weekday:"long"}), dayIso, dayIso]] : [])
+    .concat([["Week of " + fmtShort(mon), start, L.addDays(mon, 4)], ["2 weeks from " + fmtShort(start), start, L.addDays(mon, 11)]]);
+  openSheet(`<h2>Out of office</h2><p>${esc(docName(id))} won't be planned on these days.</p>
+    ${list.length ? `<ul class="ulist">${list.map((r,k) => `<li><span>${awayLabel(r)}</span><span><button class="btn small ghost" data-awrm="${k}">Remove</button></span></li>`).join("")}</ul>` : `<p class="sub">No time away set.</p>`}
+    <p style="margin-top:14px"><b style="color:var(--ink)">Add time away</b></p>
+    <div class="actions">${quick.map((q,k) => `<button class="btn small" data-awq="${k}">${q[0]}</button>`).join("")}</div>
+    <div class="actions" style="margin-top:10px"><label class="field" style="flex:1">From<input type="date" id="awF" value="${start}"></label><label class="field" style="flex:1">Through<input type="date" id="awT" value="${L.addDays(mon, 4)}"></label></div>
+    <div class="foot"><button class="btn" id="awX">${back ? "Back" : "Close"}</button><button class="btn primary" id="awAdd">Add these dates</button></div>`);
+  const add = (from, to) => {
+    if (!from || !to){ toast("Pick both dates"); return; }
+    if (to < from) [from, to] = [to, from];
+    (S.away[id] = S.away[id] || []).push({from, to});
+    // take them off any planned day in that range (Put back is still there if plans change)
+    const W = currentPlan(); let moved = 0;
+    if (W){ C = L.buildContext(contextInput()); for (const iso of Object.keys(W.plan.days)) if (iso >= from && iso <= to){ const d = W.plan.days[iso]; for (let i = d.stops.length - 1; i >= 0; i--) if (d.stops[i].id === id && !d.stops[i].done){ L.removeStop(C, W.plan, iso, i); moved++; } } }
+    save(); render(); toast(`${docName(id)} is out ${awayLabel({from, to})}` + (moved ? ". Taken off your plan; tap Try another area to fill the gap." : "")); openAway(id, back, dayIso);
+  };
+  $("sheet").querySelectorAll("[data-awq]").forEach(b => b.onclick = () => { const q = quick[+b.dataset.awq]; add(q[1], q[2]); });
+  $("awAdd").onclick = () => add($("awF").value, $("awT").value);
+  $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const r = list[+b.dataset.awrm]; S.away[id] = (S.away[id] || []).filter(x => !(x.from === r.from && x.to === r.to)); if (!S.away[id].length) delete S.away[id]; save(); render(); openAway(id, back, dayIso); });
+  $("awX").onclick = () => back ? back() : closeSheet();
+}
+
+/* ---------- blitzes: named lists seen weekly or every other week ----------
+   A doctor is due when they haven't had any call (blitz or not) in the last 1 or 2 weeks.
+   Due doctors go to the top of the list for the week; everything else stays the same. */
+function blitzActive(b, mon){ const fri = L.addDays(mon, 4); return !b.stopped && b.start <= fri && (!b.end || b.end >= mon); }
+function applyBlitzes(){
+  D.blitz = {}; D.blitzDue = {};
+  const act = (S.blitzes || []).filter(b => blitzActive(b, weekMon)); D.blitzActive = act;
+  for (const b of act){
+    const since = L.addDays(weekMon, -(b.freq === 14 ? 7 : 0));   // weekly: no call since Monday; every other week: none since the Monday before
+    for (const id of b.docs){
+      const d = D.docs.find(x => x.id === id); if (!d) continue;
+      (D.blitz[id] = D.blitz[id] || []).push(b.name);
+      const due = !d.lastCall || d.lastCall < since;
+      if (due){ (D.blitzDue[b.id] = D.blitzDue[b.id] || []).push(id); if (!d.blitzDue){ d.blitzDue = true; d.noAuto = false; d.score += 5; } }
+    }
+  }
+}
+function blitzProgress(plan){
+  const on = new Set(); Object.values(plan.days).forEach(d => d.stops.forEach(s => on.add(s.id)));
+  return D.blitzActive.map(b => { const due = D.blitzDue[b.id] || []; return {b, due, planned: due.filter(id => on.has(id)), missing: due.filter(id => !on.has(id))}; });
+}
+const cleanBlitzName = s => String(s||"").replace(/[^\p{L}\d\s\-&',.]/gu,"").replace(/\s+/g," ").trim().slice(0,30);
+$("blitzBtn").onclick = () => openBlitzes();
+function openBlitzes(){
+  derive();
+  const st = b => b.stopped || (b.end && b.end < todayISO()) ? "Ended" : b.start > todayISO() ? "Starts " + fmtShort(b.start) : "Active";
+  openSheet(`<h2>Blitzes</h2>
+    <p>A blitz is a list of doctors to see every week or every other week for a while. Due doctors are planned first. Any call counts: if you've seen a doctor within the blitz's rhythm, they aren't added again until it's been a week or two.</p>
+    <div class="cands">${(S.blitzes||[]).map((b,i) => `<div class="cand"><div><div class="n">${esc(b.name)}</div><div class="sub">${b.freq === 14 ? "Every other week" : "Weekly"} · ${b.docs.length} doctor${b.docs.length===1?"":"s"} · ${esc(st(b))}${b.end ? " · ends " + fmtShort(b.end) : ""}</div>${blitzActive(b, weekMon) ? `<div class="sub">${(D.blitzDue[b.id]||[]).length} due the week of ${fmtShort(weekMon)}</div>` : ""}</div><button class="btn small" data-bed="${i}">Edit</button></div>`).join("") || `<p class="sub">No blitzes yet.</p>`}</div>
+    <div class="foot"><button class="btn" id="bNew">+ New blitz</button><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = () => { closeSheet(); render(); if (checkPending) openBuildCheck(); };
+  $("bNew").onclick = () => openBlitz(-1);
+  $("sheet").querySelectorAll("[data-bed]").forEach(b => b.onclick = () => openBlitz(+b.dataset.bed));
+}
+function openBlitz(idx){
+  derive();
+  const orig = idx >= 0 ? S.blitzes[idx] : null;
+  const b = orig ? JSON.parse(JSON.stringify(orig)) : {id: "b" + Date.now(), name:"", freq:7, start: L.mondayOf(todayISO()), end:"", docs:[]};
+  let q = "", err = "";
+  const cities = [...new Set(D.docs.map(d => title(d.city)).filter(Boolean))].sort();
+  const draw = () => {
+    const sel = new Set(b.docs);
+    const list = D.docs.slice().sort((x,y) => (sel.has(y.id) - sel.has(x.id)) || x.name.split(" ").pop().localeCompare(y.name.split(" ").pop()));
+    openSheet(`<h2>${orig ? "Edit blitz" : "New blitz"}</h2>
+      <label class="field">Name<input id="bzName" value="${esc(b.name)}" placeholder="e.g. Medi-Cal blitz" maxlength="30" autocomplete="off"></label>
+      <div class="field">How often<div class="seg" role="group"><button data-bf="7" aria-pressed="${b.freq!==14}">Weekly</button><button data-bf="14" aria-pressed="${b.freq===14}">Every other week</button></div></div>
+      <div class="actions" style="margin-top:8px"><label class="field" style="flex:1">Starts<input type="date" id="bzStart" value="${b.start}"></label><label class="field" style="flex:1">Ends <span class="sub">optional</span><input type="date" id="bzEnd" value="${b.end||""}"></label></div>
+      <div class="field"><span>Doctors (<span id="bzN">${sel.size}</span>)</span>
+        <div class="actions"><input type="search" id="bzQ" placeholder="Search a doctor or city" value="${esc(q)}" style="flex:1;min-width:0">
+          <select id="bzCity" aria-label="Add a whole city"><option value="">Add a city…</option>${cities.map(c => `<option>${esc(c)}</option>`).join("")}</select></div></div>
+      <div class="cands" id="bzList" style="max-height:340px;overflow:auto">${list.map(d => `<label class="cand" style="grid-template-columns:auto minmax(0,1fr)" data-bn="${esc((d.name + " " + d.city).toLowerCase())}"><input type="checkbox" data-bd="${esc(d.id)}" ${sel.has(d.id) ? "checked" : ""} style="width:22px;height:22px"><div><div class="n">${esc(title(d.name))}</div><div class="sub">${[title(d.city), d.lastCall ? "last call " + fmtShort(d.lastCall) : "no call logged yet"].filter(Boolean).map(esc).join(" · ")}</div></div></label>`).join("")}</div>
+      ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
+      <div class="foot">${orig ? `<button class="btn ghost" id="bzDel">Delete</button>${orig.stopped || (orig.end && orig.end < todayISO()) ? "" : `<button class="btn ghost" id="bzStop">End blitz</button>`}` : ""}<button class="btn" id="bzCancel">Cancel</button><button class="btn primary" id="bzSave">Save</button></div>`);
+    const keep = () => { b.name = cleanBlitzName($("bzName").value); b.start = $("bzStart").value || b.start; b.end = $("bzEnd").value || ""; };
+    const filt = () => { q = $("bzQ").value.trim().toLowerCase(); $("bzList").querySelectorAll("[data-bn]").forEach(el => el.hidden = !!q && !el.dataset.bn.includes(q)); };
+    $("bzQ").oninput = filt; filt();
+    $("sheet").querySelectorAll("[data-bf]").forEach(x => x.onclick = () => { keep(); b.freq = +x.dataset.bf; draw(); });
+    $("sheet").querySelectorAll("[data-bd]").forEach(c => c.onchange = () => { const id = c.dataset.bd; b.docs = c.checked ? [...new Set(b.docs.concat(id))] : b.docs.filter(x => x !== id); $("bzN").textContent = b.docs.length; });
+    $("bzCity").onchange = e => { keep(); const c = e.target.value; if (!c) return; D.docs.filter(d => title(d.city) === c).forEach(d => { if (!b.docs.includes(d.id)) b.docs.push(d.id); }); draw(); };
+    $("bzCancel").onclick = openBlitzes;
+    if ($("bzDel")) $("bzDel").onclick = () => { if (!$("bzDel").dataset.armed){ $("bzDel").dataset.armed = 1; $("bzDel").textContent = "Tap again to delete"; return; } S.blitzes.splice(idx, 1); save(); render(); openBlitzes(); };
+    if ($("bzStop")) $("bzStop").onclick = () => { S.blitzes[idx].stopped = true; S.blitzes[idx].end = S.blitzes[idx].end && S.blitzes[idx].end < todayISO() ? S.blitzes[idx].end : L.addDays(todayISO(), -1); save(); render(); toast("Ended " + b.name); openBlitzes(); };
+    $("bzSave").onclick = () => {
+      keep();
+      if (!b.name){ err = "Give the blitz a name."; return draw(); }
+      if (!b.docs.length){ err = "Pick at least one doctor."; return draw(); }
+      if (b.end && b.end < b.start){ err = "The end date is before the start date."; return draw(); }
+      if (orig) S.blitzes[idx] = b; else S.blitzes.push(b);
+      save(); render(); toast("Saved " + b.name); openBlitzes();
+    };
+  };
+  draw();
+}
+function openBlitzTag(id, name, back){
+  const b = (S.blitzes || []).find(x => x.name === name && x.docs.includes(id) && blitzActive(x, weekMon)); if (!b) return;
+  openSheet(`<h2>${esc(b.name)}</h2><p>${esc(docName(id))} is on this blitz: ${b.freq === 14 ? "every other week" : "weekly"}${b.end ? ", until " + fmtShort(b.end) : ""}.</p>
+    <div class="foot"><button class="btn ghost" id="btRm">Remove from this blitz</button><button class="btn primary" id="closeS">Close</button></div>`);
+  $("closeS").onclick = back || closeSheet;
+  $("btRm").onclick = () => { b.docs = b.docs.filter(x => x !== id); save(); closeSheet(); render(); toast(`Removed ${docName(id)} from ${b.name}. Rebuild to update the week.`); };
+}
+
+function needInfo(){ return D.docs.filter(d => !d.noAuto).filter(d => D.src[d.id] === "city" || D.src[d.id] === "none" || D.match.how[d.id] === "close"); }
 function planPct(){
   const t = readTrackerRaw(); if (!t || !Array.isArray(t.doctors) || !t.doctors.length) return "";
   let A = 0, C = 0; t.doctors.forEach(d => { A += +d.a || 0; C += (+d.c0 || 0) + (d.log || []).length; });
@@ -442,7 +648,7 @@ function setCard(n, st, txt){ $("d"+n).className = "dot " + st; $("s"+n).textCon
 let C = null; // context for the current week's plan
 function currentPlan(){ return S.weeks[weekMon] || null; }
 function contextInput(){
-  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule};
+  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away};
 }
 let STAFF = {};
 function renderRoute(){
@@ -460,7 +666,7 @@ function renderRoute(){
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
   $("buildBtn").textContent = "Rebuild week";
-  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}<button class="btn small" id="shareBtn">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
+  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   let html = `<div class="days">`;
   for (const iso of Object.keys(plan.days).sort()){
@@ -476,12 +682,13 @@ function renderRoute(){
           ${o ? `<div class="a">${esc(addr)}</div>` : ""}
           ${o && o.org ? `<div class="o">${esc(o.org)}</div>` : ""}
           <div class="tags">
-            ${s.fixed ? `<span class="tag cal">On your calendar${s.time ? " · " + esc(s.time) : ""}</span>` : ""}
+            ${s.anchor ? `<span class="tag cal">📌 Anchored</span>` : s.fixed ? `<span class="tag cal">On your calendar${s.time ? " · " + esc(s.time) : ""}</span>` : ""}
             ${s.manual ? `<span class="tag swap">Added by you</span>` : ""}
+            ${(D.blitz[s.id] || []).map(nm => `<button class="tag appt" data-btag="${esc(s.id)}|${esc(nm)}" style="cursor:pointer">${esc(nm)}</button>`).join("")}
             ${s.movedFrom ? `<span class="tag swap">Moved from ${L.fromISO(s.movedFrom).toLocaleDateString(undefined,{weekday:"long"})}</span>` : ""}
             ${o && o.avail && o.avail.appt ? `<span class="tag appt">Appointment only</span>` : ""}
             ${o && o.fallback ? `<span class="tag warn">Address and days not set</span>` : o && o.avail && o.avail.unknown ? `<span class="tag warn">Days not set</span>` : ""}
-            ${doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left</span>` : ""}
+            ${doc.added ? `<span class="tag">Added by you · not on call plan</span>` : doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left</span>` : ""}
             <span class="tag">${doc.lastCall ? "Last call " + fmtShort(doc.lastCall) : "No call logged yet"}</span>
             ${prev ? `<span class="tag swap">Swapped in for ${esc(docName(prev.id))}</span>` : ""}
           </div>
@@ -500,7 +707,8 @@ function renderRoute(){
     const cps = (cpBy[iso]||[]);
     const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
     html += `<section class="day">
-      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip from " + esc(title(S.settings.home)) : ""}${chargerLink(d)}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
+      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}${chargerLink(d)}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
+      ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. Doctors were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other doctors on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
@@ -516,6 +724,17 @@ function renderRoute(){
   if (uns.length) html += `<details class="uns"><summary>Not this week (${plan.unscheduled.length})</summary><p class="sub">Most behind first, with the reason they weren't planned.</p><ul class="ulist">${uns.map(u => `<li><span>${esc(docName(u.id))}</span><span>${esc(u.why)}</span></li>`).join("")}</ul></details>`;
   $("routeArea").innerHTML = html;
   if ($("shareBtn")) $("shareBtn").onclick = shareWeek;
+  $("summary").querySelectorAll("[data-bprog]").forEach(b => b.onclick = () => {
+    const p = blitzProgress(plan)[+b.dataset.bprog]; const why = Object.fromEntries((plan.unscheduled || []).map(u => [u.id, u.why]));
+    const inPlan = {}; for (const iso in plan.days) plan.days[iso].stops.forEach(s => inPlan[s.id] = iso);
+    const notDue = p.b.docs.filter(id => !p.due.includes(id));
+    openSheet(`<h2>${esc(p.b.name)}</h2><p>${p.b.freq === 14 ? "Every other week" : "Weekly"}. ${p.due.length} due the week of ${fmtShort(weekMon)}, ${p.planned.length} planned.</p>
+      ${p.planned.length ? `<p><b style="color:var(--ink)">Planned</b></p><ul class="ulist">${p.planned.map(id => `<li><span>${esc(docName(id))}</span><span>${L.fromISO(inPlan[id]).toLocaleDateString(undefined,{weekday:"long"})}</span></li>`).join("")}</ul>` : ""}
+      ${p.missing.length ? `<p style="margin-top:12px"><b style="color:var(--ink)">Couldn't fit</b></p><ul class="ulist">${p.missing.map(id => `<li><span>${esc(docName(id))}</span><span>${esc(why[id] || "Didn't fit")}</span></li>`).join("")}</ul>` : ""}
+      ${notDue.length ? `<p style="margin-top:12px"><b style="color:var(--ink)">Not due this week</b></p><ul class="ulist">${notDue.map(id => { const d = D.docs.find(x => x.id === id); return `<li><span>${esc(docName(id))}</span><span>${d && d.lastCall ? "seen " + fmtShort(d.lastCall) : ""}</span></li>`; }).join("")}</ul>` : ""}
+      <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
+    $("closeS").onclick = closeSheet;
+  });
   if ($("versBtn")) $("versBtn").onclick = openVersions;
 }
 // ⚡ link: a charger search around the day's stops (only a map location is sent, never a name)
@@ -539,7 +758,7 @@ let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=fal
 function openSheet(h){ $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
 let busy = false, ocrCtl = null;
 function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
-$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy){ checkPending = false; closeSheet(); } });
 $("prevW").onclick = () => { weekMon = L.addDays(weekMon, -7); S.lastWeek = weekMon; save(); render(); };
 $("nextW").onclick = () => { weekMon = L.addDays(weekMon, 7); S.lastWeek = weekMon; save(); render(); };
 
@@ -548,20 +767,68 @@ function build(){
   derive();
   if (!S.docs){ toast("Pull in your remaining calls first"); return; }
   if (!D.workDays.length){ toast("No days left to plan in this week"); return; }
-  const {plan, C:ctx} = L.planWeek(contextInput());
+  // visits already marked Done this week stay where they are; days already past keep what was planned
+  const keep = {};
+  if (prevW) for (const iso in prevW.plan.days) if (iso >= todayISO()) { const k = prevW.plan.days[iso].stops.filter(s => s.done); if (k.length) keep[iso] = k; }
+  const {plan, C:ctx} = L.planWeek({...contextInput(), keep, anchors: S.anchors[weekMon] || []});
+  if (prevW) for (const iso in prevW.plan.days) if (iso < todayISO() && !plan.days[iso]) plan.days[iso] = prevW.plan.days[iso];
   const probs = L.checkPlan(ctx, plan);
   const versions = prevW ? [{plan: prevW.plan, builtAt: prevW.builtAt}].concat(prevW.versions || []).slice(0, 5) : [];
   S.weeks[weekMon] = {plan, stamp: stamp(), builtAt: new Date().toISOString(), versions};
   // keep only recent weeks
   Object.keys(S.weeks).sort().slice(0, -6).forEach(k => delete S.weeks[k]);
   save(); render();
-  toast(probs.length ? "Built, but please check: " + probs[0] : (versions.length ? "Rebuilt. Your previous build is saved under Previous builds." : "Week built"));
+  // a visit from your calendar on a day a counterpart is seeing the same doctor: say so plainly
+  const clash = []; for (const iso in plan.days) plan.days[iso].stops.forEach(s => { const v = s.fixed && D.cp.find(x => x.date === iso && x.id === s.id); if (v) clash.push(`${v.who} is also seeing ${docName(s.id)} on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}, the day of your calendar visit.`); });
+  if (clash.length) toast(clash[0]);
+  else toast(probs.length ? "Built. One stop breaks a rule, please check it." : (versions.length ? "Rebuilt. Your previous build is saved under Previous builds." : "Week built"));
 }
-$("buildBtn").onclick = () => {
+$("buildBtn").onclick = () => openBuildCheck();
+$("rebuild2").onclick = () => openBuildCheck();
+/* before building: show what will be used, so anything stale can be refreshed first */
+let checkPending = false;
+function openBuildCheck(){
+  derive();
+  if (!S.docs){ toast("Pull in your remaining calls first"); return; }
+  checkPending = true;
   const W = currentPlan();
-  build();
-};
-$("rebuild2").onclick = () => $("buildBtn").click();
+  const dn = iso => L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short"});
+  const days = D.workDays;
+  const tm = e => e.allDay ? "all day" : e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  const mine = D.cal.filter(e => e.kind === "mine" && e.docs.length);
+  const cpCal = D.cal.filter(e => e.kind === "counterpart");
+  const need = needInfo().length;
+  const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
+  const row = (ok, title2, body, btn) => `<div class="cand" style="display:block"><div class="n"><span class="dot ${ok}" style="display:inline-block;margin-right:8px"></span>${title2}</div><div class="sub" style="margin-top:4px">${body}</div>${btn ? `<div class="actions" style="margin-top:8px">${btn}</div>` : ""}</div>`;
+  const calAge = S.ics ? Math.round((Date.now() - new Date(S.ics.at)) / 864e5) : null;
+  openSheet(`<h2>${W ? "Rebuild" : "Build"} ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "this week"}</h2>
+    <p>Here's what the plan will use. Refresh anything that's out of date, then tap <b>Build with these</b>.</p>
+    <div class="cands">
+      ${S.settings.home ? "" : row("warn", "Start city", "Not set yet, so days are planned from the middle of your offices. Pick the city you start and end each day in.", `<button class="btn small" id="bcHome">Settings</button>`)}
+      ${row("ok", "Remaining calls", S.docs.src === "tracker" ? "From your Call Tracker, always up to date." : "From " + esc(S.docs.label) + ", " + fmtShort(S.docs.at.slice(0,10)) + ".", S.docs.src !== "tracker" && readTracker() ? `<button class="btn small" id="bcTracker">Use my Call Tracker</button>` : "")}
+      ${row(need ? "warn" : "ok", "Offices and days", (S.sheet ? esc(S.sheet.name) + ". " : "") + (need ? `${need} doctor${need===1?"":"s"} without a sure address or days. They're planned by city on any day.` : "Every doctor has an office and days."), `<button class="btn small" id="bcDocs">Doctors</button>`)}
+      ${row(D.cp.length ? "ok" : "warn", "Counterparts this week", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${esc(w)}: ${n}`).join(" · ") + ". You won't be sent to those doctors on those days." : "Nothing added for this week yet.", `<button class="btn small" id="bcShots">Add schedule screenshots</button>`)}
+      ${row("ok", "Anchors", anchorsNow().length ? anchorsNow().slice().sort((a,b) => a.iso.localeCompare(b.iso)).map(a => `📌 ${esc(docName(a.id))} ${L.fromISO(a.iso).toLocaleDateString(undefined,{weekday:"short"})}`).join(" · ") + ". Each counts toward that day and the day is planned around it." : "Doctors you want on a certain day, for any reason. None this week.", `<button class="btn small" id="bcAnchor">${anchorsNow().length ? "Change anchors" : "+ Add an anchor"}</button>`)}
+      ${D.blitzActive.length ? row("ok", "Blitzes", D.blitzActive.map(b => `${esc(b.name)}: ${(D.blitzDue[b.id]||[]).length} of ${b.docs.length} due`).join(" · ") + ". Due doctors are planned first.", `<button class="btn small" id="bcBlitz">Blitzes</button>`) : ""}
+      ${row(S.ics ? (calAge > 3 ? "warn" : "ok") : "warn", "Your calendar", S.ics ? `${esc(S.ics.name)}, loaded ${calAge === 0 ? "today" : calAge === 1 ? "yesterday" : calAge + " days ago"}. Anything added to your calendar after you exported it isn't included.` : "No calendar loaded, so meetings, time off and your lunches aren't included.",
+        `<label class="btn small" for="f4">${S.ics ? "Load a newer .ics" : "Load .ics file"}</label>${S.ics ? `<button class="btn small" id="bcCal">Review all events</button>` : ""}`)}
+    </div>
+    ${S.ics ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
+      ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<button class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">Is this ${esc(docName(x.id))}? Yes</button>`).join(" ")}</span></li>`).join("")}</ul>` : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
+      ${cpCal.length ? `<p class="sub" style="margin-top:8px">Counterpart visits in your calendar (avoided): ${cpCal.map(e => `${dn(L.isoDay(e.start))} ${esc(e.who.join("/"))} · ${esc(e.docs.map(x => docName(x.id)).join(", "))}`).join("; ")}. If one of these is really yours, change it in Review all events${S.settings.myName ? "" : ", or add your name in Settings"}.</p>` : ""}` : ""}
+    ${W ? `<p class="sub" style="margin-top:12px">Rebuilding re-plans ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "the rest of the week"}. Visits marked Done stay put, and this plan is saved under Previous builds.</p>` : ""}
+    <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="bcGo">Build with these</button></div>`);
+  $("closeS").onclick = () => { checkPending = false; closeSheet(); };
+  $("bcGo").onclick = () => { checkPending = false; closeSheet(); build(); };
+  $("bcDocs").onclick = () => openDocs();
+  if ($("bcHome")) $("bcHome").onclick = () => { checkPending = false; openSettings(); };
+  if ($("bcBlitz")) $("bcBlitz").onclick = () => openBlitzes();
+  $("bcAnchor").onclick = () => anchorsNow().length ? openAnchors(openBuildCheck) : openAnchorAdd(openBuildCheck);
+  $("bcShots").onclick = () => { checkPending = false; closeSheet(); $("shotBtn").click(); };
+  if ($("bcCal")) $("bcCal").onclick = () => openCalendar();
+  if ($("bcTracker")) $("bcTracker").onclick = () => { $("useTracker").click(); openBuildCheck(); };
+  $("sheet").querySelectorAll("[data-calok]").forEach(b => b.onclick = () => { const [key, id] = b.dataset.calok.split("|"); S.calOk[key] = [...new Set((S.calOk[key] || []).concat(id))]; save(); openBuildCheck(); });
+}
 
 $("summary").addEventListener("click", e => {
   if (!e.target.closest("#zoneBtn")) return;
@@ -604,6 +871,7 @@ $("routeArea").addEventListener("click", e => {
     toast(`Swapped in ${docName(list[0].id)}${L.miles(list[0].near) >= 1 ? " (about " + Math.round(L.miles(list[0].near)) + " mi away)" : ""}. Undo swap brings back ${docName(was)}.`); return;
   }
   if ((x = at("data-more"))){ openStopMenu(x.iso, x.i); return; }
+  const bt = e.target.closest("[data-btag]"); if (bt){ const [id, nm] = bt.dataset.btag.split("|"); openBlitzTag(id, nm); return; }
   const pb = e.target.closest("[data-putback]");
   if (pb){ const [iso, k] = pb.dataset.putback.split("|"); const r = L.restoreStop(C, W.plan, iso, +k);
     if (r.ok){ save(); render(); toast("Put back " + docName(r.id)); }
@@ -792,7 +1060,8 @@ function docSummary(d){
   const offs = (D.match.byDoc[d.id] || []).map(i => D.offices[i]);
   if (src === "city") return {txt:`Not set yet · planned by city (${title(d.city)}) on any day`, warn:true};
   const txt = offs.map(o => addrOf(o) + " · " + (o.availText || "no days listed")).join(" / ");
-  return {txt: (src === "app" ? "Set in the app · " : "") + txt + (D.match.how[d.id] === "close" ? " · close spelling in your spreadsheet, please check" : ""), warn: D.match.how[d.id] === "close" || offs.some(o => !o.avail)};
+  const aw = (S.away[d.id] || []).filter(r => r.to >= todayISO()).map(awayLabel);
+  return {txt: (aw.length ? "Out " + aw.join(", ") + " · " : "") + (src === "app" ? "Set in the app · " : "") + txt + (D.match.how[d.id] === "close" ? " · close spelling in your spreadsheet, please check" : ""), warn: D.match.how[d.id] === "close" || offs.some(o => !o.avail)};
 }
 function openDocs(){
   derive();
@@ -806,7 +1075,7 @@ function openDocs(){
     <div class="seg" role="group" style="margin-top:10px;flex-wrap:wrap"><button data-df="need" aria-pressed="${docsView.f==="need"}">Needs a look (${need.length})</button><button data-df="app" aria-pressed="${docsView.f==="app"}">Set in app (${app.length})</button><button data-df="all" aria-pressed="${docsView.f==="all"}">All (${D.docs.length})</button></div>
     <div class="cands" id="dList">${list.map(d => { const s = docSummary(d); return `<div class="cand" data-dn="${esc((d.name + " " + d.city).toLowerCase())}"><div><div class="n">${esc(title(d.name))}</div><div class="sub"${s.warn ? ' style="color:var(--red-ink)"' : ""}>${esc(s.txt)}</div></div><button class="btn small" data-dedit="${esc(d.id)}">Edit</button></div>`; }).join("") || `<p class="sub">Nothing here.</p>`}</div>
     <div class="foot">${S.sheet ? `<button class="btn" id="dMatch">Spreadsheet matches</button>` : ""}<button class="btn primary" id="closeS">Done</button></div>`);
-  $("closeS").onclick = () => { closeSheet(); render(); };
+  $("closeS").onclick = () => { closeSheet(); render(); if (checkPending) openBuildCheck(); };
   if ($("dMatch")) $("dMatch").onclick = () => openMatches(openDocs);
   const filt = () => { const q = docsView.q = $("dQ").value.trim().toLowerCase(); $("dList").querySelectorAll(".cand").forEach(el => el.hidden = !!q && !el.dataset.dn.includes(q)); };
   $("dQ").oninput = filt; filt();
@@ -821,7 +1090,7 @@ function openDocInfo(id, back){
   const info = S.docInfo[id];
   const sheetOffs = (D.sheetByDoc[id] || []).map(i => D.offices[i]);
   let locs = info && info.locs.length ? JSON.parse(JSON.stringify(info.locs))
-    : sheetOffs.length ? sheetOffs.map(o => ({address:o.address, city:o.city, days: o.avail && !o.avail.unknown ? JSON.parse(JSON.stringify(o.avail.days)) : {}, appt: !!(o.avail && o.avail.appt)}))
+    : sheetOffs.length ? sheetOffs.map(o => ({address:o.address, city:o.city, days: o.avail && !o.avail.unknown ? JSON.parse(JSON.stringify(o.avail.days)) : {}, appt: !!(o.avail && o.avail.appt), nth: o.avail ? (o.avail.nth || []).slice() : [], alt: o.avail && o.avail.alt || null}))
     : [{address:"", city: title(d.city), days:{}, appt:false}];
   const known = []; const seenK = new Set();
   D.offices.forEach(o => { if (!o.address || seenK.has(o.addrKey)) return; seenK.add(o.addrKey); known.push(o); });
@@ -829,6 +1098,8 @@ function openDocInfo(id, back){
   const cityNames = [...new Set(Object.keys(L.CITIES).map(title).concat(D.offices.map(o => o.city).filter(Boolean)))].sort();
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   let errMsg = "";
+  const thisMon = L.mondayOf(todayISO());
+  const altOn = (anchor, mon) => Math.abs(Math.round((L.fromISO(mon) - L.fromISO(anchor)) / (7*864e5))) % 2 === 0;
   const sync = () => {
     $("sheet").querySelectorAll("[data-street]").forEach(i => locs[+i.dataset.street].address = cleanStreet(i.value));
     $("sheet").querySelectorAll("[data-city]").forEach(i => locs[+i.dataset.city].city = cleanCity(i.value));
@@ -837,6 +1108,7 @@ function openDocInfo(id, back){
   const draw = () => {
     openSheet(`<h2>${esc(title(d.name))}</h2>
       <p>${esc(title(d.city) || "No city on your call plan")} · ${d.remaining} of ${d.assigned} calls left</p>
+      <div class="actions"><button class="btn small" id="lAway">Out of office${(S.away[id]||[]).length ? " (" + S.away[id].map(awayLabel).join(", ") + ")" : "…"}</button></div>
       ${locs.map((loc, i) => `<div class="zone">
         ${locs.length > 1 ? `<div class="actions" style="justify-content:space-between;align-items:center"><b>Office ${i+1}</b><button class="btn small ghost" data-lrm="${i}">Remove</button></div>` : ""}
         <div class="field">Office address
@@ -846,20 +1118,28 @@ function openDocInfo(id, back){
         </div>
         <div class="field">When they're in<span class="sub">Tap morning and afternoon for each day they're there. Tap the day to switch both.</span>
           ${[1,2,3,4,5].map(k => { const x = (loc.days||{})[k] || {}; return `<div class="wk"><button class="dl" data-dall="${i}|${k}">${WD[k]}</button><button data-g="${i}|${k}|am" aria-pressed="${!!x.am}">Morning</button><button data-g="${i}|${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
+          <span class="sub" style="margin-top:10px">How often</span>
+          <div class="chips">${[0,6,1,2,3,4,5].map(n => { const on = n === 0 ? !(loc.nth||[]).length && !loc.alt : n === 6 ? !!loc.alt : !loc.alt && (loc.nth||[]).includes(n); return `<button type="button" class="chip" style="padding:6px 12px;${on ? "background:var(--accent);color:var(--accent-ink);border-color:var(--accent)" : ""}" data-nth="${i}|${n}" aria-pressed="${on}">${n === 0 ? "Every week" : n === 6 ? "Every other week" : ["","1st","2nd","3rd","4th","5th"][n]}</button>`; }).join("")}</div>
+          ${loc.alt ? `<span class="sub" style="margin-top:8px">Are they in this week or next week?</span><div class="seg" role="group">${[0,7].map(k => { const mon = L.addDays(thisMon, k); return `<button type="button" data-alt="${i}|${mon}" aria-pressed="${altOn(loc.alt, mon)}">${k ? "Next week" : "This week"} (${fmtShort(mon)})</button>`; }).join("")}</div>` : ""}
           <label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" data-appt="${i}" ${loc.appt ? "checked" : ""}> Appointment only</label>
         </div>
       </div>`).join("")}
       <datalist id="cityList">${cityNames.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
-      ${locs.length < 3 ? `<button class="btn small ghost" id="lAdd" style="margin-top:10px">+ Add another office</button>` : ""}
+      ${locs.length < 8 ? `<button class="btn small ghost" id="lAdd" style="margin-top:10px">+ Add another office</button>` : ""}
       ${errMsg ? `<p style="color:var(--red-ink)"><b>${esc(errMsg)}</b></p>` : ""}
       <p class="sub">No days ticked means the app treats them as in any day.</p>
       <div class="foot">${info && sheetOffs.length ? `<button class="btn ghost" id="lSheet">Use spreadsheet instead</button>` : ""}<button class="btn" id="lCancel">Cancel</button><button class="btn primary" id="lSave">Save</button></div>`);
     $("lCancel").onclick = () => back ? back() : closeSheet();
+    $("lAway").onclick = () => { sync(); openAway(id, draw); };
     if ($("lSheet")) $("lSheet").onclick = () => { delete S.docInfo[id]; save(); render(); toast("Using your spreadsheet for " + title(d.name)); back ? back() : closeSheet(); };
     if ($("lAdd")) $("lAdd").onclick = () => { sync(); locs.push({address:"", city:"", days:{}, appt:false}); draw(); };
     $("sheet").querySelectorAll("[data-lrm]").forEach(b => b.onclick = () => { sync(); locs.splice(+b.dataset.lrm, 1); draw(); });
     $("sheet").querySelectorAll("[data-pick]").forEach(s2 => s2.onchange = () => { if (s2.value === "") return; const o = known[+s2.value], i = +s2.dataset.pick; $("sheet").querySelector(`[data-street="${i}"]`).value = o.address; $("sheet").querySelector(`[data-city="${i}"]`).value = o.city; });
     $("sheet").querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const [i,k,sl] = b.dataset.g.split("|"); const dd = locs[+i].days = locs[+i].days || {}; const x = dd[k] = dd[k] || {am:false, pm:false}; x[sl] = !x[sl]; b.setAttribute("aria-pressed", String(x[sl])); });
+    $("sheet").querySelectorAll("[data-nth]").forEach(b => b.onclick = () => { sync(); const [i,n] = b.dataset.nth.split("|").map(Number); const l = locs[i]; let s = new Set(l.nth || []);
+      if (n === 6){ l.alt = l.alt ? null : thisMon; l.nth = []; draw(); return; }
+      l.alt = null; if (n === 0) s.clear(); else if (s.has(n)) s.delete(n); else s.add(n); l.nth = [...s].sort(); draw(); });
+    $("sheet").querySelectorAll("[data-alt]").forEach(b => b.onclick = () => { sync(); const [i, mon] = b.dataset.alt.split("|"); locs[+i].alt = mon; draw(); });
     $("sheet").querySelectorAll("[data-dall]").forEach(b => b.onclick = () => { const [i,k] = b.dataset.dall.split("|"); const dd = locs[+i].days = locs[+i].days || {}; const x = dd[k] || {}; const on = !(x.am && x.pm); dd[k] = {am:on, pm:on}; $("sheet").querySelectorAll(`[data-g^="${i}|${k}|"]`).forEach(g => g.setAttribute("aria-pressed", String(on))); });
     $("lSave").onclick = () => {
       sync();
@@ -887,7 +1167,7 @@ function openMatches(back){
     return `<li><div class="grow"><b>${esc(title(d.name))}</b><div class="sub">${hits.length ? esc(where) : "Not found"}${D.sheetHow[d.id] === "close" ? " · close spelling, please check" : ""}${D.src[d.id] === "app" ? " · you set this doctor's office and days in the app, which is used instead" : ""}</div></div>
       <select data-ov="${esc(d.id)}" aria-label="Spreadsheet name for ${esc(title(d.name))}"><option value="">Not in spreadsheet</option>${names.map(n => `<option${n===cur?" selected":""}>${esc(n)}</option>`).join("")}</select></li>`;
   };
-  const un = D.docs.filter(d => D.src[d.id] !== "app" && (!(D.sheetByDoc[d.id]||[]).length || D.sheetHow[d.id] === "close"));
+  const un = D.docs.filter(d => !d.noAuto && D.src[d.id] !== "app" && (!(D.sheetByDoc[d.id]||[]).length || D.sheetHow[d.id] === "close"));
   const ok = D.docs.filter(d => !un.includes(d));
   openSheet(`<h2>Doctor matches</h2>
     <p>Your call plan uses full names and your spreadsheet may use last names, so they're matched automatically. Pick the right spreadsheet name for anyone who's missing or wrong. Anyone who isn't in your spreadsheet at all can be added under Doctors.</p>
@@ -906,7 +1186,7 @@ $("f4").onchange = async e => {
     if (!evs.length) throw new Error("No events found in that file.");
     const now = Date.now(), keep = evs.filter(ev => ev.rrule || Math.abs(ev.start.date.getTime() - now) < 120*864e5);
     S.ics = {name:f.name, events:keep, at:new Date().toISOString()}; save(); render();
-    toast(`Loaded ${keep.length} calendar events`); openCalendar();
+    toast(`Loaded ${keep.length} calendar events`); if (checkPending) openBuildCheck(); else openCalendar();
   } catch(err){ toast(err.message || "That calendar file couldn't be read"); }
 };
 $("calBtn").onclick = () => openCalendar();
@@ -920,11 +1200,11 @@ function openCalendar(){
     ${ev.length ? `<ul class="list">${ev.map((e,i) => `<li><div class="grow"><b>${esc(e.summary || "(no title)")}</b><div class="sub">${L.fromISO(L.isoDay(e.start)).toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"})} · ${e.allDay ? "all day" : e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}) + "–" + e.end.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})}${e.docs.length ? " · " + e.docs.map(x => docName(x.id) + (x.sure ? "" : "?")).join(", ") : ""}</div></div>
       <select data-k="${i}" aria-label="What this event is">${kinds.map(([k,l]) => `<option value="${k}"${e.kind===k?" selected":""}>${esc(l)}</option>`).join("")}</select></li>`).join("")}</ul>` : `<p>No events in ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}.</p>`}
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
-  $("closeS").onclick = () => { closeSheet(); render(); };
+  $("closeS").onclick = () => { closeSheet(); render(); if (checkPending) openBuildCheck(); };
   $("sheet").querySelectorAll("[data-k]").forEach(s => s.onchange = () => { const e = ev[+s.dataset.k]; if (s.value === e.auto) delete S.kinds[e.key]; else S.kinds[e.key] = s.value; save(); });
 }
 
-/* ---------- Ann & Chase ---------- */
+/* ---------- counterparts ---------- */
 $("cpBtn").onclick = () => openCounterparts();
 function openCounterparts(){
   derive();
@@ -962,6 +1242,7 @@ const INFO = {
   cp: ["Counterparts this week", [
     "The weekly schedules your counterparts send you, as screenshots. The app reads which doctors they're seeing on each day.",
     "You won't be routed to a doctor on a day a counterpart is seeing them. Other days that week are fine.",
+    "<b>Paste a shared week:</b> if a counterpart uses this app too, they can send you their <b>Share my week</b> message. Copy it from Messages or Mail and paste it here. It's read exactly, so nothing needs checking.",
     "<b>Review</b> shows what was read. Remove anything wrong, or add a visit by hand."]],
   cal: ["Calendar (.ics)", [
     "Your calendar exported as an .ics file. To get it onto your phone, email it to yourself, then press and hold the attachment in Mail and tap Save to Files.",
@@ -976,10 +1257,41 @@ document.querySelector(".inputs").addEventListener("click", e => {
 });
 function needNames(next){
   openSheet(`<h2>Who are your counterparts?</h2><p>Type the first names of the people who share your territory, separated by commas. They're used to read their schedules and calendar events.</p>
-    <input id="cpIn" placeholder="e.g. Ann, Chase" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:44px;margin-top:8px" autocomplete="off">
+    <input id="cpIn" placeholder="e.g. Sam, Alex" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:44px;margin-top:8px" autocomplete="off">
     <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="cpOk">Save</button></div>`);
   $("closeS").onclick = closeSheet;
   $("cpOk").onclick = () => { const n = $("cpIn").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6); if (!n.length){ $("cpIn").focus(); return; } S.settings.counterparts = n; save(); render(); next(); };
+}
+/* a counterpart's "Share my week" message, pasted in */
+$("pasteBtn").onclick = () => openPasteWeek();
+function openPasteWeek(text){
+  derive();
+  if (!D.docs.length){ toast("Load your remaining calls first, so names can be recognized"); return; }
+  const people = cpNames(); if (!people.length){ needNames(() => openPasteWeek(text)); return; }
+  const r = text ? L.parseSharedWeek(text, weekMon, D.names) : null;
+  let who = r && r.who && people.find(p => p.toLowerCase() === r.who.toLowerCase().split(" ")[0]) || people[0];
+  const found = r ? Object.keys(r.byDate).sort().flatMap(d => r.byDate[d].map(x => ({date:d, ...x}))) : [];
+  openSheet(`<h2>Paste a shared week</h2>
+    <p>When a counterpart sends you their <b>Share my week</b> message, copy it from Messages or Mail (press and hold, then Copy) and paste it here.</p>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="pClip">Paste</button></div>
+    <textarea id="pTxt" placeholder="Sam's week, Oct 19 – Oct 23&#10;&#10;Monday, Oct 19 · …&#10;Morning: …" style="margin-top:8px;min-height:120px">${esc(text || "")}</textarea>
+    ${r ? `<div class="field">Whose week is it?<div class="seg" role="group">${people.map(p => `<button data-pw="${esc(p)}" aria-pressed="${p===who}">${esc(p)}</button>`).join("")}</div></div>
+      ${found.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Found ${found.length} visit${found.length===1?"":"s"}${r.weekOf ? ", week of " + fmtShort(r.weekOf) : ""}</b>. Untick any that are wrong.</p>
+        ${[...new Set(found.map(x => x.date))].map(d => `<div class="cpday"><b>${fmtDay(d)}</b><div class="chips">${found.filter(x => x.date === d).map(x => `<label class="chip${x.sure?"":" maybe"}" style="padding-right:10px"><input type="checkbox" checked data-pv="${esc(d+"|"+x.id+"|"+(x.sure?1:0))}"> ${esc(docName(x.id))}${x.sure?"":"?"}</label>`).join("")}</div></div>`).join("")}`
+        : `<p><b style="color:var(--ink)">No doctors from your list were found.</b> Make sure the whole message was pasted, including the day lines.</p>`}` : ""}
+    <div class="foot"><button class="btn" id="closeS">Cancel</button>${r ? `<button class="btn" id="pRe">Read again</button>` : ""}<button class="btn primary" id="pGo">${r && found.length ? "Save" : "Read it"}</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("pClip").onclick = async () => { try { const v = await navigator.clipboard.readText(); if (v){ $("pTxt").value = v; openPasteWeek(v); } } catch(e){ $("pTxt").focus(); toast("Press and hold in the box, then tap Paste"); } };
+  $("sheet").querySelectorAll("[data-pw]").forEach(b => b.onclick = () => { who = b.dataset.pw; $("sheet").querySelectorAll("[data-pw]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+  if ($("pRe")) $("pRe").onclick = () => openPasteWeek($("pTxt").value);
+  $("pGo").onclick = () => {
+    if (!r || !found.length || $("pTxt").value !== text){ const v = $("pTxt").value.trim(); if (!v){ $("pTxt").focus(); return; } openPasteWeek(v); return; }
+    const days = [...new Set(found.map(x => x.date))];
+    S.cp = S.cp.filter(x => !(x.who === who && x.src === "shared" && days.includes(x.date)));
+    $("sheet").querySelectorAll("[data-pv]:checked").forEach(c => { const [date,id,s] = c.dataset.pv.split("|"); S.cp.push({date, id, who, src:"shared", sure: s === "1"}); });
+    save(); closeSheet(); render();
+    toast(`Saved ${who}'s week` + (r.weekOf && r.weekOf !== weekMon ? ` of ${fmtShort(r.weekOf)}` : "") + ". You won't be sent to those doctors on those days.");
+  };
 }
 /* screenshots read on the iPad */
 function simdSupported(){ try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; } }
@@ -1088,10 +1400,12 @@ function openStopMenu(iso, i){
   openSheet(`<h2>${esc(docName(s.id))}</h2>
     ${o ? `<p>${esc(addr)}</p>` : ""}
     <div class="cands">
+      ${s.anchor ? `<button class="btn" id="mUnpin">Unpin from ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : !s.fixed && !s.done ? `<button class="btn" id="mPin">📌 Anchor to ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : ""}
       ${!s.done && !s.fixed ? `<button class="btn" id="mMove">Move to another day</button>` : ""}
       ${!s.done ? `<button class="btn" id="mRemove">Remove from ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : ""}
       <button class="btn" id="mStaff">Office staff</button>
       <button class="btn" id="mInfo">Office and days</button>
+      <button class="btn" id="mAway">Out of office…</button>
       <button class="btn" id="mRemind">Remind me</button>
       ${o && o.address ? `<a class="btn" href="${mapsUrl(addr)}" target="_blank" rel="noopener">Directions in Maps</a>` : ""}
     </div>
@@ -1100,7 +1414,11 @@ function openStopMenu(iso, i){
   $("mStaff").onclick = () => openStaff(s.addrKey, s.id, () => openStopMenu(iso, i));
   $("mInfo").onclick = () => openDocInfo(s.id, () => openStopMenu(iso, i));
   $("mRemind").onclick = () => openRemind(iso, s, addr);
-  if ($("mRemove")) $("mRemove").onclick = () => { const r = L.removeStop(C, W.plan, iso, i); save(); closeSheet(); render(); toast(r.manual ? "Removed " + docName(r.id) : `Removed ${docName(r.id)}. Tap Put back under ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} to undo.`); };
+  $("mAway").onclick = () => openAway(s.id, () => { const W2 = currentPlan(); const j = W2.plan.days[iso].stops.findIndex(x => x.id === s.id); j >= 0 ? openStopMenu(iso, j) : closeSheet(); }, iso);
+  const dayLong = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  if ($("mPin")) $("mPin").onclick = () => { setAnchor(s.id, iso, s.slot, s.addrKey); s.fixed = true; s.anchor = true; save(); closeSheet(); render(); toast(`${docName(s.id)} is anchored to ${dayLong}. Rebuilds keep them there.`); };
+  if ($("mUnpin")) $("mUnpin").onclick = () => { dropAnchor(s.id); delete s.anchor; delete s.fixed; save(); closeSheet(); render(); toast(`Unpinned ${docName(s.id)}`); };
+  if ($("mRemove")) $("mRemove").onclick = () => { if (s.anchor) dropAnchor(s.id); const r = L.removeStop(C, W.plan, iso, i); save(); closeSheet(); render(); toast(r.manual ? "Removed " + docName(r.id) : `Removed ${docName(r.id)}. Tap Put back under ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} to undo.`); };
   if ($("mMove")) $("mMove").onclick = () => openMove(iso, i);
 }
 function openMove(iso, i){
@@ -1125,7 +1443,7 @@ function openAdd(iso){
   const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   const row = c => { const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : ""].filter(Boolean);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : "", c.away ? "Out of office today" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -1153,12 +1471,15 @@ function addWithConfirm(iso, c, slot, back){
   const W = currentPlan(); const id = c.id;
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   const slotName = slot === "am" ? "morning" : "afternoon";
-  const doAdd = () => { L.addManual(C, W.plan, iso, c, slot); save(); closeSheet(); render(); toast(`Added ${docName(id)} to ${dayName} ${slotName}`); };
+  const doAdd = () => { L.addManual(C, W.plan, iso, c, slot);
+    if (who.pin && back === openWho){ const st = W.plan.days[iso].stops[W.plan.days[iso].stops.length - 1]; setAnchor(id, iso, slot, st.addrKey); st.anchor = true; st.fixed = true; delete st.manual; }
+    save(); closeSheet(); render(); toast(`Added ${docName(id)} to ${dayName} ${slotName}` + (who.pin && back === openWho ? ", anchored" : "")); };
   const reasons = [];
   if (!c.inToday) reasons.push(`<b>${esc(docName(id))} isn't usually in on ${dayName}.</b>`);
   else if (!(slot === "am" ? c.am : c.pm)) reasons.push(`<b>${esc(docName(id))} is usually only in the ${slot === "am" ? "afternoon" : "morning"} on ${dayName}.</b>`);
   if (c.elsewhere) reasons.push(`They're already planned for ${L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"})} this week.`);
   if (c.seen) reasons.push(`You already called on them ${L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"})}.`);
+  if (c.away || awayNow(id, iso)) reasons.push(`<b>${esc(docName(id))} is marked out of office on ${dayName}.</b>`);
   if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
   if (!reasons.length) return doAdd();
   const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
@@ -1173,7 +1494,7 @@ function addWithConfirm(iso, c, slot, back){
 }
 
 /* ---------- who's in: a day + a city ---------- */
-let who = {iso:null, city:"", near:false};
+let who = {iso:null, city:"", near:false, pin:false};
 $("whoBtn").onclick = () => openWho();
 function openWho(){
   derive();
@@ -1186,6 +1507,7 @@ function openWho(){
   const planned = {}; if (W) for (const k in W.plan.days) W.plan.days[k].stops.forEach(s => planned[s.id] = k);
   const rows = [];
   for (const d of D.docs){
+    if (d.noAuto) continue;
     let best = null;
     for (const i of (D.match.byDoc[d.id] || [])){
       const o = D.offices[i]; const a = L.availableOn(o, iso); if (!a) continue;
@@ -1203,7 +1525,7 @@ function openWho(){
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
     return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""}</div>
       <div class="sub">${esc(addrOf(o))}${who.near && c.dist >= 1 ? " · about " + Math.round(L.miles(c.dist)) + " mi" : ""}</div>
       <div class="sub">${when} · ${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -1214,6 +1536,7 @@ function openWho(){
     <div class="actions" style="margin-top:10px;align-items:center">
       <select id="wCity" aria-label="City" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:44px">${cities.map(c => `<option${c===who.city?" selected":""}>${esc(c)}</option>`).join("")}</select>
       <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wNear" ${who.near?"checked":""}> Include nearby cities</label>
+      <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wPin" ${who.pin?"checked":""}> 📌 Anchor who I add</label>
     </div>
     <p style="margin-top:12px"><b>${rows.length} doctor${rows.length===1?"":"s"} with calls left in on ${dayName}</b></p>
     ${!canAdd && rows.length ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add doctors to a day."}</p>` : ""}
@@ -1223,6 +1546,7 @@ function openWho(){
   $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { who.iso = b.dataset.wday; openWho(); });
   $("wCity").onchange = e => { who.city = e.target.value; openWho(); };
   $("wNear").onchange = e => { who.near = e.target.checked; openWho(); };
+  $("wPin").onchange = e => { who.pin = e.target.checked; };
   $("sheet").querySelectorAll("[data-wadd]").forEach(b => b.onclick = () => { const [id, slot] = b.dataset.wadd.split("|"); addWithConfirm(iso, rows.find(r => r.id === id), slot, openWho); });
 }
 
@@ -1285,15 +1609,21 @@ function openICS(ics, name){
 }
 
 /* ---------- share my week ---------- */
+const MON3 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"], WD = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const enDay = iso => { const d = L.fromISO(iso); return `${WD[d.getDay()]}, ${MON3[d.getMonth()]} ${d.getDate()}`; };
+// only the kind of visit is shared (lunch, coffee...), never the rest of the calendar event
+const MEALW = /\b(lunch|breakfast|coffee|snacks?|dinner|in-?service)\b/i;
 function weekText(){
   const W = currentPlan(); if (!W) return "";
-  const lines = [`My week, ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}` + (D.zone ? ` (${D.zone.name})` : "")];
+  const first = (S.settings.myName || "").split(" ")[0];
+  const lines = [`${first ? first + "'s" : "My"} week, ${MON3[L.fromISO(D.days[0]).getMonth()]} ${L.fromISO(D.days[0]).getDate()} – ${MON3[L.fromISO(D.days[4]).getMonth()]} ${L.fromISO(D.days[4]).getDate()}` + (D.zone ? ` (${D.zone.name})` : "")];
   for (const iso of Object.keys(W.plan.days).sort()){
     const d = W.plan.days[iso]; if (!d.stops.length) continue;
-    lines.push("", L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"}) + (d.area ? " · " + d.area : ""));
+    lines.push("", enDay(iso) + (d.area ? " · " + d.area : ""));
     for (const slot of ["am","pm"]){
       const st = d.stops.filter(s => s.slot === slot); if (!st.length) continue;
-      lines.push((slot === "am" ? "Morning: " : "Afternoon: ") + st.map(s => { const o = officeOf(s); return docName(s.id) + (o && o.city ? " (" + o.city + ")" : ""); }).join(", "));
+      lines.push((slot === "am" ? "Morning: " : "Afternoon: ") + st.map(s => { const o = officeOf(s); const mw = s.fixed && s.note && (s.note.match(MEALW) || [])[1];
+        return docName(s.id) + (o && o.city ? " (" + o.city + ")" : "") + (mw ? " – " + mw.toLowerCase().replace(/^in-?service$/, "in-service") + (s.time ? " " + s.time : "") : ""); }).join(", "));
     }
   }
   return lines.join("\n");
@@ -1316,12 +1646,6 @@ async function saveRouterBackup(){
 
 /* ---------- settings ---------- */
 $("settingsBtn").onclick = () => openSettings();
-// DoorDash: just opens the app (your saved addresses live there). Nothing is sent from here.
-$("ddBtn").onclick = () => {
-  const t0 = Date.now();
-  location.href = "doordash://";
-  setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
-};
 function openSettings(){
   const cities = Object.keys(L.CITIES).sort();
   const sheetCities = [...new Set((S.sheet ? S.sheet.offices : []).map(o => L.cityKey(o.city)).filter(Boolean))].sort();
@@ -1343,13 +1667,13 @@ function openSettings(){
         <label class="sub" for="zNow" style="display:flex;align-items:center;gap:6px">This week (${fmtShort(D.days[0])}) is <select id="zNow">${st.zones.map((z,i) => `<option value="${i}"${i===curZone?" selected":""}>${esc(z.name)}</option>`).join("")}</select></label>
       </div>
     </div>
-    <label class="field" for="sHome">Start and end each day in<select id="sHome">${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
+    <label class="field" for="sHome">Start and end each day in<select id="sHome"><option value=""${st.home ? "" : " selected"}>Choose your city…</option>${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
     <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
     <div class="field">⚡ Chargers link on each day<span class="sub">Searches Maps for chargers near that day's stops. Only a map location is sent.</span><div class="seg" role="group" aria-label="Chargers"><button data-ch="off" aria-pressed="${(st.chargers||"off")==="off"}">Off</button><button data-ch="tesla" aria-pressed="${st.chargers==="tesla"}">Tesla Superchargers</button><button data-ch="all" aria-pressed="${st.chargers==="all"}">All fast chargers</button></div></div>
-    <div class="field">DoorDash button<div class="seg" role="group" aria-label="DoorDash button"><button data-dd="1" aria-pressed="${st.doordash!==false}">Show</button><button data-dd="0" aria-pressed="${st.doordash===false}">Hide</button></div></div>
-    <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Ann, Chase" value="${esc(st.counterparts.join(", "))}"></label>
+    <label class="field" for="sMe">Your name<span class="sub">First and last, as it appears in your Outlook calendar. Events you set up are then always counted as yours, even when a counterpart is invited.</span><input id="sMe" placeholder="e.g. Jordan Smith" value="${esc(st.myName||"")}" autocomplete="off" autocapitalize="words"></label>
+    <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Sam, Alex" value="${esc(st.counterparts.join(", "))}"></label>
     <div class="field">Backup<span class="sub">Saves your spreadsheet, the offices and days you've set, office staff and settings to a file.</span>
       <div class="actions"><button class="btn small" id="bSave">Save backup</button><label class="btn small" for="bLoad">Restore backup</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
@@ -1357,7 +1681,6 @@ function openSettings(){
   const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
   sheet.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; pressSeg("data-mode", st.mode); $("zoneBox").hidden = st.mode !== "zones"; });
   sheet.querySelectorAll("[data-ch]").forEach(b => b.onclick = () => { st.chargers = b.dataset.ch; pressSeg("data-ch", st.chargers); });
-  sheet.querySelectorAll("[data-dd]").forEach(b => b.onclick = () => { st.doordash = b.dataset.dd === "1"; pressSeg("data-dd", b.dataset.dd); });
   sheet.querySelectorAll("[data-ar]").forEach(b => b.onclick = () => { st.addrRule = b.dataset.ar; pressSeg("data-ar", st.addrRule); });
   sheet.querySelectorAll("[data-wd]").forEach(b => b.onclick = () => { const v = +b.dataset.wd; const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); st.workDays = on ? [...new Set([...st.workDays, v])].sort() : st.workDays.filter(x => x !== v); });
   sheet.querySelectorAll("[data-zc]").forEach(b => b.onclick = () => { const [zi, c] = b.dataset.zc.split("|"); const z = st.zones[+zi]; const on = !z.cities.includes(c); z.cities = on ? [...z.cities, c] : z.cities.filter(x => x !== c); b.setAttribute("aria-pressed", String(on)); });
@@ -1372,6 +1695,7 @@ function openSettings(){
   $("closeS").onclick = () => {
     keepInputs();
     st.home = $("sHome").value; st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
+    st.myName = staffName($("sMe").value).trim();
     st.counterparts = $("sCp").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6);
     if ($("zNow")){ const want = +$("zNow").value; if (want !== zoneIndexForWeek(weekMon)){ delete S.zoneOverride[weekMon]; st.zoneAnchor = {mon:weekMon, idx:want}; } else if (!st.zoneAnchor) st.zoneAnchor = {mon:weekMon, idx:want}; }
     save(); closeSheet(); render();
@@ -1381,6 +1705,7 @@ function openSettings(){
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 render();
+if (/[?&]settings\b/.test(location.search)) { history.replaceState(null, "", location.pathname); openSettings(); }
 </script>
 </body>
 </html>
