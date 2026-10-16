@@ -689,7 +689,7 @@ function renderRoute(){
             ${o && o.avail && o.avail.appt ? `<span class="tag appt">Appointment only</span>` : ""}
             ${o && o.fallback ? `<span class="tag warn">Address and days not set</span>` : o && o.avail && o.avail.unknown ? `<span class="tag warn">Days not set</span>` : ""}
             ${doc.added ? `<span class="tag">Added by you · not on call plan</span>` : doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left</span>` : ""}
-            <span class="tag">${doc.lastCall ? "Last call " + fmtShort(doc.lastCall) : "No call logged yet"}</span>
+            ${!s.done && trackerHasCall(s.id, iso) ? `<span class="tag cal">✓ Call logged ${iso === todayISO() ? "today" : fmtShort(iso)}</span>` : `<span class="tag">${doc.lastCall ? "Last call " + fmtShort(doc.lastCall) : "No call logged yet"}</span>`}
             ${prev ? `<span class="tag swap">Swapped in for ${esc(docName(prev.id))}</span>` : ""}
           </div>
           ${(STAFF[s.addrKey] || []).map(staffLineHtml).join("")}
@@ -840,6 +840,10 @@ $("summary").addEventListener("click", e => {
   $("sheet").querySelectorAll("[data-z]").forEach(b => b.onclick = () => { S.zoneOverride[weekMon] = +b.dataset.z; save(); closeSheet(); render(); toast(Z[+b.dataset.z].name + " this week. Tap Rebuild week to plan it."); });
 });
 function readTrackerRaw(){ try { return JSON.parse(localStorage.getItem(TRACKER_KEY)); } catch(e){ return null; } }
+function trackerHasCall(id, date){
+  const t = readTrackerRaw(); if (!t || !Array.isArray(t.doctors)) return false;
+  const d = t.doctors.find(x => L.normName(x.name) === id); return !!d && (d.log || []).concat(d.hist || []).includes(date);
+}
 function logToTracker(id, date, remove){
   const t = readTrackerRaw(); if (!t || !Array.isArray(t.doctors)) return false;
   const d = t.doctors.find(x => L.normName(x.name) === id); if (!d) return false;
@@ -854,6 +858,15 @@ $("routeArea").addEventListener("click", e => {
   let x;
   if ((x = at("data-done"))){
     if (x.iso > todayISO()){ toast("That visit is on " + L.fromISO(x.iso).toLocaleDateString(undefined,{weekday:"long"}) + ". Mark it done on the day."); return; }
+    // already logged in the Call Tracker for that day (e.g. from the doctor list): don't count it twice without asking
+    if (trackerHasCall(x.s.id, x.iso)){
+      const s = x.s, iso = x.iso;
+      openSheet(`<h2>Already logged</h2><p><b style="color:var(--ink)">${esc(docName(s.id))}</b> already has a call logged in your Call Tracker on ${fmtDay(iso)}.</p><p>Mark this visit done using that call, or add a second call only if you really made two.</p>
+        <div class="foot"><button class="btn" id="dnTwo">Add a second call</button><button class="btn primary" id="dnOne">Mark done, keep 1 call</button></div>`);
+      $("dnOne").onclick = () => { s.done = iso; s.logged = false; save(); closeSheet(); render(); toast(`Marked done. ${docName(s.id)} still has 1 call that day.`); };
+      $("dnTwo").onclick = () => { const lg = logToTracker(s.id, iso, false); s.done = iso; s.logged = lg; save(); closeSheet(); render(); toast(`Marked done and logged a second call for ${docName(s.id)}`); };
+      return;
+    }
     const logged = logToTracker(x.s.id, x.iso, false);
     x.s.done = x.iso; x.s.logged = logged; save(); render();
     toast(logged ? `Logged a call for ${docName(x.s.id)} in your Call Tracker` : `Marked done. ${docName(x.s.id)} isn't in your Call Tracker, so log it there too.`);
