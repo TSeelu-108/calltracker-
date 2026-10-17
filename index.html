@@ -75,7 +75,7 @@ button{cursor:pointer;touch-action:manipulation}
 [hidden]{display:none!important}
 .wrap{max-width:1000px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px));padding-block:0 48px}
 
-header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
+header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
 .row1{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
 .today .lbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .today .date{font-family:var(--f-disp);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em}
@@ -107,10 +107,35 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 .days14 button[aria-current=true]{background:var(--accent-soft);border-radius:8px}
 .days14 .zero{color:var(--muted)}
 .dd svg{width:20px;height:20px;flex:none}
-.btn.dd{background:#fff;color:#17202b;border-color:#c9d2dc;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .mark{width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.brand .mark svg{width:24px;height:24px}
+.brand h1{font-family:var(--f-disp);font-size:26px;line-height:1.1;margin:0;letter-spacing:-.01em}
+.brand .bsub{font-size:14px;color:var(--muted);margin-top:2px}
+.iconbtn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none;text-decoration:none}
+.iconbtn svg{width:22px;height:22px}
+.backlink{display:inline-flex;align-items:center;gap:2px;color:var(--accent);font-weight:600;font-size:15px;text-decoration:none;min-height:36px;margin-left:-4px}
+.backlink svg{width:20px;height:20px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin-top:12px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font:inherit;font-weight:700;font-size:15px;line-height:1.2;min-height:84px;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(15,25,35,.05)}
+.tile .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--tb);color:var(--tf)}
+.tile .ic svg{width:21px;height:21px}
+.tile:disabled{opacity:.5}
+.tile.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tile.primary .ic{background:rgba(255,255,255,.2);color:var(--accent-ink)}
+.t-blue{--tb:#e3eff7;--tf:#0f5f8c}.t-green{--tb:#dcf1e2;--tf:#1d6a33}.t-amber{--tb:#fdf0c8;--tf:#7a5a00}.t-plum{--tb:#ece5f5;--tf:#5b3f8c}.t-slate{--tb:#e8edf2;--tf:#3a4757}
+@media (prefers-color-scheme:dark){.t-blue{--tb:#1a3244;--tf:#8fcaf0}.t-green{--tb:#1d3d27;--tf:#b8ecc5}.t-amber{--tb:#463b14;--tf:#ffe69a}.t-plum{--tb:#33284a;--tf:#d6c6f2}.t-slate{--tb:#26303b;--tf:#c9d3dd}}
+.tile.dd{border-color:#c9b8e3}
+
 .bz{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .bz span{font-size:11px;font-weight:700;border:1px solid var(--yel-edge);background:var(--yel-fill);color:var(--yel-ink);border-radius:6px;padding:1px 6px}
 .bz span.away{border-color:var(--line);background:var(--surface);color:var(--muted)}
+.qwrap{position:relative;display:flex;min-width:0}
+.qwrap>input{flex:1;min-width:0;width:100%;padding-right:42px!important}
+.qx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--line);color:var(--ink);font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
 .offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
 
 
@@ -207,20 +232,18 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="row1">
-      <div class="today">
-        <div class="lbl">Today</div>
-        <div class="date" id="todayLbl"></div>
-        <div class="sub" id="planLbl"></div>
-      </div>
-      <div class="actions">
-        <button class="btn primary" id="importBtn">Load screenshots</button>
-        <button class="btn" id="dayBtn">Today's calls</button>
-        <a class="btn" href="route/">Plan my week</a>
-        <button class="btn ghost" id="moreBtn">Settings</button>
-        <button class="btn dd" id="ddBtn" aria-label="Open DoorDash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>DoorDash</button>
-      </div>
+    <div class="titlebar">
+      <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></svg></span><div><h1>Call Tracker</h1><div class="bsub" id="todayLbl"></div></div></div>
+      <button class="iconbtn" id="moreBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
     </div>
+    <div class="sub" id="planLbl" style="margin-top:6px"></div>
+    <nav class="tiles" aria-label="Main">
+      <button class="tile primary" id="importBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>Load screenshots</button>
+      <button class="tile t-green" id="dayBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg></span>Today's calls</button>
+      <a class="tile t-blue" href="route/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span>Plan my week</a>
+      <button class="tile t-amber" id="evBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5.5 13.5H11L10 21.5l8.5-12H13z"/></svg></span>Chargers</button>
+      <button class="tile t-plum dd" id="ddBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>DoorDash</button>
+    </nav>
     <div class="stats">
       <div class="stat"><b id="sToday">0</b><span>Calls today</span></div>
       <div class="stat"><b id="sC">0%</b><span id="sCl">Completed</span></div>
@@ -476,6 +499,8 @@ $("list").addEventListener("click", e => {
   else if (h){ openHistory(h.dataset.h); }
 });
 $("q").addEventListener("input", e => { ui.q = e.target.value; renderList(); });
+addClears(document.querySelector(".tools"));
+document.querySelector(".tools .qwrap").style.flex = "1 1 220px";
 $("city").addEventListener("change", e => { ui.city = e.target.value; renderList(); });
 $("sort").addEventListener("change", e => { ui.sort = e.target.value; renderList(); });
 document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
@@ -500,7 +525,21 @@ function confirmSecondCall(d){
 }
 /* ---------- sheets ---------- */
 let busy = false, importCtl = null;
-function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
+function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); }
+/* a clear (×) button for every search box */
+function addClears(root){
+  root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
+    inp.setAttribute("data-x", "1");
+    const w = document.createElement("span"); w.className = "qwrap"; if (inp.style.width) { w.style.width = inp.style.width; } w.style.flex = getComputedStyle(inp).flex;
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement("button"); b.type = "button"; b.className = "qx"; b.setAttribute("aria-label", "Clear search"); b.textContent = "×";
+    w.appendChild(b);
+    const sync = () => { b.hidden = !inp.value; };
+    inp.addEventListener("input", sync); sync();
+    b.onclick = () => { inp.value = ""; inp.dispatchEvent(new Event("input", {bubbles:true})); sync(); inp.focus(); };
+  });
+}
+
 function closeSheet(){ if (importCtl) importCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
 
@@ -567,7 +606,7 @@ function openDay(t){
 }
 
 /* ---------- providers you add yourself (not on the call plan) ---------- */
-const CITY_NAMES = ["concord", "walnut creek", "pleasant hill", "martinez", "lafayette", "orinda", "moraga", "danville", "alamo", "san ramon", "dublin", "pleasanton", "livermore", "castro valley", "hayward", "san leandro", "san lorenzo", "union city", "fremont", "newark", "milpitas", "san jose", "santa clara", "sunnyvale", "mountain view", "palo alto", "oakland", "emeryville", "berkeley", "albany", "el cerrito", "richmond", "san pablo", "pinole", "hercules", "rodeo", "el sobrante", "alameda", "piedmont", "antioch", "pittsburg", "bay point", "brentwood", "oakley", "discovery bay", "clayton", "benicia", "vallejo", "fairfield", "vacaville", "napa", "tracy", "mountain house", "manteca", "lathrop", "ripon", "stockton", "lodi", "galt", "modesto", "ceres", "turlock", "riverbank", "oakdale", "escalon", "patterson", "newman", "merced", "atwater", "livingston", "los banos", "sonora", "sacramento", "elk grove", "san francisco", "daly city", "south san francisco", "san mateo", "redwood city", "burlingame"];
+const CITY_NAMES = ["acampo", "adin", "ahwahnee", "alameda", "alamo", "albany", "albion", "alderpoint", "alleghany", "alpaugh", "alta", "altaville", "alturas", "alviso", "amador city", "american canyon", "anderson", "angels camp", "angwin", "annapolis", "antelope", "antioch", "applegate", "aptos", "arbuckle", "arcata", "armona", "arnold", "aromas", "artois", "atherton", "atwater", "auberry", "auburn", "avenal", "avery", "badger", "ballico", "bangor", "bass lake", "bay point", "bayside", "beale afb", "beckwourth", "belden", "bella vista", "belmont", "belvedere", "belvedere tiburon", "ben lomond", "benicia", "benton", "berkeley", "berry creek", "bethel island", "bieber", "big bar", "big bend", "big creek", "big oak flat", "big pine", "big sur", "biggs", "biola", "birds landing", "bishop", "blairsden graeagle", "blocksburg", "blue lake", "bodega", "bodega bay", "bolinas", "boonville", "boulder creek", "boyes hot springs", "bradley", "branscomb", "brentwood", "bridgeport", "bridgeville", "brisbane", "brookdale", "brooks", "browns valley", "brownsville", "burlingame", "burney", "burnt ranch", "burrel", "burson", "butte city", "byron", "california hot springs", "calistoga", "callahan", "calpella", "calpine", "cameron park", "camino", "camp meeker", "camp nelson", "campbell", "campo seco", "camptonville", "canby", "cantua creek", "canyon", "canyon dam", "capay", "capitola", "carlotta", "carmel", "carmel by the sea", "carmel valley", "carmichael", "carnelian bay", "caruthers", "caspar", "cassel", "castella", "castro valley", "castroville", "catheys valley", "cazadero", "cedar ridge", "cedarville", "ceres", "challenge", "chester", "chicago park", "chico", "chilcoot", "chinese camp", "chowchilla", "chualar", "citrus heights", "clarksburg", "clayton", "clearlake", "clearlake oaks", "clearlake park", "clements", "clio", "clipper mills", "cloverdale", "clovis", "coalinga", "coarsegold", "cobb", "coleville", "colfax", "colma", "coloma", "columbia", "colusa", "comptche", "concord", "cool", "copperopolis", "corcoran", "corning", "corralitos", "corte madera", "cotati", "cottonwood", "coulterville", "courtland", "covelo", "coyote", "crescent city", "crescent mills", "cressey", "crockett", "crows landing", "cupertino", "cutler", "cutten", "daly city", "danville", "dardanelle", "darwin", "davenport", "davis", "davis creek", "death valley", "deer park", "del rey", "del rey oaks", "delhi", "denair", "diablo", "diamond springs", "dillon beach", "dinuba", "discovery bay", "dixon", "dobbins", "dorris", "dos palos", "dos rios", "douglas city", "douglas flat", "downieville", "doyle", "drytown", "dublin", "ducor", "duncans mills", "dunlap", "dunnigan", "dunsmuir", "durham", "dutch flat", "eagleville", "earlimart", "east palo alto", "echo lake", "el cerrito", "el dorado", "el dorado hills", "el granada", "el nido", "el portal", "el sobrante", "el verano", "eldridge", "elk", "elk creek", "elk grove", "elmira", "elverta", "emerald hills", "emeryville", "emigrant gap", "empire", "escalon", "esparto", "etna", "eureka", "exeter", "fair oaks", "fairfax", "fairfield", "fall river mills", "farmersville", "farmington", "feather falls", "felton", "ferndale", "fiddletown", "fields landing", "finley", "firebaugh", "fish camp", "five points", "floriston", "flournoy", "folsom", "forbestown", "forest knolls", "forest ranch", "foresthill", "forestville", "forks of salmon", "fort bidwell", "fort bragg", "fort dick", "fort jones", "fortuna", "foster city", "fowler", "freedom", "fremont", "french camp", "french gulch", "fresno", "friant", "fulton", "galt", "garberville", "garden valley", "gasquet", "gazelle", "georgetown", "gerber", "geyserville", "gilroy", "glen ellen", "glencoe", "glenhaven", "glenn", "gold run", "gonzales", "goodyears bar", "goshen", "granite bay", "grass valley", "graton", "greenbrae", "greenfield", "greenview", "greenville", "greenwood", "grenada", "gridley", "grimes", "grizzly flats", "groveland", "gualala", "guerneville", "guinda", "gustine", "half moon bay", "hamilton city", "hanford", "happy camp", "hat creek", "hathaway pines", "hayfork", "hayward", "healdsburg", "helm", "herald", "hercules", "herlong", "hickman", "hidden valley lake", "hillsborough", "hilmar", "hollister", "holt", "holy city", "homewood", "honeydew", "hood", "hoopa", "hopland", "hornbrook", "hornitos", "hughson", "hume", "huron", "hyampom", "hydesville", "igo", "independence", "inverness", "ione", "isleton", "ivanhoe", "jackson", "jamestown", "janesville", "jenner", "jolon", "junction city", "june lake", "kaweah", "keeler", "kelseyville", "kentfield", "kenwood", "kerman", "kettleman city", "keyes", "king city", "kings beach", "kings canyon national pk", "kingsburg", "kirkwood", "kit carson", "klamath", "klamath river", "kneeland", "knights landing", "knightsen", "korbel", "kyburz", "la grange", "la honda", "la selva beach", "ladera", "lafayette", "laguna", "lagunitas", "lake city", "lakehead", "lakeport", "lakeshore", "larkspur", "lathrop", "laton", "laytonville", "le grand", "lee vining", "leggett", "lemon cove", "lemoore", "lewiston", "likely", "lincoln", "linden", "lindsay", "litchfield", "little lake", "little river", "live oak", "livermore", "livingston", "lockeford", "lockwood", "lodi", "loleta", "loma mar", "lone pine", "long barn", "lookout", "loomis", "los altos", "los altos hills", "los banos", "los gatos", "los molinos", "lotus", "lower lake", "loyalton", "lucerne", "macdoel", "mad river", "madeline", "madera", "madison", "magalia", "mammoth lakes", "manchester", "manteca", "manton", "marina", "mariposa", "markleeville", "marshall", "martell", "martinez", "marysville", "mather", "maxwell", "mcarthur", "mcclellan", "mccloud", "mckinleyville", "meadow valley", "meadow vista", "mendocino", "mendota", "menlo park", "merced", "meridian", "mi wuk village", "middletown", "midpines", "milford", "mill creek", "mill valley", "millbrae", "millville", "milpitas", "mineral", "miramonte", "miranda", "moccasin", "modesto", "mokelumne hill", "mono hot springs", "montague", "montara", "monte rio", "monte sereno", "monterey", "montgomery creek", "moraga", "morgan hill", "moss beach", "moss landing", "mount aukum", "mount hamilton", "mount hermon", "mount shasta", "mountain house", "mountain ranch", "mountain view", "murphys", "myers flat", "napa", "natomas", "navarro", "nelson", "nevada city", "new almaden", "newark", "newcastle", "newman", "nicasio", "nice", "nicolaus", "norden", "north fork", "north highlands", "north san juan", "novato", "nubieber", "o neals", "oak run", "oakdale", "oakhurst", "oakland", "oakley", "oakville", "obrien", "occidental", "olancha", "old station", "olema", "olivehurst", "olympic valley", "orange cove", "orangevale", "oregon house", "orick", "orinda", "orland", "orleans", "orosi", "oroville", "pacific grove", "pacifica", "paicines", "palermo", "palo alto", "palo cedro", "paradise", "parlier", "paskenta", "patterson", "paynes creek", "pebble beach", "penn valley", "penngrove", "penryn", "pescadero", "petaluma", "petrolia", "phillipsville", "philo", "piedmont", "piedra", "piercy", "pilot hill", "pine grove", "pinecrest", "pinole", "pioneer", "pittsburg", "pixley", "placerville", "planada", "platina", "pleasant grove", "pleasant hill", "pleasanton", "plymouth", "point arena", "point reyes station", "pollock pines", "pope valley", "port costa", "porterville", "portola", "portola valley", "portola vally", "posey", "potter valley", "prather", "princeton", "proberta", "prunedale", "quincy", "rackerby", "rail road flat", "raisin city", "rancho cordova", "ravendale", "raymond", "red bluff", "redcrest", "redding", "redway", "redwood city", "redwood estates", "redwood valley", "reedley", "represa", "rescue", "richgrove", "richmond", "richvale", "rio dell", "rio linda", "rio nido", "rio oso", "rio vista", "ripon", "river pines", "riverbank", "riverdale", "robbins", "rocklin", "rodeo", "rohnert park", "roseville", "ross", "rough and ready", "round mountain", "rumsey", "rutherford", "ryde", "sacramento", "saint helena", "salida", "salinas", "salyer", "samoa", "san andreas", "san anselmo", "san ardo", "san bruno", "san carlos", "san francisco", "san geronimo", "san gregorio", "san joaquin", "san jose", "san juan bautista", "san leandro", "san lorenzo", "san lucas", "san martin", "san mateo", "san pablo", "san quentin", "san rafael", "san ramon", "sand city", "sanger", "santa clara", "santa cruz", "santa rita park", "santa rosa", "saratoga", "sausalito", "scotia", "scott bar", "scotts valley", "seaside", "sebastopol", "seiad valley", "selma", "sequoia national park", "shasta", "shasta lake", "shaver lake", "sheep ranch", "sheridan", "shingle springs", "shingletown", "shoshone", "sierra city", "sierraville", "sloughhouse", "smartville", "smith river", "snelling", "soda springs", "soledad", "somerset", "somes bar", "sonoma", "sonora", "soquel", "soulsbyville", "south dos palos", "south lake tahoe", "south san francisco", "spreckels", "springville", "squaw valley", "st helena", "standard", "standish", "stanford", "stevinson", "stewarts point", "stinson beach", "stirling city", "stockton", "stonyford", "storrie", "stratford", "strathmore", "strawberry", "strawberry valley", "suisun city", "sultana", "sunnyvale", "sunol", "susanville", "sutter", "sutter creek", "tahoe city", "tahoe vista", "tahoma", "talmage", "taylorsville", "tecopa", "tehama", "termo", "terra bella", "the sea ranch", "thornton", "three rivers", "tiburon", "tipton", "tollhouse", "tomales", "topaz", "tracy", "tranquillity", "traver", "travis afb", "tres pinos", "trinidad", "trinity center", "truckee", "tulare", "tulelake", "tuolumne", "turlock", "twain", "twain harte", "twin bridges", "ukiah", "union city", "upper lake", "vacaville", "vallecito", "vallejo", "valley ford", "valley springs", "vernalis", "victor", "villa grande", "vina", "vineburg", "vinton", "visalia", "volcano", "wallace", "walnut creek", "walnut grove", "washington", "waterford", "watsonville", "waukena", "weaverville", "weed", "weimar", "wendel", "weott", "west point", "west sacramento", "westley", "westport", "westwood", "wheatland", "whiskeytown", "whitethorn", "whitmore", "williams", "willits", "willow creek", "willows", "wilseyville", "wilton", "windsor", "winters", "winton", "wishon", "witter springs", "woodacre", "woodbridge", "woodlake", "woodland", "yettem", "yolo", "yorkville", "yosemite national park", "yountville", "yreka", "yuba city", "zamora", "zenia"];
 const KIND_LBL = {md:"Physician", np:"Nurse practitioner", pa:"Physician assistant"};
 const titleCase = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
 function confirmTap(btn, msg){ if (btn.dataset.armed) return true; btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = msg; setTimeout(() => { if (btn.isConnected){ btn.textContent = old; delete btn.dataset.armed; } }, 3000); return false; }
@@ -986,6 +1025,34 @@ function renderReview(){
   };
 }
 
+/* Chargers: opens Maps with a charger search near you, or near a city you pick. Only the search goes to Maps. */
+function chargerUrl(where){
+  const q = (state.chType === "tesla" ? "Tesla Supercharger" : "EV fast charging") + (where ? " " + where : "");
+  return /Android/i.test(navigator.userAgent) ? "https://www.google.com/maps/search/" + encodeURIComponent(q) : "https://maps.apple.com/?q=" + encodeURIComponent(q);
+}
+function plannedCitiesToday(){
+  // cities on today's route in Plan my week, if a week is built
+  try { const r = routerRaw(), t = todayISO(), d = new Date(); const mon = isoDay(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)));
+    const day = r.weeks && r.weeks[mon] && r.weeks[mon].plan.days[t]; if (!day) return [];
+    return [...new Set(day.stops.map(s => titleCase(String(s.addrKey || "").split("|")[1] || "")).filter(Boolean))].slice(0, 6); } catch(e){ return []; }
+}
+$("evBtn").onclick = () => openChargers();
+function openChargers(){
+  const today = plannedCitiesToday();
+  openSheet(`<h2>Find a charger</h2>
+    <div class="seg" role="group" aria-label="Charger type" style="margin-top:8px"><button data-cht="all" aria-pressed="${state.chType !== "tesla"}">All fast chargers</button><button data-cht="tesla" aria-pressed="${state.chType === "tesla"}">Tesla Superchargers</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:14px"><a class="btn primary" id="evNear" href="${chargerUrl("")}" target="_blank" rel="noopener">⚡ Near me now</a></div>
+    ${today.length ? `<p style="margin-top:16px"><b style="color:var(--ink)">Near today's stops</b></p><div class="foot" style="justify-content:flex-start">${today.map(c => `<a class="btn" data-evc="${esc(c)}" href="${chargerUrl(c)}" target="_blank" rel="noopener">${esc(c)}</a>`).join("")}</div>` : ""}
+    <p style="margin-top:16px"><b style="color:var(--ink)">Near another city</b></p>
+    <div class="logday" style="margin-top:6px;flex-wrap:wrap"><input id="evCity" list="evCities" placeholder="Type a city" autocomplete="off" style="flex:1;min-width:160px"><button class="btn" id="evGo">Search</button></div>
+    <datalist id="evCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
+    <p class="small" style="margin-top:12px">Opens ${/Android/i.test(navigator.userAgent) ? "Google" : "Apple"} Maps. Only the search is sent, never anything from your call plan.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-cht]").forEach(b => b.onclick = () => { state.chType = b.dataset.cht === "tesla" ? "tesla" : ""; save(); openChargers(); });
+  $("evGo").onclick = () => { const c = $("evCity").value.trim(); if (!c){ $("evCity").focus(); return; } window.open(chargerUrl(c), "_blank"); };
+  $("evCity").onkeydown = e => { if (e.key === "Enter") $("evGo").click(); };
+}
 /* DoorDash: just opens the app, where your saved addresses already are. Nothing is sent from here. */
 $("ddBtn").onclick = () => {
   const t0 = Date.now(); location.href = "doordash://";
