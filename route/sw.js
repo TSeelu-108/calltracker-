@@ -1,6 +1,6 @@
 // Week Router offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Online: always fetch the newest app files (so updates show right away). Offline: use the saved copy.
-const SHELL = "weekrouter-shell-v17";
+const SHELL = "weekrouter-shell-v20";
 const FILES = ["./", "index.html", "logic.js", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, {cache:"reload"})))).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("weekrouter-shell-") && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())));

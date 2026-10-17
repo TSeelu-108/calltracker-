@@ -75,10 +75,33 @@ button{cursor:pointer;touch-action:manipulation}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 [hidden]{display:none!important}
 .wrap{max-width:1040px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px));padding-block:0 56px}
-header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
+header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
 .row1{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
 .eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.weeknav{display:flex;align-items:center;gap:6px}
+.weeknav{display:flex;align-items:center;gap:6px;margin-top:4px}
+.weeknav .icon{min-width:36px;min-height:36px;font-size:18px;border-radius:9px}
+.wk-lbl{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .mark{width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.brand .mark svg{width:24px;height:24px}
+.brand h1{font-family:var(--f-disp);font-size:26px;line-height:1.1;margin:0;letter-spacing:-.01em}
+.brand .bsub{font-size:14px;color:var(--muted);margin-top:2px}
+.iconbtn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none;text-decoration:none}
+.iconbtn svg{width:22px;height:22px}
+.backlink{display:inline-flex;align-items:center;gap:2px;color:var(--accent);font-weight:600;font-size:15px;text-decoration:none;min-height:36px;margin-left:-4px}
+.backlink svg{width:20px;height:20px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin-top:12px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font:inherit;font-weight:700;font-size:15px;line-height:1.2;min-height:84px;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(15,25,35,.05)}
+.tile .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--tb);color:var(--tf)}
+.tile .ic svg{width:21px;height:21px}
+.tile:disabled{opacity:.5}
+.tile.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tile.primary .ic{background:rgba(255,255,255,.2);color:var(--accent-ink)}
+.t-blue{--tb:#e3eff7;--tf:#0f5f8c}.t-green{--tb:#dcf1e2;--tf:#1d6a33}.t-amber{--tb:#fdf0c8;--tf:#7a5a00}.t-plum{--tb:#ece5f5;--tf:#5b3f8c}.t-slate{--tb:#e8edf2;--tf:#3a4757}
+@media (prefers-color-scheme:dark){.t-blue{--tb:#1a3244;--tf:#8fcaf0}.t-green{--tb:#1d3d27;--tf:#b8ecc5}.t-amber{--tb:#463b14;--tf:#ffe69a}.t-plum{--tb:#33284a;--tf:#d6c6f2}.t-slate{--tb:#26303b;--tf:#c9d3dd}}
+.tile.dd{border-color:#c9b8e3}
+
 .weeknav h1{font-family:var(--f-disp);font-size:28px;line-height:1.1;margin:0;letter-spacing:-.01em;min-width:0}
 .icon{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-width:44px;min-height:44px;font-size:20px;line-height:1}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:inherit}
@@ -181,6 +204,10 @@ details.uns summary{font-weight:600;cursor:pointer;min-height:32px}
 .field input.wide{width:100%}
 .ev{color:var(--accent);font-weight:600;text-decoration:none;white-space:nowrap}
 .tag.warn{background:var(--red-fill);border-color:var(--red-edge);color:var(--red-ink)}
+.qwrap{position:relative;display:flex;min-width:0}
+.qwrap>input{flex:1;min-width:0;width:100%;padding-right:42px!important}
+.qx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--line);color:var(--ink);font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
 .zonepill{background:var(--accent-soft);border-color:var(--accent)}
 .dayact{display:flex;gap:6px;align-items:center}
 textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;min-height:90px;width:100%}
@@ -199,23 +226,17 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="row1">
-      <div>
-        <div class="eyebrow">Week Router</div>
-        <div class="weeknav">
-          <button class="icon" id="prevW" aria-label="Previous week">‹</button>
-          <h1 id="weekLbl"></h1>
-          <button class="icon" id="nextW" aria-label="Next week">›</button>
-        </div>
-      </div>
-      <div class="actions">
-        <a class="btn ghost" href="../" id="trackerLink">Call Tracker</a>
-        <button class="btn ghost" id="settingsBtn">Settings</button>
-        <button class="btn" id="whoBtn">Who's in</button>
-        <button class="btn" id="blitzBtn">Blitzes</button>
-        <button class="btn primary" id="buildBtn">Build my week</button>
-      </div>
+    <a class="backlink" href="../" id="trackerLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>Call Tracker</a>
+    <div class="titlebar">
+      <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><div><h1>Plan my week</h1>
+        <div class="weeknav"><button class="icon" id="prevW" aria-label="Previous week">‹</button><span class="wk-lbl" id="weekLbl"></span><button class="icon" id="nextW" aria-label="Next week">›</button></div></div></div>
+      <button class="iconbtn" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
     </div>
+    <nav class="tiles" aria-label="Plan">
+      <button class="tile primary" id="buildBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span><span id="buildLbl">Build my week</span></button>
+      <button class="tile t-green" id="whoBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.8 14.3A4.8 4.8 0 0 1 21 19"/></svg></span>Who's in</button>
+      <button class="tile t-amber" id="blitzBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.3"/></svg></span>Blitzes</button>
+    </nav>
     <div class="summary" id="summary"></div>
   </header>
 
@@ -656,7 +677,7 @@ function renderRoute(){
   $("stale").hidden = !(W && W.stamp !== stamp());
   if (!W){
     $("summary").innerHTML = zonePill();
-    $("buildBtn").textContent = "Build my week";
+    $("buildLbl").textContent = "Build my week";
     $("routeArea").innerHTML = `<div class="empty">${S.docs ? "Tap <b>Build my week</b> to plan " + fmtShort(D.days[0]) + " – " + fmtShort(D.days[4]) + "." : "Pull in your remaining calls, add where and when your doctors are in, then tap <b>Build my week</b>."}</div>`;
     return;
   }
@@ -665,7 +686,7 @@ function renderRoute(){
   const plan = W.plan;
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
-  $("buildBtn").textContent = "Rebuild week";
+  $("buildLbl").textContent = "Rebuild week";
   $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   let html = `<div class="days">`;
@@ -707,7 +728,7 @@ function renderRoute(){
     const cps = (cpBy[iso]||[]);
     const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
     html += `<section class="day">
-      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}${chargerLink(d)}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
+      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. Doctors were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other doctors on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
@@ -755,7 +776,21 @@ const digits = s => String(s).replace(/\D/g,"");
 function linkPhones(text){ return esc(text).replace(PHONE, m => `<a href="tel:${digits(m)}">${m}</a>`); }
 /* ---------- actions ---------- */
 let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function openSheet(h){ $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; }
+function openSheet(h){ $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); }
+/* a clear (×) button for every search box */
+function addClears(root){
+  root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
+    inp.setAttribute("data-x", "1");
+    const w = document.createElement("span"); w.className = "qwrap"; if (inp.style.width) { w.style.width = inp.style.width; } w.style.flex = getComputedStyle(inp).flex;
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement("button"); b.type = "button"; b.className = "qx"; b.setAttribute("aria-label", "Clear search"); b.textContent = "×";
+    w.appendChild(b);
+    const sync = () => { b.hidden = !inp.value; };
+    inp.addEventListener("input", sync); sync();
+    b.onclick = () => { inp.value = ""; inp.dispatchEvent(new Event("input", {bubbles:true})); sync(); inp.focus(); };
+  });
+}
+
 let busy = false, ocrCtl = null;
 function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy){ checkPending = false; closeSheet(); } });
@@ -1684,7 +1719,6 @@ function openSettings(){
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
     <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
-    <div class="field">⚡ Chargers link on each day<span class="sub">Searches Maps for chargers near that day's stops. Only a map location is sent.</span><div class="seg" role="group" aria-label="Chargers"><button data-ch="off" aria-pressed="${(st.chargers||"off")==="off"}">Off</button><button data-ch="tesla" aria-pressed="${st.chargers==="tesla"}">Tesla Superchargers</button><button data-ch="all" aria-pressed="${st.chargers==="all"}">All fast chargers</button></div></div>
     <label class="field" for="sMe">Your name<span class="sub">First and last, as it appears in your Outlook calendar. Events you set up are then always counted as yours, even when a counterpart is invited.</span><input id="sMe" placeholder="e.g. Jordan Smith" value="${esc(st.myName||"")}" autocomplete="off" autocapitalize="words"></label>
     <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Sam, Alex" value="${esc(st.counterparts.join(", "))}"></label>
     <div class="field">Backup<span class="sub">Saves your spreadsheet, the offices and days you've set, office staff and settings to a file.</span>
@@ -1693,7 +1727,6 @@ function openSettings(){
   const sheet = $("sheet");
   const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
   sheet.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; pressSeg("data-mode", st.mode); $("zoneBox").hidden = st.mode !== "zones"; });
-  sheet.querySelectorAll("[data-ch]").forEach(b => b.onclick = () => { st.chargers = b.dataset.ch; pressSeg("data-ch", st.chargers); });
   sheet.querySelectorAll("[data-ar]").forEach(b => b.onclick = () => { st.addrRule = b.dataset.ar; pressSeg("data-ar", st.addrRule); });
   sheet.querySelectorAll("[data-wd]").forEach(b => b.onclick = () => { const v = +b.dataset.wd; const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); st.workDays = on ? [...new Set([...st.workDays, v])].sort() : st.workDays.filter(x => x !== v); });
   sheet.querySelectorAll("[data-zc]").forEach(b => b.onclick = () => { const [zi, c] = b.dataset.zc.split("|"); const z = st.zones[+zi]; const on = !z.cities.includes(c); z.cities = on ? [...z.cities, c] : z.cities.filter(x => x !== c); b.setAttribute("aria-pressed", String(on)); });
