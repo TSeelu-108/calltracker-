@@ -391,6 +391,7 @@ function bTracker(){ try { return JSON.parse(localStorage.getItem("callplan.trac
 function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
 function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
 function bookingsAll(){ try { return JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){ return []; } }
+function bookingsDrop(i){ const all = bookingsAll(); all.splice(i, 1); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
 function bookingsAdd(list){ const cut = new Date(Date.now() - 14*864e5).toISOString().slice(0,10); const all = bookingsAll().filter(b => b.date >= cut).concat(list); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
 const bDocName = id => { const d = (bTracker().doctors || []).find(x => x.id === id); return d ? d.name : id; };
 const bLast = id => bTitle(bDocName(id).split(" ").pop());
@@ -400,15 +401,16 @@ const bIso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0")
 function openInvitees(back){
   const v = invAll();
   const row = (p, i) => `<div class="staffrow" data-ivrow="${i}" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 40px">
-      <input data-ivn value="${bEsc(p.name)}" placeholder="Name" autocomplete="off" autocapitalize="words" style="grid-column:auto">
-      <input data-ive value="${bEsc(p.email)}" placeholder="Email" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <input data-ivn value="${bEsc(p.name)}" placeholder="Their name" autocomplete="off" autocapitalize="words" style="grid-column:auto">
+      <input data-ive value="${bEsc(p.email)}" placeholder="Their email" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false">
       <button type="button" class="staffx" data-ivx style="grid-row:auto;grid-column:auto" aria-label="Remove">×</button>
-      <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""}> Invite to lunches and coffees automatically</label></div>`;
+      <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;justify-content:flex-start;text-align:left;font-weight:400;margin:2px 0 6px"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Invite to lunches and coffees automatically</span></label></div>`;
   openSheet(`<h2>People I invite</h2>
     <p>Saved on this iPad only. Tick the ones (like your counterparts) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
     <label class="fld" style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-weight:600">Your work email<span class="small" style="font-weight:400">You're the organizer of the invites.</span><input id="ivMe" value="${bEsc(v.me)}" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>
-    <div id="ivList" style="margin-top:8px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
-    <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add a person</button>
+    <p style="margin-top:22px"><b style="color:var(--ink)">Invitees</b><br><span class="small">The people you invite, like your counterparts and your manager. Not you.</span></p>
+    <div id="ivList" style="margin-top:6px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
+    <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add an invitee</button>
     <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
     <div class="foot"><button class="btn" id="ivX">Cancel</button><button class="btn primary" id="ivOk">Save</button></div>`);
   const wire = el => { el.querySelector("[data-ivx]").onclick = () => el.remove(); const n = el.querySelector("[data-ivn]"); n.oninput = () => { const s = staffName(n.value); if (s !== n.value) n.value = s; }; };
@@ -430,7 +432,7 @@ function openBook(docId, back){
   const offs = bOffices(docId), office = offs[0] || null;
   const all = bAllOffices(), here = office ? Object.keys(all).filter(id => (all[id] || []).some(o => o.k === office.k)) : [docId];
   if (!here.includes(docId)) here.unshift(docId);
-  const v = invAll(), me = (bRouter().settings || {}).myName || "";
+  const v = invAll(); let me = (bRouter().settings || {}).myName || ""; const askName = !me;
   const st = {kind:"Lunch", docs:[docId], rows:[{date:"", time:"12:00", mins:60}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
   const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return bIso(d); };
   st.rows[0].date = tomorrow();
@@ -449,9 +451,12 @@ function openBook(docId, back){
       <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
       ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
       <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
-      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b>${bEsc(titleFor())}</b></div>
+      ${askName ? `<label class="small" style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><span><b style="color:var(--ink)">Your name</b> · finishes the title. Saved for next time.</span><input id="bMe" value="${bEsc(me)}" placeholder="First and last name" autocomplete="off" autocapitalize="words" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>` : ""}
+      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b id="bTitleP">${bEsc(titleFor())}</b></div>
       ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
       <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
+      ${(() => { const today = bIso(new Date()), mine = bookingsAll().map((b,i) => [b,i]).filter(([b]) => b.date >= today && (b.docs || []).includes(docId));
+        return mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Already booked</b> <span class="small">· removing one here only takes it out of Plan my week. Cancel it in Outlook too.</span></p>${mine.map(([b,i]) => `<div class="logday" style="margin-top:4px;gap:8px"><span>${bEsc(new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(b.time)} · ${bEsc(b.title)}</span><button type="button" class="btn small ghost" data-bdrop="${i}">Remove</button></div>`).join("")}` : ""; })()}
       <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
     const sync = () => {
       $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60; });
@@ -463,9 +468,14 @@ function openBook(docId, back){
     $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins}); draw(); };
     $("sheet").querySelectorAll("[data-brm]").forEach(b => b.onclick = () => { sync(); st.rows.splice(+b.dataset.brm, 1); draw(); });
     $("bPeople").onclick = () => { sync(); openInvitees(() => { const nv = invAll(); v.people = nv.people; v.me = nv.me; st.who = st.who.filter(e => nv.people.some(p => p.email === e)).concat(nv.people.filter(p => p.cp && !st.who.includes(p.email)).map(p => p.email)); draw(); }); };
+    if ($("bMe")) $("bMe").oninput = () => { const n = staffName($("bMe").value); if (n !== $("bMe").value) $("bMe").value = n; me = n.trim(); $("bTitleP").textContent = titleFor();
+      try { const r = bRouter(); r.settings = Object.assign(r.settings || {}, {myName: me}); localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
+      try { if (typeof S === "object" && S && S.settings) S.settings.myName = me; } catch(e){} };
+    $("sheet").querySelectorAll("[data-bdrop]").forEach(b => b.onclick = () => { sync(); bookingsDrop(+b.dataset.bdrop); toast("Removed from Plan my week"); draw(); });
     $("bX").onclick = () => back ? back() : closeSheet();
     $("bGo").onclick = () => {
       sync();
+      if (!me) return draw("Add your name so the title reads the right way.");
       if (!st.docs.length) return draw("Pick at least one doctor.");
       if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
       const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
