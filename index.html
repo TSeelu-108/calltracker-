@@ -765,18 +765,21 @@ function routerInfo(id, info){
   try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
 }
 const cleanPerson = s => String(s||"").replace(/[^\p{L}\s'\-.]/gu,"").replace(/\s+/g," ").trim().slice(0,30);
-function openAddProvider(editId){
+function openAddProvider(editId, pre){
   const ed = editId ? find(editId) : null; const info = editId ? routerInfo(editId) : null;
   const parts = ed ? ed.name.split(" ") : [];
   const v = {first: ed ? titleCase(parts.slice(0,-1).join(" ")) : "", last: ed ? titleCase(parts[parts.length-1]) : "", kind: ed ? ed.kind || "md" : "md",
     street: info && info.locs[0] ? info.locs[0].address : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
     days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
+  if (pre && pre.last) v.last = titleCase(pre.last);
+  const note = pre && pre.last ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office, then rebuild in Plan my week.` : "";
   let err = "";
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
   const draw = () => {
     openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add a provider"}</h2>
       <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the doctors on your plan.</p>
+      ${note ? `<p class="offbox" style="margin-top:8px">${esc(note)}</p>` : ""}
       <div class="fld">Provider type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
       <label class="fld">First name<input id="apF" value="${esc(v.first)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
       <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
@@ -1214,6 +1217,8 @@ $("installTip").hidden = standalone;
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
 render();
+// "Add Matthys" from Plan my week's build check
+try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); openAddProvider(null, {last: pend}); } } catch(e){}
 </script>
 </body>
 </html>
