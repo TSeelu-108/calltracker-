@@ -208,10 +208,20 @@ details.uns summary{font-weight:600;cursor:pointer;min-height:32px}
 .qwrap>input{flex:1;min-width:0;width:100%;padding-right:42px!important}
 .qx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--line);color:var(--ink);font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer}
 input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.logday{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:14px;color:var(--muted)}
+.logday input,.logday select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px;font:inherit;color:inherit}
+.offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+.small{font-size:13px;color:var(--muted)}
 .zonepill{background:var(--accent-soft);border-color:var(--accent)}
 .dayact{display:flex;gap:6px;align-items:center}
 textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;min-height:90px;width:100%}
 .zone{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+#zoneBox details .chips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 10px;font-size:13px;min-height:34px;color:var(--ink)}
+.zchip.open{outline:2px solid var(--accent);outline-offset:1px}
+.zmenu{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.zsug{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.zsug button{text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:10px 6px;font-size:15px;color:var(--ink);display:flex;align-items:center;gap:8px}
+.zdot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;flex:none}
 .zone .chips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 10px;font-size:13px;min-height:34px}
 .zone .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 @media (max-width:640px){
@@ -385,6 +395,138 @@ function staffRead(box){
   if (changed) save();
 })();
 
+/*__BOOK_START__*/
+/* ---------- book lunches, coffees, breakfasts and snacks (shared by the Call Tracker and Plan my week) ----------
+   Builds one calendar file (.ics) with every date you pick. Opened in Outlook, "Add all" puts them on your
+   calendar and sends the invites. Nothing is sent from this app; the file goes wherever you share it. */
+const INV_KEY = "invitees.v1", BOOK_KEY = "bookings.v1";
+const BOOK_KINDS = [["Lunch","12:00"],["Coffee","09:00"],["Breakfast","08:00"],["Snacks","14:00"]];
+const bEsc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const bTitle = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
+const bEmail = s => { s = String(s||"").trim().toLowerCase(); return /^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/.test(s) ? s : ""; };
+function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || {}; return {me: bEmail(v.me) || "", people: (v.people || []).map(p => ({name: staffName(p.name).trim(), email: bEmail(p.email), cp: !!p.cp})).filter(p => p.email)}; } catch(e){ return {me:"", people:[]}; } }
+function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
+function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
+function bTracker(){ try { return JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; } catch(e){ return {}; } }
+function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
+function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
+function bookingsAll(){ try { return JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){ return []; } }
+function bookingsAdd(list){ const cut = new Date(Date.now() - 14*864e5).toISOString().slice(0,10); const all = bookingsAll().filter(b => b.date >= cut).concat(list); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
+const bDocName = id => { const d = (bTracker().doctors || []).find(x => x.id === id); return d ? d.name : id; };
+const bLast = id => bTitle(bDocName(id).split(" ").pop());
+const bIso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+/* People I invite (kept on this device only) */
+function openInvitees(back){
+  const v = invAll();
+  const row = (p, i) => `<div class="staffrow" data-ivrow="${i}" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 40px">
+      <input data-ivn value="${bEsc(p.name)}" placeholder="Name" autocomplete="off" autocapitalize="words" style="grid-column:auto">
+      <input data-ive value="${bEsc(p.email)}" placeholder="Email" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="staffx" data-ivx style="grid-row:auto;grid-column:auto" aria-label="Remove">×</button>
+      <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""}> Invite to lunches and coffees automatically</label></div>`;
+  openSheet(`<h2>People I invite</h2>
+    <p>Saved on this iPad only. Tick the ones (like your counterparts) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
+    <label class="fld" style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-weight:600">Your work email<span class="small" style="font-weight:400">You're the organizer of the invites.</span><input id="ivMe" value="${bEsc(v.me)}" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>
+    <div id="ivList" style="margin-top:8px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
+    <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add a person</button>
+    <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="ivX">Cancel</button><button class="btn primary" id="ivOk">Save</button></div>`);
+  const wire = el => { el.querySelector("[data-ivx]").onclick = () => el.remove(); const n = el.querySelector("[data-ivn]"); n.oninput = () => { const s = staffName(n.value); if (s !== n.value) n.value = s; }; };
+  $("ivList").querySelectorAll("[data-ivrow]").forEach(wire);
+  $("ivAdd").onclick = () => { const t = document.createElement("div"); t.innerHTML = row({name:"", email:"", cp:false}, Date.now()); const el = t.firstElementChild; $("ivList").appendChild(el); wire(el); el.querySelector("[data-ivn]").focus(); };
+  $("ivX").onclick = () => back ? back() : closeSheet();
+  $("ivOk").onclick = () => {
+    const me = bEmail($("ivMe").value); if ($("ivMe").value.trim() && !me){ $("ivErr").textContent = "Your email doesn't look right."; return; }
+    const people = []; let bad = "";
+    $("ivList").querySelectorAll("[data-ivrow]").forEach(r => { const name = staffName(r.querySelector("[data-ivn]").value).trim(), raw = r.querySelector("[data-ive]").value.trim(), email = bEmail(raw);
+      if (!name && !raw) return; if (!email){ bad = (name || raw) + "'s email doesn't look right."; return; } people.push({name: name || email.split("@")[0], email, cp: r.querySelector("[data-ivc]").checked}); });
+    if (bad){ $("ivErr").textContent = bad; return; }
+    invSave({me, people}); toast("Saved"); back ? back() : closeSheet();
+  };
+}
+
+/* the booking sheet. docId: the doctor you're with. Other doctors at the same office can be added. */
+function openBook(docId, back){
+  const offs = bOffices(docId), office = offs[0] || null;
+  const all = bAllOffices(), here = office ? Object.keys(all).filter(id => (all[id] || []).some(o => o.k === office.k)) : [docId];
+  if (!here.includes(docId)) here.unshift(docId);
+  const v = invAll(), me = (bRouter().settings || {}).myName || "";
+  const st = {kind:"Lunch", docs:[docId], rows:[{date:"", time:"12:00", mins:60}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
+  const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return bIso(d); };
+  st.rows[0].date = tomorrow();
+  const draw = (msg) => {
+    const titleFor = () => `${st.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}`;
+    openSheet(`<h2>Book a ${st.kind.toLowerCase()}</h2>
+      <p>${office ? bEsc(office.a) : "Office address not known yet. Open Plan my week once to set it."}</p>
+      <div class="seg" role="group" aria-label="Kind" style="margin-top:6px;flex-wrap:wrap">${BOOK_KINDS.map(([k]) => `<button type="button" data-bk="${k}" aria-pressed="${st.kind===k}">${k}</button>`).join("")}</div>
+      ${here.length > 1 ? `<p style="margin-top:12px"><b style="color:var(--ink)">With</b></p><div class="chips">${here.map(id => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bd="${bEsc(id)}" ${st.docs.includes(id) ? "checked" : ""}> ${bEsc(bTitle(bDocName(id)))}</label>`).join("")}</div>` : ""}
+      <p style="margin-top:12px"><b style="color:var(--ink)">When</b> <span class="small">· add as many dates as you like</span></p>
+      ${st.rows.map((r,i) => `<div class="logday" style="margin-top:6px;flex-wrap:wrap;gap:6px" data-br="${i}">
+        <input type="date" data-bdate value="${r.date}"><input type="time" data-btime value="${r.time}" step="900">
+        <select data-bmins>${[30,45,60,75,90,120].map(m => `<option value="${m}"${m===r.mins?" selected":""}>${m < 60 ? m + " min" : (m/60) + (m===60 ? " hour" : " hours")}</option>`).join("")}</select>
+        ${st.rows.length > 1 ? `<button type="button" class="btn small ghost" data-brm="${i}" aria-label="Remove this date">×</button>` : ""}</div>`).join("")}
+      <button type="button" class="btn small ghost" id="bAddDate" style="margin-top:6px">+ Add another date</button>
+      <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
+      ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
+      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b>${bEsc(titleFor())}</b></div>
+      ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
+      <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
+      <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
+    const sync = () => {
+      $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60; });
+      st.docs = here.length > 1 ? [...$("sheet").querySelectorAll("[data-bd]:checked")].map(c => c.dataset.bd) : st.docs;
+      st.who = [...$("sheet").querySelectorAll("[data-bw]:checked")].map(c => c.dataset.bw);
+      st.remind = $("bRem").value;
+    };
+    $("sheet").querySelectorAll("[data-bk]").forEach(b => b.onclick = () => { sync(); const old = (BOOK_KINDS.find(k => k[0] === st.kind) || [])[1]; st.kind = b.dataset.bk; const nt = BOOK_KINDS.find(k => k[0] === st.kind)[1]; st.rows.forEach(r => { if (r.time === old) r.time = nt; }); draw(); });
+    $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins}); draw(); };
+    $("sheet").querySelectorAll("[data-brm]").forEach(b => b.onclick = () => { sync(); st.rows.splice(+b.dataset.brm, 1); draw(); });
+    $("bPeople").onclick = () => { sync(); openInvitees(() => { const nv = invAll(); v.people = nv.people; v.me = nv.me; st.who = st.who.filter(e => nv.people.some(p => p.email === e)).concat(nv.people.filter(p => p.cp && !st.who.includes(p.email)).map(p => p.email)); draw(); }); };
+    $("bX").onclick = () => back ? back() : closeSheet();
+    $("bGo").onclick = () => {
+      sync();
+      if (!st.docs.length) return draw("Pick at least one doctor.");
+      if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
+      const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
+      const title = titleFor(), loc = office ? office.a : "";
+      const ics = bookingICS(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins})), title, loc, ppl, nv.me, me, st.remind);
+      bookingsAdd(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:st.kind, docs:st.docs.slice(), title})));
+      bShare(ics, (st.kind + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
+    };
+  };
+  draw();
+}
+function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
+  const e = s => String(s || "").replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
+  const fold = l => { const out = []; while (l.length > 74){ out.push(l.slice(0, 74)); l = " " + l.slice(74); } out.push(l); return out.join("\r\n"); };
+  const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Call Tracker//Book//EN","METHOD:REQUEST","CALSCALE:GREGORIAN"];
+  rows.forEach((r, i) => {
+    const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
+    const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
+    const z = dt => dt.toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+    L.push("BEGIN:VEVENT", "UID:" + Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2,8) + "@calltracker", "DTSTAMP:" + stamp,
+      "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(title));
+    if (loc) L.push("LOCATION:" + e(loc));
+    if (myEmail) L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
+    ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email));
+    L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
+    if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(title),"TRIGGER:-" + remind,"END:VALARM");
+    L.push("END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  return L.map(fold).join("\r\n");
+}
+async function bShare(ics, name, n){
+  const f = new File([ics], name, {type:"text/calendar"});
+  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); closeSheet(); toast(n > 1 ? `${n} invites ready. In Outlook, tap Add all.` : "Invite ready. In Outlook, tap Add all."); return; } }
+  catch(err){ if (err && err.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  closeSheet(); toast("Saved the file. Open it in Outlook and tap Add all.");
+}
+
+/*__BOOK_END__*/
 /* ---------- derived inputs ---------- */
 let D = {};
 function derive(){
@@ -426,6 +568,13 @@ function derive(){
       const ok = S.calOk[key] || []; c.docs = c.docs.map(x => ok.includes(x.id) ? {...x, sure:true} : x);
       return {...e, ...c, key, auto:c.kind, kind: S.kinds[key] || c.kind}; });
   }
+  // lunches and coffees booked in the app count as your calendar visits right away
+  bookingsAll().filter(b => D.days.includes(b.date)).forEach(b => {
+    const [y,m,d] = b.date.split("-").map(Number), [hh,mm] = b.time.split(":").map(Number); const st = new Date(y, m-1, d, hh, mm);
+    const key = "book|" + b.date + "|" + b.time + "|" + b.docs.join(",");
+    if (D.cal.some(e => e.key === key)) return;
+    D.cal.push({start: st, end: new Date(st.getTime() + (b.mins || 60) * 60000), allDay:false, summary: b.title, location:"", description:"", attendees:[], organizer:"", uid:key, key, auto:"mine", kind: S.kinds[key] || "mine", docs: b.docs.map(id => ({id, sure:true})), who:[], mine:true, booked:true});
+  });
   // counterpart visits this week: screenshots/manual + calendar events marked as a counterpart's
   D.cp = S.cp.filter(v => D.days.includes(v.date));
   D.cal.filter(e => e.kind === "counterpart").forEach(e => {
@@ -848,8 +997,8 @@ function openBuildCheck(){
       ${row(S.ics ? (calAge > 3 ? "warn" : "ok") : "warn", "Your calendar", S.ics ? `${esc(S.ics.name)}, loaded ${calAge === 0 ? "today" : calAge === 1 ? "yesterday" : calAge + " days ago"}. Anything added to your calendar after you exported it isn't included.` : "No calendar loaded, so meetings, time off and your lunches aren't included.",
         `<label class="btn small" for="f4">${S.ics ? "Load a newer .ics" : "Load .ics file"}</label>${S.ics ? `<button class="btn small" id="bcCal">Review all events</button>` : ""}`)}
     </div>
-    ${S.ics ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
-      ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<button class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">Is this ${esc(docName(x.id))}? Yes</button>`).join(" ")}</span></li>`).join("")}</ul>` : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
+    ${S.ics || mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
+      ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}${e.booked ? ' <span class="sub">(booked in the app)</span>' : ""}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<button class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">Is this ${esc(docName(x.id))}? Yes</button>`).join(" ")}</span></li>`).join("")}</ul>` : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
       ${cpCal.length ? `<p class="sub" style="margin-top:8px">Counterpart visits in your calendar (avoided): ${cpCal.map(e => `${dn(L.isoDay(e.start))} ${esc(e.who.join("/"))} · ${esc(e.docs.map(x => docName(x.id)).join(", "))}`).join("; ")}. If one of these is really yours, change it in Review all events${S.settings.myName ? "" : ", or add your name in Settings"}.</p>` : ""}` : ""}
     ${W ? `<p class="sub" style="margin-top:12px">Rebuilding re-plans ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "the rest of the week"}. Visits marked Done stay put, and this plan is saved under Previous builds.</p>` : ""}
     <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="bcGo">Build with these</button></div>`);
@@ -1454,6 +1603,7 @@ function openStopMenu(iso, i){
       <button class="btn" id="mStaff">Office staff</button>
       <button class="btn" id="mInfo">Office and days</button>
       <button class="btn" id="mAway">Out of office…</button>
+      <button class="btn" id="mBook">🍽 Book lunch / coffee</button>
       <button class="btn" id="mRemind">Remind me</button>
       ${o && o.address ? `<a class="btn" href="${mapsUrl(addr)}" target="_blank" rel="noopener">Directions in Maps</a>` : ""}
     </div>
@@ -1462,6 +1612,7 @@ function openStopMenu(iso, i){
   $("mStaff").onclick = () => openStaff(s.addrKey, s.id, () => openStopMenu(iso, i));
   $("mInfo").onclick = () => openDocInfo(s.id, () => openStopMenu(iso, i));
   $("mRemind").onclick = () => openRemind(iso, s, addr);
+  $("mBook").onclick = () => openBook(s.id, () => openStopMenu(iso, i));
   $("mAway").onclick = () => openAway(s.id, () => { const W2 = currentPlan(); const j = W2.plan.days[iso].stops.findIndex(x => x.id === s.id); j >= 0 ? openStopMenu(iso, j) : closeSheet(); }, iso);
   const dayLong = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   if ($("mPin")) $("mPin").onclick = () => { setAnchor(s.id, iso, s.slot, s.addrKey); s.fixed = true; s.anchor = true; save(); closeSheet(); render(); toast(`${docName(s.id)} is anchored to ${dayLong}. Rebuilds keep them there.`); };
@@ -1704,17 +1855,7 @@ function openSettings(){
     <div class="field">How you plan your weeks
       <div class="seg" role="group" aria-label="Planning style"><button data-mode="area" aria-pressed="${st.mode!=="zones"}">Anywhere, grouped by area</button><button data-mode="zones" aria-pressed="${st.mode==="zones"}">By zones</button></div>
     </div>
-    <div id="zoneBox" ${st.mode==="zones"?"":"hidden"}>
-      <p class="sub">Each week stays inside one zone, and the zones take turns week by week. Tap the cities in each zone${sheetCities.length ? "" : " (load your spreadsheet first to see its cities)"}. ZIP codes are optional.</p>
-      ${st.zones.map((z,zi) => `<div class="zone">
-        <div class="actions"><input data-zname="${zi}" value="${esc(z.name)}" aria-label="Zone name" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">${st.zones.length > 1 ? `<button class="btn small ghost" data-zdel="${zi}">Remove</button>` : ""}</div>
-        <div class="chips" style="margin-top:8px">${sheetCities.map(c => `<button data-zc="${zi}|${c}" aria-pressed="${z.cities.includes(c)}">${esc(title(c))}</button>`).join("")}</div>
-        <input data-zzip="${zi}" placeholder="ZIP codes, e.g. 94596, 94598" value="${esc((z.zips||[]).join(", "))}" inputmode="numeric" style="margin-top:8px;width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">
-      </div>`).join("")}
-      <div class="actions" style="margin-top:10px">${st.zones.length < 4 ? `<button class="btn small" id="zAdd">Add a zone</button>` : ""}
-        <label class="sub" for="zNow" style="display:flex;align-items:center;gap:6px">This week (${fmtShort(D.days[0])}) is <select id="zNow">${st.zones.map((z,i) => `<option value="${i}"${i===curZone?" selected":""}>${esc(z.name)}</option>`).join("")}</select></label>
-      </div>
-    </div>
+    <div id="zoneBox" ${st.mode==="zones"?"":"hidden"}></div>
     <label class="field" for="sHome">Start and end each day in<select id="sHome"><option value=""${st.home ? "" : " selected"}>Choose your city…</option>${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
@@ -1729,13 +1870,58 @@ function openSettings(){
   sheet.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; pressSeg("data-mode", st.mode); $("zoneBox").hidden = st.mode !== "zones"; });
   sheet.querySelectorAll("[data-ar]").forEach(b => b.onclick = () => { st.addrRule = b.dataset.ar; pressSeg("data-ar", st.addrRule); });
   sheet.querySelectorAll("[data-wd]").forEach(b => b.onclick = () => { const v = +b.dataset.wd; const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); st.workDays = on ? [...new Set([...st.workDays, v])].sort() : st.workDays.filter(x => x !== v); });
-  sheet.querySelectorAll("[data-zc]").forEach(b => b.onclick = () => { const [zi, c] = b.dataset.zc.split("|"); const z = st.zones[+zi]; const on = !z.cities.includes(c); z.cities = on ? [...z.cities, c] : z.cities.filter(x => x !== c); b.setAttribute("aria-pressed", String(on)); });
   const keepInputs = () => {
-    sheet.querySelectorAll("[data-zname]").forEach(i => st.zones[+i.dataset.zname].name = i.value.trim() || ("Zone " + "ABCD"[+i.dataset.zname]));
-    sheet.querySelectorAll("[data-zzip]").forEach(i => st.zones[+i.dataset.zzip].zips = (i.value.match(/\d{5}/g) || []));
+    sheet.querySelectorAll("[data-zname]").forEach(i => { if (st.zones[+i.dataset.zname]) st.zones[+i.dataset.zname].name = i.value.trim() || ("Zone " + "ABCDEF"[+i.dataset.zname]); });
+    sheet.querySelectorAll("[data-zzip]").forEach(i => { if (st.zones[+i.dataset.zzip]) st.zones[+i.dataset.zzip].zips = (i.value.match(/\d{5}/g) || []); });
   };
-  sheet.querySelectorAll("[data-zdel]").forEach(b => b.onclick = () => { keepInputs(); st.zones.splice(+b.dataset.zdel, 1); S.zoneOverride = {}; save(); openSettings(); });
-  if ($("zAdd")) $("zAdd").onclick = () => { keepInputs(); st.zones.push({name:"Zone " + "ABCD"[st.zones.length], cities:[], zips:[]}); save(); openSettings(); };
+  // zones: each shows only its own cities; type to add, tap a city to move or remove it
+  const zoneOf = c => st.zones.findIndex(z => z.cities.includes(c));
+  let zMsg = "", openChip = null, pendingCity = null, zOpenUn = false;
+  const drawZones = (focusZi) => {
+    const box = $("zoneBox"); if (!box) return;
+    const unassigned = sheetCities.filter(c => zoneOf(c) < 0);
+    box.innerHTML = `<p class="sub">Each week stays inside one zone, and the zones take turns week by week. Type to add cities to a zone; tap a city to move or remove it.</p>
+      ${st.zones.map((z,zi) => `<div class="zone">
+        <div class="actions"><input data-zname="${zi}" value="${esc(z.name)}" aria-label="Zone name" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">${st.zones.length > 1 ? `<button class="btn small ghost" data-zdel="${zi}">Remove zone</button>` : ""}</div>
+        <div class="chips" style="margin-top:8px">${z.cities.slice().sort().map(c => `<button class="zchip${openChip === zi + "|" + c ? " open" : ""}" data-zchip="${zi}|${c}" aria-pressed="true">${esc(title(c))}</button>`).join("") || `<span class="sub">No cities yet.</span>`}</div>
+        ${openChip && openChip.startsWith(zi + "|") ? `<div class="zmenu">${st.zones.map((z2,k) => k === zi ? "" : `<button class="btn small" data-zmv="${k}">Move to ${esc(z2.name)}</button>`).join("")}<button class="btn small ghost" data-zrm="1">Remove</button></div>` : ""}
+        <div class="zadd"><input data-zq="${zi}" placeholder="Add a city…" autocomplete="off" autocapitalize="words" spellcheck="false" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;min-height:40px;margin-top:8px"><div class="zsug" data-zsug="${zi}"></div></div>
+        <input data-zzip="${zi}" placeholder="ZIP codes (optional), e.g. 94596, 94598" value="${esc((z.zips||[]).join(", "))}" inputmode="numeric" style="margin-top:8px;width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:40px">
+      </div>`).join("")}
+      ${zMsg ? `<p class="sub" style="color:var(--ink)">${esc(zMsg)}</p>` : ""}
+      ${unassigned.length ? `<details style="margin-top:10px"${pendingCity || zOpenUn ? " open" : ""}><summary class="sub" style="cursor:pointer;min-height:32px">${unassigned.length} cit${unassigned.length === 1 ? "y" : "ies"} in your spreadsheet ${unassigned.length === 1 ? "isn't" : "aren't"} in a zone yet</summary>
+        <div class="chips" style="margin-top:6px">${unassigned.map(c => `<button class="zchip${pendingCity === c ? " open" : ""}" data-zun="${c}" aria-pressed="false">${esc(title(c))}</button>`).join("")}</div>
+        ${pendingCity ? `<div class="zmenu"><span class="sub" style="align-self:center">Add ${esc(title(pendingCity))} to:</span>${st.zones.map((z2,k) => `<button class="btn small" data-zto="${k}">${esc(z2.name)}</button>`).join("")}</div>` : ""}</details>` : ""}
+      <div class="actions" style="margin-top:10px">${st.zones.length < 6 ? `<button class="btn small" id="zAdd">Add a zone</button>` : ""}
+        <label class="sub" for="zNow" style="display:flex;align-items:center;gap:6px">This week (${fmtShort(D.days[0])}) is <select id="zNow">${st.zones.map((z,i) => `<option value="${i}"${i===curZone?" selected":""}>${esc(z.name)}</option>`).join("")}</select></label>
+      </div>`;
+    const addTo = (zi, c) => { keepInputs(); const from = zoneOf(c); if (from === zi) { zMsg = `${title(c)} is already in ${st.zones[zi].name}.`; }
+      else { if (from >= 0) st.zones[from].cities = st.zones[from].cities.filter(x => x !== c); st.zones[zi].cities.push(c); zMsg = from >= 0 ? `${title(c)} moved from ${st.zones[from].name} to ${st.zones[zi].name}.` : `Added ${title(c)} to ${st.zones[zi].name}.`; }
+      openChip = null; save(); drawZones(zi); };
+    box.querySelectorAll("[data-zq]").forEach(inp => {
+      const zi = +inp.dataset.zq, sug = box.querySelector(`[data-zsug="${zi}"]`);
+      const show = () => {
+        const q = L.cityKey(inp.value); if (!q){ sug.innerHTML = ""; return; }
+        const pool = [...new Set(sheetCities.concat(cities))];
+        const score = c => (c.startsWith(q) ? 0 : c.split(" ").some(w => w.startsWith(q)) ? 1 : c.includes(q) ? 2 : 9) + (sheetCities.includes(c) ? 0 : 0.5);
+        const hits = pool.filter(c => score(c) < 9).sort((a,b) => score(a) - score(b) || a.localeCompare(b)).slice(0, 6);
+        sug.innerHTML = hits.map(c => { const w = zoneOf(c); return `<button type="button" data-zpick="${c}">${sheetCities.includes(c) ? "<span class='zdot'></span>" : ""}${esc(title(c))}${w >= 0 ? ` <span class="sub">· in ${esc(st.zones[w].name)}</span>` : ""}</button>`; }).join("") || `<span class="sub">No city by that name.</span>`;
+        sug.querySelectorAll("[data-zpick]").forEach(b => b.onclick = () => addTo(zi, b.dataset.zpick));
+      };
+      inp.oninput = show;
+      inp.onkeydown = e => { if (e.key === "Enter"){ const f = sug.querySelector("[data-zpick]"); if (f){ e.preventDefault(); f.click(); } } };
+    });
+    if (focusZi != null){ const i = box.querySelector(`[data-zq="${focusZi}"]`); if (i) i.focus(); }
+    box.querySelectorAll("[data-zchip]").forEach(b => b.onclick = () => { keepInputs(); openChip = openChip === b.dataset.zchip ? null : b.dataset.zchip; zMsg = ""; drawZones(); });
+    box.querySelectorAll("[data-zmv]").forEach(b => b.onclick = () => { const [zi, c] = openChip.split("|"); addTo(+b.dataset.zmv, c); });
+    box.querySelectorAll("[data-zrm]").forEach(b => b.onclick = () => { keepInputs(); const [zi, c] = openChip.split("|"); st.zones[+zi].cities = st.zones[+zi].cities.filter(x => x !== c); zMsg = `Removed ${title(c)} from ${st.zones[+zi].name}.`; openChip = null; save(); drawZones(); });
+    box.querySelectorAll("[data-zun]").forEach(b => b.onclick = () => { keepInputs(); pendingCity = pendingCity === b.dataset.zun ? null : b.dataset.zun; zOpenUn = true; drawZones(); });
+    box.querySelectorAll("[data-zto]").forEach(b => b.onclick = () => { const c = pendingCity; pendingCity = null; zOpenUn = true; addTo(+b.dataset.zto, c); });
+    const det = box.querySelector("details"); if (det) det.ontoggle = () => { zOpenUn = det.open; };
+    box.querySelectorAll("[data-zdel]").forEach(b => b.onclick = () => { keepInputs(); st.zones.splice(+b.dataset.zdel, 1); S.zoneOverride = {}; openChip = null; save(); drawZones(); });
+    if ($("zAdd")) $("zAdd").onclick = () => { keepInputs(); st.zones.push({name:"Zone " + "ABCDEF"[st.zones.length], cities:[], zips:[]}); save(); drawZones(st.zones.length - 1); };
+  };
+  drawZones();
   $("bSave").onclick = saveRouterBackup;
   $("bLoad").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const s = JSON.parse(await f.text()); if (!s.settings) throw 0; if (s.staff) staffMerge(s.staff); delete s.staff; delete s.sharedNotes; delete s.notes; localStorage.setItem(KEY, JSON.stringify(s)); location.reload(); } catch(_){ toast("That file isn't a Week Router backup."); } };
   $("closeS").onclick = () => {
