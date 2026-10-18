@@ -389,6 +389,17 @@ function buildNameIndex(planDocs, offices, match){
   const byLast = {}; idx.forEach(e => { (byLast[e.last] = byLast[e.last] || []).push(e); });
   return {idx, byLast};
 }
+// common short names, so "Mike Balduzzi" means Michael and not Jeffrey
+const NICK = {MIKE:["MICHAEL"],MICK:["MICHAEL"],JEFF:["JEFFREY","JEFFERY"],BOB:["ROBERT"],BOBBY:["ROBERT"],ROB:["ROBERT","ROBIN"],BILL:["WILLIAM"],WILL:["WILLIAM"],LIAM:["WILLIAM"],
+  JIM:["JAMES"],JIMMY:["JAMES"],JAMIE:["JAMES"],TOM:["THOMAS"],DAVE:["DAVID"],STEVE:["STEVEN","STEPHEN"],CHRIS:["CHRISTOPHER","CHRISTINE","CHRISTINA"],JOE:["JOSEPH"],
+  DAN:["DANIEL"],DANNY:["DANIEL"],MATT:["MATTHEW"],NICK:["NICHOLAS"],TONY:["ANTHONY","ANTONIO"],RICK:["RICHARD","RICARDO"],RICH:["RICHARD"],DICK:["RICHARD"],
+  BEN:["BENJAMIN"],SAM:["SAMUEL","SAMANTHA"],ED:["EDWARD"],TED:["EDWARD","THEODORE"],ANDY:["ANDREW"],DREW:["ANDREW"],GREG:["GREGORY"],PAT:["PATRICK","PATRICIA"],
+  KATE:["KATHERINE","KATHRYN","CATHERINE"],KATIE:["KATHERINE","KATHRYN","CATHERINE"],CATHY:["CATHERINE"],KATHY:["KATHERINE","KATHLEEN"],LIZ:["ELIZABETH"],BETH:["ELIZABETH"],
+  SUE:["SUSAN","SUZANNE"],JEN:["JENNIFER"],JENNY:["JENNIFER"],JESS:["JESSICA"],BECKY:["REBECCA"],MEG:["MARGARET","MEGAN"],PEGGY:["MARGARET"],ABBY:["ABIGAIL"],
+  VICKY:["VICTORIA"],TINA:["CHRISTINA","KRISTINA"],ALEX:["ALEXANDER","ALEXANDRA","ALEJANDRO"],LARRY:["LAWRENCE"],JERRY:["GERALD","JEROME"],HANK:["HENRY"],
+  CHUCK:["CHARLES"],CHARLIE:["CHARLES"],FRANK:["FRANCIS","FRANKLIN"],KEN:["KENNETH"],RON:["RONALD"],DON:["DONALD"],TIM:["TIMOTHY"],ZACH:["ZACHARY"],JON:["JONATHAN"],
+  NATE:["NATHAN","NATHANIEL"],PHIL:["PHILIP","PHILLIP"],RAY:["RAYMOND"],GENE:["EUGENE"],FRED:["FREDERICK"],VINCE:["VINCENT"],MANNY:["MANUEL"],PETE:["PETER"],
+  SANDY:["SANDRA"],DEB:["DEBORAH","DEBRA"],DEBBIE:["DEBORAH","DEBRA"],BARB:["BARBARA"],TERRY:["TERRENCE","TERESA"]};
 function findDoctorsInText(text, nameIndex){
   const W = normName(text).split(" ").filter(Boolean);
   const found = new Map(); // id -> true (sure) | false (probably)
@@ -397,7 +408,7 @@ function findDoctorsInText(text, nameIndex){
     const group = nameIndex.byLast[W[i]]; if (!group) continue;
     const near = W.slice(Math.max(0,i-3), i+4), nearText = " " + W.slice(Math.max(0,i-3), i+8).join(" ").toLowerCase() + " ";
     const drHit = W[i-1] === "DR" || W[i-2] === "DR";
-    const full = group.filter(e => near.some(w => w.length > 1 && (w === e.first || (w.length >= 3 && e.first.startsWith(w)))));
+    const full = group.filter(e => near.some(w => w.length > 1 && (w === e.first || (w.length >= 3 && e.first.startsWith(w)) || (NICK[w] || []).includes(e.first))));
     const initial = group.filter(e => near.some(w => w.length === 1 && w === e.first[0]));
     const byCity = group.filter(e => e.cities.some(c => c && nearText.includes(" " + c + " ")));
     if (full.length){ full.forEach(e => put(e.id, true)); continue; }
@@ -528,7 +539,10 @@ function classifyEvent(ev, counterparts, nameIndex, myName){
   else if (who.length) kind = "ignore";
   else if (docs.length) kind = "mine";
   else kind = ev.transp === "TRANSPARENT" ? "ignore" : "busy";
-  return {kind, who, docs, mine};
+  // your own lunch or coffee with someone who isn't on your list ("Matthys Lunch - Torre")
+  const first = String(myName || "").trim().split(/\s+/)[0] || "";
+  const myMeal = kind === "busy" && !ev.allDay && MEAL.test(ev.summary || "") && (mine || (first.length > 1 && wordIn(ev.summary || "", first)));
+  return {kind, who, docs, mine, myMeal};
 }
 
 /* ---------------- a counterpart's "Share my week" text, pasted from a text or email ----------------
@@ -1095,7 +1109,7 @@ function csvRows(text){
 }
 
 const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
-  officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, parseTSV,
+  officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, MEAL_RE: MEAL, parseTSV,
   scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};
 if (typeof module !== "undefined") module.exports = api; else root.RouteLogic = api;

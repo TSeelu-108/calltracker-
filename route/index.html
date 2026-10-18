@@ -575,7 +575,7 @@ function derive(){
   if (S.ics){
     const occ = L.expandEvents(S.ics.events, D.days[0], D.days[4]);
     D.cal = occ.map(e => { const c = L.classifyEvent(e, S.settings.counterparts, D.names, S.settings.myName); const key = (e.uid||e.summary) + "|" + e.start.getTime();
-      const ok = S.calOk[key] || []; c.docs = c.docs.map(x => ok.includes(x.id) ? {...x, sure:true} : x);
+      const ok = S.calOk[key] || []; if (ok.length) c.docs = c.docs.filter(x => x.sure || ok.includes(x.id)).map(x => ok.includes(x.id) ? {...x, sure:true} : x);
       return {...e, ...c, key, auto:c.kind, kind: S.kinds[key] || c.kind}; });
   }
   // lunches and coffees booked in the app count as your calendar visits right away
@@ -991,12 +991,23 @@ function openBuildCheck(){
   const tm = e => e.allDay ? "all day" : e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
   const mine = D.cal.filter(e => e.kind === "mine" && e.docs.length);
   const cpCal = D.cal.filter(e => e.kind === "counterpart");
+  const myMeals = D.cal.filter(e => e.kind === "busy" && e.myMeal);
+  const myFirst = String(S.settings.myName || "").trim().split(/\s+/)[0].toLowerCase();
+  // the name left in "Matthys Lunch - Torre" once the meal word and your own name are taken out
+  const mealName = e => { const w = String(e.summary || "").replace(/\([^)]*\)/g, " ").split(/[^\p{L}'\-]+/u).filter(x => x.length > 1 && !L.MEAL_RE.test(x) && x.toLowerCase() !== myFirst && !/^(with|and|at|the|dr|for)$/i.test(x));
+    return w.length === 1 ? w[0][0].toUpperCase() + w[0].slice(1).toLowerCase() : ""; };
   const need = needInfo().length;
+  const asks = mine.filter(e => e.docs.some(x => !x.sure));
   const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
   const row = (ok, title2, body, btn) => `<div class="cand" style="display:block"><div class="n"><span class="dot ${ok}" style="display:inline-block;margin-right:8px"></span>${title2}</div><div class="sub" style="margin-top:4px">${body}</div>${btn ? `<div class="actions" style="margin-top:8px">${btn}</div>` : ""}</div>`;
   const calAge = S.ics ? Math.round((Date.now() - new Date(S.ics.at)) / 864e5) : null;
   openSheet(`<h2>${W ? "Rebuild" : "Build"} ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "this week"}</h2>
     <p>Here's what the plan will use. Refresh anything that's out of date, then tap <b>Build with these</b>.</p>
+    ${asks.length ? `<div id="bcAsk" style="margin-top:12px;border:2px solid var(--red-edge);background:var(--red-fill);color:var(--red-ink);border-radius:12px;padding:12px 14px">
+      <b style="font-size:1.05em">❗ ${asks.length === 1 ? "1 question" : asks.length + " questions"} before you build</b>
+      ${asks.map(e => `<div style="margin-top:10px"><div><b>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}</b></div><div style="margin-top:2px">Which doctor is this?</div>
+        <div class="actions" style="margin-top:6px;flex-wrap:wrap">${e.docs.filter(x => !x.sure).map(x => `<button type="button" class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">${esc(docName(x.id))}</button>`).join("")}<button type="button" class="btn small ghost" data-calnone="${esc(e.key)}">Neither</button></div></div>`).join("")}
+    </div>` : ""}
     <div class="cands">
       ${S.settings.home ? "" : row("warn", "Start city", "Not set yet, so days are planned from the middle of your offices. Pick the city you start and end each day in.", `<button class="btn small" id="bcHome">Settings</button>`)}
       ${row("ok", "Remaining calls", S.docs.src === "tracker" ? "From your Call Tracker, always up to date." : "From " + esc(S.docs.label) + ", " + fmtShort(S.docs.at.slice(0,10)) + ".", S.docs.src !== "tracker" && readTracker() ? `<button class="btn small" id="bcTracker">Use my Call Tracker</button>` : "")}
@@ -1007,13 +1018,17 @@ function openBuildCheck(){
       ${row(S.ics ? (calAge > 3 ? "warn" : "ok") : "warn", "Your calendar", S.ics ? `${esc(S.ics.name)}, loaded ${calAge === 0 ? "today" : calAge === 1 ? "yesterday" : calAge + " days ago"}. Anything added to your calendar after you exported it isn't included.` : "No calendar loaded, so meetings, time off and your lunches aren't included.",
         `<label class="btn small" for="f4">${S.ics ? "Load a newer .ics" : "Load .ics file"}</label>${S.ics ? `<button class="btn small" id="bcCal">Review all events</button>` : ""}`)}
     </div>
-    ${S.ics || mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
-      ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}${e.booked ? ' <span class="sub">(booked in the app)</span>' : ""}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<button class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">Is this ${esc(docName(x.id))}? Yes</button>`).join(" ")}</span></li>`).join("")}</ul>` : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
+    ${S.ics || mine.length || myMeals.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
+      ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}${e.booked ? ' <span class="sub">(booked in the app)</span>' : ""}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<span style="color:var(--red-ink)">${esc(docName(x.id))}?</span>`).join(" ")}</span></li>`).join("")}</ul>` : myMeals.length ? "" : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
+      ${myMeals.length ? `<ul class="ulist" style="margin-top:6px">${myMeals.map(e => { const nm = mealName(e); return `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}<br><span class="sub">${nm ? esc(nm) + " isn't" : "No one here is"} on your list, so the plan keeps this time free but can't route you there.</span></span><span>${nm ? `<button type="button" class="btn small" data-addprov="${esc(nm)}">Add ${esc(nm)}</button>` : ""}</span></li>`; }).join("")}</ul>` : ""}
       ${cpCal.length ? `<p class="sub" style="margin-top:8px">Counterpart visits in your calendar (avoided): ${cpCal.map(e => `${dn(L.isoDay(e.start))} ${esc(e.who.join("/"))} · ${esc(e.docs.map(x => docName(x.id)).join(", "))}`).join("; ")}. If one of these is really yours, change it in Review all events${S.settings.myName ? "" : ", or add your name in Settings"}.</p>` : ""}` : ""}
     ${W ? `<p class="sub" style="margin-top:12px">Rebuilding re-plans ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "the rest of the week"}. Visits marked Done stay put, and this plan is saved under Previous builds.</p>` : ""}
     <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="bcGo">Build with these</button></div>`);
   $("closeS").onclick = () => { checkPending = false; closeSheet(); };
-  $("bcGo").onclick = () => { checkPending = false; closeSheet(); build(); };
+  $("bcGo").onclick = () => {
+    if (asks.length && !$("bcGo").dataset.anyway){ $("bcAsk").scrollIntoView({behavior:"smooth", block:"center"}); $("bcGo").dataset.anyway = "1"; $("bcGo").textContent = "Build anyway"; toast("Answer the question in red first. Unanswered visits aren't planned."); return; }
+    checkPending = false; closeSheet(); build(); };
+  $("sheet").querySelectorAll("[data-calnone]").forEach(b => b.onclick = () => { S.kinds[b.dataset.calnone] = "busy"; save(); openBuildCheck(); toast("Kept free on your calendar, not planned as a visit"); });
   $("bcDocs").onclick = () => openDocs();
   if ($("bcHome")) $("bcHome").onclick = () => { checkPending = false; openSettings(); };
   if ($("bcBlitz")) $("bcBlitz").onclick = () => openBlitzes();
@@ -1021,7 +1036,9 @@ function openBuildCheck(){
   $("bcShots").onclick = () => { checkPending = false; closeSheet(); $("shotBtn").click(); };
   if ($("bcCal")) $("bcCal").onclick = () => openCalendar();
   if ($("bcTracker")) $("bcTracker").onclick = () => { $("useTracker").click(); openBuildCheck(); };
-  $("sheet").querySelectorAll("[data-calok]").forEach(b => b.onclick = () => { const [key, id] = b.dataset.calok.split("|"); S.calOk[key] = [...new Set((S.calOk[key] || []).concat(id))]; save(); openBuildCheck(); });
+  // hand the name to the Call Tracker on this iPad (never in the web address) and open Add a provider there
+  $("sheet").querySelectorAll("[data-addprov]").forEach(b => b.onclick = () => { try { localStorage.setItem("pending.addProvider", b.dataset.addprov); } catch(e){} location.href = "../"; });
+  $("sheet").querySelectorAll("[data-calok]").forEach(b => b.onclick = () => { const v = b.dataset.calok, cut = v.lastIndexOf("|"), key = v.slice(0, cut), id = v.slice(cut + 1); S.calOk[key] = [...new Set((S.calOk[key] || []).concat(id))]; save(); openBuildCheck(); });
 }
 
 $("summary").addEventListener("click", e => {
