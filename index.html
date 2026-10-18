@@ -136,6 +136,9 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .qwrap>input{flex:1;min-width:0;width:100%;padding-right:42px!important}
 .qx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--line);color:var(--ink);font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer}
 input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;background:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.logday select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px;font:inherit;color:inherit}
 .offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
 
 
@@ -372,6 +375,138 @@ function staffRead(box){
   return [...box.querySelectorAll(".staffrow")].map(r => staffClean({t: r.querySelector("[data-st]").value, n: r.querySelector("[data-sn]").value.trim(), p: r.querySelector("[data-sp]").value})).filter(Boolean);
 }
 
+/*__BOOK_START__*/
+/* ---------- book lunches, coffees, breakfasts and snacks (shared by the Call Tracker and Plan my week) ----------
+   Builds one calendar file (.ics) with every date you pick. Opened in Outlook, "Add all" puts them on your
+   calendar and sends the invites. Nothing is sent from this app; the file goes wherever you share it. */
+const INV_KEY = "invitees.v1", BOOK_KEY = "bookings.v1";
+const BOOK_KINDS = [["Lunch","12:00"],["Coffee","09:00"],["Breakfast","08:00"],["Snacks","14:00"]];
+const bEsc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const bTitle = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
+const bEmail = s => { s = String(s||"").trim().toLowerCase(); return /^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/.test(s) ? s : ""; };
+function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || {}; return {me: bEmail(v.me) || "", people: (v.people || []).map(p => ({name: staffName(p.name).trim(), email: bEmail(p.email), cp: !!p.cp})).filter(p => p.email)}; } catch(e){ return {me:"", people:[]}; } }
+function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
+function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
+function bTracker(){ try { return JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; } catch(e){ return {}; } }
+function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
+function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
+function bookingsAll(){ try { return JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){ return []; } }
+function bookingsAdd(list){ const cut = new Date(Date.now() - 14*864e5).toISOString().slice(0,10); const all = bookingsAll().filter(b => b.date >= cut).concat(list); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
+const bDocName = id => { const d = (bTracker().doctors || []).find(x => x.id === id); return d ? d.name : id; };
+const bLast = id => bTitle(bDocName(id).split(" ").pop());
+const bIso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+/* People I invite (kept on this device only) */
+function openInvitees(back){
+  const v = invAll();
+  const row = (p, i) => `<div class="staffrow" data-ivrow="${i}" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 40px">
+      <input data-ivn value="${bEsc(p.name)}" placeholder="Name" autocomplete="off" autocapitalize="words" style="grid-column:auto">
+      <input data-ive value="${bEsc(p.email)}" placeholder="Email" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="staffx" data-ivx style="grid-row:auto;grid-column:auto" aria-label="Remove">×</button>
+      <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""}> Invite to lunches and coffees automatically</label></div>`;
+  openSheet(`<h2>People I invite</h2>
+    <p>Saved on this iPad only. Tick the ones (like your counterparts) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
+    <label class="fld" style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-weight:600">Your work email<span class="small" style="font-weight:400">You're the organizer of the invites.</span><input id="ivMe" value="${bEsc(v.me)}" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>
+    <div id="ivList" style="margin-top:8px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
+    <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add a person</button>
+    <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="ivX">Cancel</button><button class="btn primary" id="ivOk">Save</button></div>`);
+  const wire = el => { el.querySelector("[data-ivx]").onclick = () => el.remove(); const n = el.querySelector("[data-ivn]"); n.oninput = () => { const s = staffName(n.value); if (s !== n.value) n.value = s; }; };
+  $("ivList").querySelectorAll("[data-ivrow]").forEach(wire);
+  $("ivAdd").onclick = () => { const t = document.createElement("div"); t.innerHTML = row({name:"", email:"", cp:false}, Date.now()); const el = t.firstElementChild; $("ivList").appendChild(el); wire(el); el.querySelector("[data-ivn]").focus(); };
+  $("ivX").onclick = () => back ? back() : closeSheet();
+  $("ivOk").onclick = () => {
+    const me = bEmail($("ivMe").value); if ($("ivMe").value.trim() && !me){ $("ivErr").textContent = "Your email doesn't look right."; return; }
+    const people = []; let bad = "";
+    $("ivList").querySelectorAll("[data-ivrow]").forEach(r => { const name = staffName(r.querySelector("[data-ivn]").value).trim(), raw = r.querySelector("[data-ive]").value.trim(), email = bEmail(raw);
+      if (!name && !raw) return; if (!email){ bad = (name || raw) + "'s email doesn't look right."; return; } people.push({name: name || email.split("@")[0], email, cp: r.querySelector("[data-ivc]").checked}); });
+    if (bad){ $("ivErr").textContent = bad; return; }
+    invSave({me, people}); toast("Saved"); back ? back() : closeSheet();
+  };
+}
+
+/* the booking sheet. docId: the doctor you're with. Other doctors at the same office can be added. */
+function openBook(docId, back){
+  const offs = bOffices(docId), office = offs[0] || null;
+  const all = bAllOffices(), here = office ? Object.keys(all).filter(id => (all[id] || []).some(o => o.k === office.k)) : [docId];
+  if (!here.includes(docId)) here.unshift(docId);
+  const v = invAll(), me = (bRouter().settings || {}).myName || "";
+  const st = {kind:"Lunch", docs:[docId], rows:[{date:"", time:"12:00", mins:60}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
+  const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return bIso(d); };
+  st.rows[0].date = tomorrow();
+  const draw = (msg) => {
+    const titleFor = () => `${st.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}`;
+    openSheet(`<h2>Book a ${st.kind.toLowerCase()}</h2>
+      <p>${office ? bEsc(office.a) : "Office address not known yet. Open Plan my week once to set it."}</p>
+      <div class="seg" role="group" aria-label="Kind" style="margin-top:6px;flex-wrap:wrap">${BOOK_KINDS.map(([k]) => `<button type="button" data-bk="${k}" aria-pressed="${st.kind===k}">${k}</button>`).join("")}</div>
+      ${here.length > 1 ? `<p style="margin-top:12px"><b style="color:var(--ink)">With</b></p><div class="chips">${here.map(id => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bd="${bEsc(id)}" ${st.docs.includes(id) ? "checked" : ""}> ${bEsc(bTitle(bDocName(id)))}</label>`).join("")}</div>` : ""}
+      <p style="margin-top:12px"><b style="color:var(--ink)">When</b> <span class="small">· add as many dates as you like</span></p>
+      ${st.rows.map((r,i) => `<div class="logday" style="margin-top:6px;flex-wrap:wrap;gap:6px" data-br="${i}">
+        <input type="date" data-bdate value="${r.date}"><input type="time" data-btime value="${r.time}" step="900">
+        <select data-bmins>${[30,45,60,75,90,120].map(m => `<option value="${m}"${m===r.mins?" selected":""}>${m < 60 ? m + " min" : (m/60) + (m===60 ? " hour" : " hours")}</option>`).join("")}</select>
+        ${st.rows.length > 1 ? `<button type="button" class="btn small ghost" data-brm="${i}" aria-label="Remove this date">×</button>` : ""}</div>`).join("")}
+      <button type="button" class="btn small ghost" id="bAddDate" style="margin-top:6px">+ Add another date</button>
+      <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
+      ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
+      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b>${bEsc(titleFor())}</b></div>
+      ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
+      <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
+      <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
+    const sync = () => {
+      $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60; });
+      st.docs = here.length > 1 ? [...$("sheet").querySelectorAll("[data-bd]:checked")].map(c => c.dataset.bd) : st.docs;
+      st.who = [...$("sheet").querySelectorAll("[data-bw]:checked")].map(c => c.dataset.bw);
+      st.remind = $("bRem").value;
+    };
+    $("sheet").querySelectorAll("[data-bk]").forEach(b => b.onclick = () => { sync(); const old = (BOOK_KINDS.find(k => k[0] === st.kind) || [])[1]; st.kind = b.dataset.bk; const nt = BOOK_KINDS.find(k => k[0] === st.kind)[1]; st.rows.forEach(r => { if (r.time === old) r.time = nt; }); draw(); });
+    $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins}); draw(); };
+    $("sheet").querySelectorAll("[data-brm]").forEach(b => b.onclick = () => { sync(); st.rows.splice(+b.dataset.brm, 1); draw(); });
+    $("bPeople").onclick = () => { sync(); openInvitees(() => { const nv = invAll(); v.people = nv.people; v.me = nv.me; st.who = st.who.filter(e => nv.people.some(p => p.email === e)).concat(nv.people.filter(p => p.cp && !st.who.includes(p.email)).map(p => p.email)); draw(); }); };
+    $("bX").onclick = () => back ? back() : closeSheet();
+    $("bGo").onclick = () => {
+      sync();
+      if (!st.docs.length) return draw("Pick at least one doctor.");
+      if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
+      const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
+      const title = titleFor(), loc = office ? office.a : "";
+      const ics = bookingICS(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins})), title, loc, ppl, nv.me, me, st.remind);
+      bookingsAdd(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:st.kind, docs:st.docs.slice(), title})));
+      bShare(ics, (st.kind + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
+    };
+  };
+  draw();
+}
+function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
+  const e = s => String(s || "").replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
+  const fold = l => { const out = []; while (l.length > 74){ out.push(l.slice(0, 74)); l = " " + l.slice(74); } out.push(l); return out.join("\r\n"); };
+  const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Call Tracker//Book//EN","METHOD:REQUEST","CALSCALE:GREGORIAN"];
+  rows.forEach((r, i) => {
+    const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
+    const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
+    const z = dt => dt.toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+    L.push("BEGIN:VEVENT", "UID:" + Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2,8) + "@calltracker", "DTSTAMP:" + stamp,
+      "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(title));
+    if (loc) L.push("LOCATION:" + e(loc));
+    if (myEmail) L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
+    ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email));
+    L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
+    if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(title),"TRIGGER:-" + remind,"END:VALARM");
+    L.push("END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  return L.map(fold).join("\r\n");
+}
+async function bShare(ics, name, n){
+  const f = new File([ics], name, {type:"text/calendar"});
+  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); closeSheet(); toast(n > 1 ? `${n} invites ready. In Outlook, tap Add all.` : "Invite ready. In Outlook, tap Add all."); return; } }
+  catch(err){ if (err && err.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  closeSheet(); toast("Saved the file. Open it in Outlook and tap Add all.");
+}
+
+/*__BOOK_END__*/
 function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
 let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
 let logDay = todayISO();
@@ -552,6 +687,7 @@ function openHistory(id){
     <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
     ${awayOf(d.id).map((r,k) => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${awayLbl(r)}</span><button class="btn small ghost" data-awrm="${k}">Remove</button></div>`).join("")}
     <div class="logday" style="margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="awF" value="${todayISO()}"></label><label class="small">Through <input type="date" id="awT"></label><button class="btn small" id="awAdd">Add</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:10px"><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
     <div id="staffArea"></div>
     ${d.added ? "" : `<p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>`}
     ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
@@ -559,6 +695,7 @@ function openHistory(id){
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
   renderStaff(d);
   $("closeS").onclick = () => { closeSheet(); renderList(); };
+  $("hBook").onclick = () => openBook(d.id, () => openHistory(d.id));
   $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const l = awayOf(d.id); l.splice(+b.dataset.awrm, 1); awaySet(d.id, l); render(); openHistory(d.id); });
   $("awAdd").onclick = () => { let f = $("awF").value, to = $("awT").value || f; if (!f){ toast("Pick a start date"); return; } if (to < f) [f, to] = [to, f]; awaySet(d.id, awayOf(d.id).concat({from:f, to})); render(); openHistory(d.id); toast(`${d.name} out ${awayLbl({from:f, to})}`); };
   $("sheet").querySelectorAll("[data-bzrm]").forEach(b => b.onclick = () => { blitzRemove(b.dataset.bzrm, d.id); render(); openHistory(d.id); toast("Removed from the blitz"); });
@@ -678,6 +815,8 @@ $("moreBtn").onclick = async () => {
     <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
     <p style="margin-top:16px"><b style="color:var(--ink)">Providers</b></p>
     <div class="foot" style="justify-content:flex-start"><button class="btn" id="addProv">Add a provider not on my call plan</button></div>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Lunches and coffees</b></p>
+    <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
     <p style="margin-top:16px"><b style="color:var(--ink)">Plan my week</b></p>
     <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
@@ -698,6 +837,7 @@ $("moreBtn").onclick = async () => {
   $("meName").onchange = keepMe;
   $("closeS").onclick = () => { keepMe(); closeSheet(); };
   $("addProv").onclick = () => { keepMe(); openAddProvider(); };
+  $("invBtn").onclick = () => { keepMe(); openInvitees(() => $("moreBtn").click()); };
   $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
   $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
   $("saveCSV2").onclick = async () => { const how = await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(routingRows().rows), "text/csv", "Remaining calls"); if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files”." : "Saved to Downloads in the Files app."; };

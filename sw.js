@@ -1,6 +1,6 @@
 // Call Tracker offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Online: always fetch the newest app files (so updates show right away). Offline: use the saved copy.
-const SHELL = "calltracker-shell-v14";
+const SHELL = "calltracker-shell-v15";
 const FILES = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, {cache:"reload"})))).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("calltracker-shell-") && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())));
