@@ -603,7 +603,24 @@ function renderList(){
   else if (ui.sort === "stale") rows.sort((a,b) => (lastCall(a)||"0").localeCompare(lastCall(b)||"0") || byName(a,b));
   else if (ui.sort === "lastZA") rows.sort((a,b) => byName(b,a));
   else rows.sort(byName);
-  if (!rows.length){ $("list").innerHTML = `<div class="empty"><p>No doctors match. Clear the search or filters.</p></div>`; return; }
+  if (!rows.length){
+    const filtered = !!ui.city || ui.f !== "all";
+    const elsewhere = q && filtered && state.doctors.some(d => d.id.includes(q) || norm(d.city).includes(q));
+    const words = String(ui.q || "").trim().split(/\s+/).map(w => w.replace(/[^\p{L}'\-.]/gu, "")).filter(Boolean);
+    const looksName = q && words.length && words.length <= 3 && !CITY_NAMES.includes(String(ui.q).trim().toLowerCase());
+    const who = words.map(titleCase).join(" ");
+    $("list").innerHTML = `<div class="empty">
+      <p>${elsewhere ? `“${esc(ui.q.trim())}” is on your list, but hidden by the filters above.` : q ? `No one called “${esc(ui.q.trim())}” on your list.` : "No doctors match these filters."}</p>
+      <div class="actions" style="justify-content:center;flex-wrap:wrap;margin-top:10px">
+        ${elsewhere || (!q && filtered) ? `<button class="btn primary" id="emShowAll">Show everyone</button>` : ""}
+        ${looksName && !elsewhere ? `<button class="btn primary" id="emAdd">+ Add ${esc(who)} as a provider</button>` : ""}
+        ${q ? `<button class="btn" id="emClear">Clear search</button>` : ""}
+      </div></div>`;
+    if ($("emShowAll")) $("emShowAll").onclick = () => { ui.city = ""; ui.f = "all"; $("city").value = ""; document.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.f === "all"))); render(); };
+    if ($("emClear")) $("emClear").onclick = () => { ui.q = ""; $("q").value = ""; renderList(); };
+    if ($("emAdd")) $("emAdd").onclick = () => openAddProvider(null, words.length > 1 ? {first: words.slice(0,-1).join(" "), last: words[words.length-1]} : {last: words[0]});
+    return;
+  }
   $("list").innerHTML = rows.map(d => {
     const lc = lastCall(d), s = status(d);
     const lastTxt = lc ? (lc === todayISO() ? "Called today" : "Last call " + shortDate(lc) + " · " + daysAgo(lc) + "d ago") : "";
@@ -787,7 +804,8 @@ function openAddProvider(editId, pre){
     street: info && info.locs[0] ? info.locs[0].address : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
     days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
   if (pre && pre.last) v.last = titleCase(pre.last);
-  const note = pre && pre.last ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
+  if (pre && pre.first) v.first = titleCase(pre.first);
+  const note = pre && pre.last && pre.cal ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
   let err = "";
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
@@ -1245,7 +1263,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 
 render();
 // "Add Matthys" from Plan my week's build check
-try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); openAddProvider(null, o); } } catch(e){}
+try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); o.cal = true; openAddProvider(null, o); } } catch(e){}
 </script>
 </body>
 </html>
