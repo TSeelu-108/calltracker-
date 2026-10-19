@@ -314,6 +314,27 @@ const daysAgo = s => Math.round((fromISO(todayISO()) - fromISO(s))/864e5);
 
 /* ---------- state (saved only on this device) ---------- */
 const norm = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+/* A misread name ("OROTHY YIP", "HI GREGORY BENSCH", "ASID MAJID") is matched to the doctor already on your list,
+   when exactly one is that close. A misread city ("LOPI") to the nearest known city. */
+function editDist(a, b){ const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9; let prev = Array.from({length:n+1}, (_,j) => j);
+  for (let i = 1; i <= m; i++){ const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; } return prev[n]; }
+function snapName(raw){
+  const id = norm(raw); const known = state.doctors.map(d => ({id:d.id, name:d.name})).concat((state.dropped || []).map(d => ({id:d.id, name:d.name})));
+  if (!known.length || known.some(k => k.id === id)) return raw;
+  const lastOf = x => x.split(" ").pop(), flat = x => x.replace(/ /g, "");
+  const hits = known.filter(k => {
+    if (id.endsWith(" " + k.id) && id.slice(0, -k.id.length).trim().split(" ").every(t => t.length <= 3)) return true;   // junk in front
+    if (flat(id) === flat(k.id)) return true;                                                                            // "KALING" / "KA LING"
+    return k.id.length >= 7 && editDist(id, k.id) <= 2 && editDist(lastOf(id), lastOf(k.id)) <= 1;                     // a letter or two off
+  });
+  const uniq = [...new Map(hits.map(h => [h.id, h])).values()];
+  return uniq.length === 1 ? uniq[0].name : raw;
+}
+function snapCity(raw){
+  const c = String(raw || "").trim().toLowerCase(); if (!c || CITY_NAMES.includes(c)) return raw;
+  const hits = CITY_NAMES.filter(x => x.length >= 4 && Math.abs(x.length - c.length) <= 1 && editDist(c, x) <= 1);
+  return hits.length === 1 ? hits[0].toUpperCase() : raw;
+}
 function makeDoc(name, city, c, a, r, last){
   a = Math.max(0, +a||0); c = Math.max(0, +c||0);
   r = (r===""||r==null||isNaN(+r)) ? Math.max(0,a-c) : Math.max(0,+r);
@@ -878,7 +899,7 @@ $("moreBtn").onclick = async () => {
     <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
     <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
     <p style="margin-top:16px"><b style="color:var(--ink)">Providers</b></p>
-    <div class="foot" style="justify-content:flex-start"><button class="btn" id="addProv">Add a provider not on my call plan</button></div>
+    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add a provider not on my call plan</button><button class="btn" id="findMiss">Find a missing doctor${missingCands().length ? " (" + missingCands().length + ")" : ""}</button></div>
     <p style="margin-top:16px"><b style="color:var(--ink)">Lunches and coffees</b></p>
     <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
     <p style="margin-top:16px"><b style="color:var(--ink)">Plan my week</b></p>
@@ -901,6 +922,7 @@ $("moreBtn").onclick = async () => {
   $("meName").onchange = keepMe;
   $("closeS").onclick = () => { keepMe(); closeSheet(); };
   $("addProv").onclick = () => { keepMe(); openAddProvider(); };
+  $("findMiss").onclick = () => { keepMe(); openMissing(); };
   $("invBtn").onclick = () => { keepMe(); openInvitees(() => $("moreBtn").click()); };
   $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
   $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
@@ -998,6 +1020,9 @@ function parseCallPlanText(text){
     if (!line) continue;
     const tm = line.match(/^tota[l1I]\W*\s*(\d+)\s+(.*)$/i);
     if (tm){ const nums = (tm[2].match(/\d+/g)||[]).map(Number); if (nums.length>=3) total = {count:+tm[1], c:nums[0], a:nums[1], r:nums[2]}; continue; }
+    // the total row with a misread label ("ae 97 67 251 184"): four numbers where completed + remaining = assigned
+    const tm2 = line.match(/^\W*[A-Za-z]{0,6}\W*\s+(\d{1,3})\s+(\d{1,4})\s+(\d{1,4})\s+(\d{1,4})\W*$/);
+    if (tm2 && +tm2[2] + +tm2[4] === +tm2[3] && +tm2[3] >= +tm2[1]){ total = {count:+tm2[1], c:+tm2[2], a:+tm2[3], r:+tm2[4]}; continue; }
     let tok = line.split(" ");
     // find where product/sales text begins
     let p = tok.findIndex(t => PRODUCTISH.test(t));
@@ -1022,17 +1047,25 @@ function parseCallPlanText(text){
     }
     // identity: strip leading junk (checkbox), and non-word dashes
     ident = ident.map(t => t.replace(/!$/,"I").replace(/^!/,"I")).map(t => t.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,"")).filter(Boolean);
-    while (ident.length > 2 && (ident[0].length===1 || (ident[0].length===2 && /[OQ0]/i.test(ident[0])) || /^(IF|TI|II|IT|IO|OI)$/i.test(ident[0]))) ident.shift();
+    while (ident.length > 2 && (ident[0].length===1 || (ident[0].length===2 && /[OQ0]/i.test(ident[0])) || /^(IF|TI|II|IT|IO|OI|HI|LS|IE|IG|IL|EI|IS|SI|GI|FI|LL|II|EE)$/i.test(ident[0]))) ident.shift();
     ident = ident.filter(t => /^[A-Za-z][A-Za-z'\-]*$/.test(t)).map(t=>t.toUpperCase());
     if (ident.length < 2) continue;
     // Target name is followed by its Last Name column: find the repeat
     let name=null, city="";
+    // the Last Name column can be misread by a letter ("FARRAHI FARRAH") or glued ("BASORA ROVIRA BASORAROVIRA")
+    const near = (x, y) => { if (x === y) return true; if (Math.min(x.length, y.length) < 4 || Math.abs(x.length - y.length) > 1) return false;
+      let i = 0; while (i < x.length && x[i] === y[i]) i++; const a2 = x.slice(i), b2 = y.slice(i);
+      return a2.slice(1) === b2.slice(1) || a2.slice(1) === b2 || a2 === b2.slice(1); };
     for (let s=ident.length-1; s>=1 && !name; s--){
       for (let m=Math.min(3,s); m>=1; m--){
         if (s+m <= ident.length && ident.slice(s,s+m).join(" ")===ident.slice(s-m,s).join(" ")){
           name = ident.slice(0,s).join(" "); city = ident.slice(s+m).join(" "); break;
         }
       }
+      if (!name) for (let m=Math.min(3,s); m>=2; m--){
+        if (s-m >= 1 && ident[s] === ident.slice(s-m,s).join("")){ name = ident.slice(0,s).join(" "); city = ident.slice(s+1).join(" "); break; }
+      }
+      if (!name && s >= 2 && near(ident[s], ident[s-1])){ name = ident.slice(0,s).join(" "); city = ident.slice(s+1).join(" "); }
       // OCR sometimes glues a short name together: "JOHNDOE DOE" -> "JOHN DOE"
       if (!name && ident[s].length>=2 && ident[s-1].length>ident[s].length+1 && ident[s-1].endsWith(ident[s])){
         const first = ident[s-1].slice(0, ident[s-1].length-ident[s].length);
@@ -1063,7 +1096,7 @@ function parseCallPlanText(text){
       else if (d.length===1){ a=d[0]; r=a; c=0; }
     }
     if (a==null) continue;
-    rows.push({name, city, c, a, r, last, guess: !sure && sdA==null});
+    rows.push({name, city, c, a, r, last, guess: !sure && (sdA==null || digits.length <= 1)});
   }
   return {rows, total};
 }
@@ -1154,7 +1187,8 @@ async function runImport(files){
       const out = parseCallPlanText(data.text || "");
       let n = 0;
       for (const r of out.rows){
-        const d = makeDoc(r.name, r.city, r.c, r.a, r.r, r.last); d.guess = !!r.guess;
+        const sn = snapName(r.name), sc = snapCity(r.city);
+        const d = makeDoc(sn, sc, r.c, r.a, r.r, r.last); d.guess = !!r.guess; if (norm(sn) !== norm(r.name)) d.readAs = r.name;
         if (d.id && !byId.has(d.id)) { byId.set(d.id, d); n++; }
       }
       if (out.total) reportTotal = out.total;
@@ -1171,6 +1205,25 @@ async function runImport(files){
   renderReview();
 }
 
+// compared with the list you have now: who isn't in these screenshots, who is new, and whose assigned number changed
+function whatChanged(){
+  const cur = state.doctors.filter(d => !d.added); if (!cur.length) return null;
+  const P = new Map(parsed.map(p => [p.id, p]));
+  const missing = cur.filter(d => !P.has(d.id));
+  const isNew = parsed.filter(p => !cur.some(d => d.id === p.id));
+  const changed = cur.filter(d => P.has(d.id) && P.get(d.id).a !== d.a).map(d => ({d, a: P.get(d.id).a}));
+  return {missing, isNew, changed};
+}
+function whatChangedHtml(){
+  const w = whatChanged(); if (!w) return "";
+  if (!w.missing.length && !w.isNew.length && !w.changed.length) return `<p class="small okline" style="margin-top:8px">✓ Same doctors and assigned calls as your current list.</p>`;
+  const nm = d => esc(titleCase(d.name)) + (d.city ? ` <span class="small">${esc(titleCase(d.city))}</span>` : "");
+  return `<div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">What changed</b> <span class="small">· compared with your current list</span>
+    ${w.missing.length ? `<p style="margin-top:6px;color:var(--red-ink)"><b>Not in these screenshots (${w.missing.length}):</b> ${w.missing.map(d => nm(d) + ` · ${d.a} assigned`).join("; ")}</p><p class="small">A screenshot may be missing a row. If they're really off your plan, that's fine. <b>Update my numbers</b> keeps them as they are, <b>Start a fresh plan</b> drops them (you can add them back from Settings).</p>` : ""}
+    ${w.isNew.length ? `<p style="margin-top:6px"><b>New (${w.isNew.length}):</b> ${w.isNew.map(d => nm(d) + ` · ${d.a} assigned`).join("; ")}</p>` : ""}
+    ${w.changed.length ? `<p style="margin-top:6px"><b>Assigned changed (${w.changed.length}):</b> ${w.changed.map(x => nm(x.d) + ` · ${x.d.a} → ${x.a}`).join("; ")}</p>` : ""}
+  </div>`;
+}
 function renderReview(){
   if (!parsed.length){ $("iFoot").innerHTML = `<label class="btn" for="moreF">Try other screenshots</label><input type="file" id="moreF" accept="image/*" multiple hidden><button class="btn" id="closeS">Close</button>`;
     $("closeS").onclick = closeSheet; $("moreF").onchange = e => runImport([...e.target.files]); return; }
@@ -1183,10 +1236,11 @@ function renderReview(){
       <span>${parsed.length} doctors · C ${sum.c} · A ${sum.a} · R ${sum.r}</span>
       ${T ? `<span class="${match?"good":"bad"}">${match ? "✓ Matches the report's total row" : `Report's total row: ${T.count?T.count+" doctors · ":""}C ${T.c} · A ${T.a} · R ${T.r}`}</span>` : `<span class="small">Add the last page (with the total row) to double-check the count.</span>`}
     </div>
+    ${whatChangedHtml()}
     ${T && !match ? `<p class="small">The numbers don't match yet. A page may be missing, or a number was misread. Check the highlighted rows against your report.</p>` : ""}
     ${flagged ? `<p class="small">${flagged} highlighted row${flagged>1?"s":""}: the reader wasn't sure of the numbers. Compare with your report and tap a number to fix it.</p>` : ""}
     <div class="rtable"><table><thead><tr><th>Doctor</th><th>City</th><th>C</th><th>A</th><th>R</th><th></th></tr></thead><tbody>
-    ${parsed.map((d,i)=>`<tr class="${(d.guess || d.c0+d.r0!==d.a)?"check":""}"><td>${esc(d.name)}</td><td>${esc(d.city)}</td>
+    ${parsed.map((d,i)=>`<tr class="${(d.guess || d.c0+d.r0!==d.a)?"check":""}"><td>${esc(d.name)}${d.readAs ? `<br><span class="small">read as ${esc(d.readAs)}</span>` : ""}</td><td>${esc(d.city)}</td>
       <td class="num"><input id="pc${i}" type="number" inputmode="numeric" min="0" value="${d.c0}" data-i="${i}" data-k="c0" aria-label="Completed"></td>
       <td class="num"><input id="pa${i}" type="number" inputmode="numeric" min="0" value="${d.a}" data-i="${i}" data-k="a" aria-label="Assigned"></td>
       <td class="num"><input id="pr${i}" type="number" inputmode="numeric" min="0" value="${d.r0}" data-i="${i}" data-k="r0" aria-label="Remaining"></td>
@@ -1215,7 +1269,8 @@ function renderReview(){
   };
   const replace = () => {
     const keepAdded = state.doctors.filter(d => d.added && !parsed.some(p => p.id === d.id));
-    state = {doctors: parsed.map(clean).concat(keepAdded), hideDD: state.hideDD, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    const dropped = state.doctors.filter(d => !d.added && !parsed.some(p => p.id === d.id)).map(d => ({id:d.id, name:d.name, city:d.city, a:d.a, c0:done(d)}));
+    state = {doctors: parsed.map(clean).concat(keepAdded), dropped, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
     save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
   };
   $("replI").onclick = () => {
@@ -1256,6 +1311,50 @@ function openChargers(){
   $("sheet").querySelectorAll("[data-cht]").forEach(b => b.onclick = () => { state.chType = b.dataset.cht === "tesla" ? "tesla" : ""; save(); openChargers(); });
   $("evGo").onclick = () => { const c = $("evCity").value.trim(); if (!c){ $("evCity").focus(); return; } window.open(chargerUrl(c), "_blank"); };
   $("evCity").onkeydown = e => { if (e.key === "Enter") $("evGo").click(); };
+}
+/* A call plan doctor who dropped off the list: from the last fresh load, or still remembered by Plan my week on this iPad */
+function missingCands(){
+  const have = new Set(state.doctors.map(d => d.id)), out = new Map();
+  (state.dropped || []).forEach(d => { if (!have.has(d.id)) out.set(d.id, {...d, from:"dropped"}); });
+  const r = routerRaw(), ids = new Map();
+  const note = (id, city) => { if (id && !have.has(id) && !out.has(id) && !(ids.get(id) || "")) ids.set(id, city || ids.get(id) || ""); };
+  for (const w in (r.weeks || {})) for (const iso in r.weeks[w].plan.days) r.weeks[w].plan.days[iso].stops.forEach(s => note(s.id, String(s.addrKey || "").split("|")[1]));
+  (r.cp || []).forEach(v => note(v.id)); Object.keys(r.away || {}).forEach(id => note(id));
+  for (const w in (r.anchors || {})) (r.anchors[w] || []).forEach(a => note(a.id));
+  (r.blitzes || []).forEach(b => (b.docs || []).forEach(id => note(id)));
+  let offs = {}; try { offs = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  for (const [id, city] of ids) if (!out.has(id)) out.set(id, {id, name:id, city: titleCase(city || ((offs[id] || [])[0] || {}).a?.split(", ").pop() || ""), from:"router"});
+  // only names that look like a person
+  return [...out.values()].filter(d => /^[A-Z][A-Z' .-]+ [A-Z][A-Z' .-]+$/.test(d.id));
+}
+function openMissing(){
+  const list = missingCands();
+  openSheet(`<h2>Find a missing doctor</h2>
+    <p>Doctors who were on your call plan before but aren't on your list now. They come from your last fresh load and from what Plan my week remembers on this iPad.</p>
+    ${list.length ? `<div class="cands" style="margin-top:8px">${list.map((d,i) => `<div class="cand" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>${esc(titleCase(d.name))}</b>${d.city ? ` <span class="small">· ${esc(titleCase(d.city))}</span>` : ""}${d.a ? `<br><span class="small">${d.a} assigned${d.c0 ? ", " + d.c0 + " completed" : ""} when it dropped off</span>` : ""}</span><button class="btn small" data-mb="${i}">Add back</button></div>`).join("")}</div>`
+      : `<p style="margin-top:8px"><b>No one found.</b> Compare the doctor count with your report, or load the call plan screenshots again with <b>Update my numbers</b>. It adds anyone missing without touching your logged calls.</p>`}
+    <p class="small" style="margin-top:10px">The easiest fix is often to load your call plan screenshots again and tap <b>Update my numbers</b>: the What changed box shows who was missing, and anyone missing is added back.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-mb]").forEach(b => b.onclick = () => openAddBack(list[+b.dataset.mb]));
+}
+function openAddBack(m){
+  openSheet(`<h2>Add back ${esc(titleCase(m.name))}</h2>
+    <p>Enter the numbers from your call plan report.</p>
+    <div class="logday" style="margin-top:8px;flex-wrap:wrap;gap:10px">
+      <label class="small">City <input id="abC" value="${esc(titleCase(m.city || ""))}" style="width:160px"></label>
+      <label class="small">Assigned <input id="abA" type="number" inputmode="numeric" min="0" value="${m.a || ""}" style="width:80px"></label>
+      <label class="small">Completed <input id="abD" type="number" inputmode="numeric" min="0" value="${m.c0 || 0}" style="width:80px"></label></div>
+    <p class="small" id="abErr" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="abX">Back</button><button class="btn primary" id="abOk">Add to my call plan</button></div>`);
+  $("abX").onclick = openMissing;
+  $("abOk").onclick = () => {
+    const a = Math.max(0, +$("abA").value || 0), c = Math.min(a, Math.max(0, +$("abD").value || 0));
+    if (!a){ $("abErr").textContent = "Enter the assigned number from your report."; return; }
+    state.doctors.push({id:m.id, name:m.name.toUpperCase(), city:($("abC").value || "").trim().toUpperCase(), c0:c, a, r0:a - c, lastRpt:null, log:[]});
+    state.dropped = (state.dropped || []).filter(x => x.id !== m.id);
+    save(); render(); closeSheet(); toast(`Added back ${titleCase(m.name)} · ${a - c} left`);
+  };
 }
 /* Maps: directions to today's next stop (only the office address goes to Maps, never a name), or Maps itself */
 const isAndroid = () => /Android/i.test(navigator.userAgent);
