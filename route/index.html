@@ -878,7 +878,7 @@ function renderRoute(){
         </div>
         <div class="sbtns">
           ${s.done ? `<button class="btn small" data-undone="${iso}|${i}">Not done</button>` : `<button class="btn small primary" data-done="${iso}|${i}">Done</button>`}
-          ${s.done ? "" : `<button class="btn small" data-notin="${iso}|${i}">Not in</button><button class="btn small" data-sub="${iso}|${i}">Substitute</button>`}
+          ${s.done ? "" : `<button class="btn small" data-skip="${iso}|${i}">Skip</button><button class="btn small" data-sub="${iso}|${i}">Substitute</button>`}
           ${prev && !s.done ? `<button class="btn small ghost" data-undo="${iso}|${i}">Undo swap</button>` : ""}
           <button class="btn small ghost" data-more="${iso}|${i}" aria-label="More for ${esc(docName(s.id))}">⋯</button>
         </div>
@@ -895,7 +895,7 @@ function renderRoute(){
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other doctors on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
       ${pm.length ? `<div class="half"><div class="lbl">Afternoon</div>${pm.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
-      ${(d.removed||[]).length ? `<div class="daynotes">${d.removed.map((r,k) => `<span>Removed: ${esc(docName(r.id))} · <button class="btn small ghost" data-putback="${iso}|${k}" style="min-height:32px;padding:2px 8px">Put back</button></span>`).join("")}</div>` : ""}
+      ${(d.removed||[]).length ? `<div class="daynotes">${d.removed.map((r,k) => `<span>${r.skipped ? "Skipped" : "Removed"}: ${esc(docName(r.id))} · <button class="btn small ghost" data-putback="${iso}|${k}" style="min-height:32px;padding:2px 8px">Put back</button></span>`).join("")}</div>` : ""}
       ${!d.stops.length ? `<div class="half"><div class="sub" style="padding:8px 4px">${d.notes && d.notes.some(x => x.label === "All day") ? "Your calendar has this day blocked." : "Nothing could be planned this day."}</div></div>` : ""}
     </section>`;
   }
@@ -966,7 +966,11 @@ function build(){
   // visits already marked Done this week stay where they are; days already past keep what was planned
   const keep = {};
   if (prevW) for (const iso in prevW.plan.days) if (iso >= todayISO()) { const k = prevW.plan.days[iso].stops.filter(s => s.done); if (k.length) keep[iso] = k; }
-  const {plan, C:ctx} = L.planWeek({...contextInput(), keep, anchors: S.anchors[weekMon] || []});
+  // doctors you skipped on a day aren't put back on that day by a rebuild
+  const skip = {};
+  if (prevW) for (const iso in prevW.plan.days) if (iso >= todayISO()){ const k = (prevW.plan.days[iso].removed || []).filter(s => s.skipped); if (k.length) skip[iso] = k; }
+  const {plan, C:ctx} = L.planWeek({...contextInput(), keep, skip, anchors: S.anchors[weekMon] || []});
+  for (const iso in skip) if (plan.days[iso]) plan.days[iso].removed = skip[iso].filter(s => !plan.days[iso].stops.some(x => x.id === s.id));
   if (prevW) for (const iso in prevW.plan.days) if (iso < todayISO() && !plan.days[iso]) plan.days[iso] = prevW.plan.days[iso];
   const probs = L.checkPlan(ctx, plan);
   const versions = prevW ? [{plan: prevW.plan, builtAt: prevW.builtAt}].concat(prevW.versions || []).slice(0, 5) : [];
@@ -1118,6 +1122,8 @@ $("routeArea").addEventListener("click", e => {
     x.s.done = null; x.s.logged = false; save(); render();
     toast(un ? "Removed that call from your Call Tracker" : "Marked not done"); return;
   }
+  // Skip: you didn't see them today (out, or no time). No one is swapped in; they stay on your list for another day.
+  if ((x = at("data-skip"))){ const s = L.removeStop(C, W.plan, x.iso, x.i, true); save(); render(); toast(`Skipped ${docName(s.id)}. They stay on your list for another day.`); return; }
   if ((x = at("data-notin"))){
     const list = L.substitutes(C, W.plan, x.iso, x.i, 5);
     if (!list.length){ toast("No one else fits that " + (x.s.slot === "am" ? "morning" : "afternoon") + " without breaking a rule"); return; }

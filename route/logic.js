@@ -663,6 +663,7 @@ function buildContext(input){
   // doctors with no calls left are still known (for calendar visits and adding by hand) but aren't planned on their own
   C.allDocs = input.docs; C.docs = input.docs.filter(d => !d.noAuto);
   C.blocked = new Set(input.counterpartVisits.map(v => v.date + "|" + v.id));
+  for (const iso in (input.skip || {})) input.skip[iso].forEach(s => C.blocked.add(iso + "|" + s.id));
   // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
   C.away = new Set();
   for (const id in (input.away || {})) for (const r of input.away[id]) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])) if (iso >= r.from && iso <= r.to){ C.away.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
@@ -1053,17 +1054,18 @@ function addManual(C, plan, iso, cand, slot){
   day.stops.push({id:cand.id, office:cand.office, slot, am: slot === "am", pm: slot === "pm", coords:cand.coords, addrKey:cand.addrKey, manual:true, history:[]});
   finishDay(C, plan, iso);
 }
-function removeStop(C, plan, iso, idx){
+function removeStop(C, plan, iso, idx, skip){
   const day = plan.days[iso]; const s = day.stops.splice(idx, 1)[0];
-  if (!s.manual) (day.removed = day.removed || []).push(s);   // planned stops can be put back
+  if (skip) s.skipped = true; else delete s.skipped;
+  if (!s.manual || skip) (day.removed = day.removed || []).push(s);   // planned (and skipped) stops can be put back
   finishDay(C, plan, iso); return s;
 }
 function restoreStop(C, plan, iso, k){
   const day = plan.days[iso]; const s = (day.removed || [])[k]; if (!s) return {ok:false};
   const {d, a} = weekUse(plan, null, -1, C.addrRule);
   if (d.has(s.id)) return {ok:false, reason:"conflict-doc", id:s.id};
-  if (!s.fixed && C.addrRule !== "day" && a.has(s.addrKey)) return {ok:false, reason:"conflict-addr", id:s.id};
-  day.removed.splice(k, 1); day.stops.push(s); finishDay(C, plan, iso); return {ok:true, id:s.id};
+  if (!s.fixed && !s.manual && C.addrRule !== "day" && a.has(s.addrKey)) return {ok:false, reason:"conflict-addr", id:s.id};
+  day.removed.splice(k, 1); delete s.skipped; day.stops.push(s); finishDay(C, plan, iso); return {ok:true, id:s.id};
 }
 function moveOptions(C, plan, iso, idx){
   // For every other planned day: can this doctor go there without breaking a rule?
