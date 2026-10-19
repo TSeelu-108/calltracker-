@@ -314,7 +314,7 @@ const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUp
 
 /* ---------- state (kept only on this iPad) ---------- */
 let S = load() || {};
-S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, blitzes:[], away:{}, anchors:{}}, S);
+S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, mealSkip:{}, blitzes:[], away:{}, anchors:{}}, S);
 S.settings = Object.assign({home:"", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null, chargers:"off", myName:""}, S.settings||{});
 function load(){
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (!s) return null;
@@ -890,6 +890,7 @@ function renderRoute(){
       <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. Doctors were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
+      ${mealAsks().filter(e => L.isoDay(e.start) === iso).map(e => { const nm = mealName(e); return `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(nm)} isn't on your list, so this day isn't planned around your ${e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} ${esc(((e.summary || "").match(/lunch|breakfast|coffee|snacks?|dinner/i) || ["lunch"])[0].toLowerCase())}.</span><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button></div>`; }).join("")}
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other doctors on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
       ${pm.length ? `<div class="half"><div class="lbl">Afternoon</div>${pm.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
@@ -992,21 +993,19 @@ function openBuildCheck(){
   const mine = D.cal.filter(e => e.kind === "mine" && e.docs.length);
   const cpCal = D.cal.filter(e => e.kind === "counterpart");
   const myMeals = D.cal.filter(e => e.kind === "busy" && e.myMeal);
-  const myFirst = String(S.settings.myName || "").trim().split(/\s+/)[0].toLowerCase();
-  // the name left in "Matthys Lunch - Torre" once the meal word and your own name are taken out
-  const mealName = e => { const w = String(e.summary || "").replace(/\([^)]*\)/g, " ").split(/[^\p{L}'\-]+/u).filter(x => x.length > 1 && !L.MEAL_RE.test(x) && x.toLowerCase() !== myFirst && !/^(with|and|at|the|dr|for)$/i.test(x));
-    return w.length === 1 ? w[0][0].toUpperCase() + w[0].slice(1).toLowerCase() : ""; };
   const need = needInfo().length;
-  const asks = mine.filter(e => e.docs.some(x => !x.sure));
+  const asks = mine.filter(e => e.docs.some(x => !x.sure)), mAsks = mealAsks(), nAsk = asks.length + mAsks.length;
   const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
   const row = (ok, title2, body, btn) => `<div class="cand" style="display:block"><div class="n"><span class="dot ${ok}" style="display:inline-block;margin-right:8px"></span>${title2}</div><div class="sub" style="margin-top:4px">${body}</div>${btn ? `<div class="actions" style="margin-top:8px">${btn}</div>` : ""}</div>`;
   const calAge = S.ics ? Math.round((Date.now() - new Date(S.ics.at)) / 864e5) : null;
   openSheet(`<h2>${W ? "Rebuild" : "Build"} ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "this week"}</h2>
     <p>Here's what the plan will use. Refresh anything that's out of date, then tap <b>Build with these</b>.</p>
-    ${asks.length ? `<div id="bcAsk" style="margin-top:12px;border:2px solid var(--red-edge);background:var(--red-fill);color:var(--red-ink);border-radius:12px;padding:12px 14px">
-      <b style="font-size:1.05em">❗ ${asks.length === 1 ? "1 question" : asks.length + " questions"} before you build</b>
+    ${nAsk ? `<div id="bcAsk" style="margin-top:12px;border:2px solid var(--red-edge);background:var(--red-fill);color:var(--red-ink);border-radius:12px;padding:12px 14px">
+      <b style="font-size:1.05em">❗ ${nAsk === 1 ? "1 question" : nAsk + " questions"} before you build</b>
       ${asks.map(e => `<div style="margin-top:10px"><div><b>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}</b></div><div style="margin-top:2px">Which doctor is this?</div>
         <div class="actions" style="margin-top:6px;flex-wrap:wrap">${e.docs.filter(x => !x.sure).map(x => `<button type="button" class="btn small" data-calok="${esc(e.key)}|${esc(x.id)}">${esc(docName(x.id))}</button>`).join("")}<button type="button" class="btn small ghost" data-calnone="${esc(e.key)}">Neither</button></div></div>`).join("")}
+      ${mAsks.map(e => { const nm = mealName(e); return `<div style="margin-top:10px"><div><b>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}</b></div><div style="margin-top:2px">${esc(nm)} isn't on your list, so the day can't be planned around it. Add ${esc(nm)} with the office address, or just keep the time free.</div>
+        <div class="actions" style="margin-top:6px;flex-wrap:wrap"><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button><button type="button" class="btn small ghost" data-mealskip="${esc(e.key)}">Just keep the time free</button></div></div>`; }).join("")}
     </div>` : ""}
     <div class="cands">
       ${S.settings.home ? "" : row("warn", "Start city", "Not set yet, so days are planned from the middle of your offices. Pick the city you start and end each day in.", `<button class="btn small" id="bcHome">Settings</button>`)}
@@ -1020,14 +1019,15 @@ function openBuildCheck(){
     </div>
     ${S.ics || mine.length || myMeals.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Your visits from the calendar this week</b></p>
       ${mine.length ? `<ul class="ulist">${mine.map(e => `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}${e.booked ? ' <span class="sub">(booked in the app)</span>' : ""}</span><span>${e.docs.map(x => x.sure ? `✓ ${esc(docName(x.id))}` : `<span style="color:var(--red-ink)">${esc(docName(x.id))}?</span>`).join(" ")}</span></li>`).join("")}</ul>` : myMeals.length ? "" : `<p class="sub">None found. If you have a lunch or coffee booked this week, make sure your file was exported after you booked it, and that the doctor's name is in the event title.</p>`}
-      ${myMeals.length ? `<ul class="ulist" style="margin-top:6px">${myMeals.map(e => { const nm = mealName(e); return `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}<br><span class="sub">${nm ? esc(nm) + " isn't" : "No one here is"} on your list, so the plan keeps this time free but can't route you there.</span></span><span>${nm ? `<button type="button" class="btn small" data-addprov="${esc(nm)}">Add ${esc(nm)}</button>` : ""}</span></li>`; }).join("")}</ul>` : ""}
+      ${myMeals.length ? `<ul class="ulist" style="margin-top:6px">${myMeals.map(e => { const nm = mealName(e); return `<li><span>${dn(L.isoDay(e.start))} ${tm(e)} · ${esc(e.summary)}<br><span class="sub">${nm ? esc(nm) + " isn't" : "No one here is"} on your list, so the plan keeps this time free but can't route you there.</span></span><span>${nm ? `<button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button>` : ""}</span></li>`; }).join("")}</ul>` : ""}
       ${cpCal.length ? `<p class="sub" style="margin-top:8px">Counterpart visits in your calendar (avoided): ${cpCal.map(e => `${dn(L.isoDay(e.start))} ${esc(e.who.join("/"))} · ${esc(e.docs.map(x => docName(x.id)).join(", "))}`).join("; ")}. If one of these is really yours, change it in Review all events${S.settings.myName ? "" : ", or add your name in Settings"}.</p>` : ""}` : ""}
     ${W ? `<p class="sub" style="margin-top:12px">Rebuilding re-plans ${days.length ? dn(days[0]) + "–" + dn(days[days.length-1]) : "the rest of the week"}. Visits marked Done stay put, and this plan is saved under Previous builds.</p>` : ""}
     <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="bcGo">Build with these</button></div>`);
   $("closeS").onclick = () => { checkPending = false; closeSheet(); };
   $("bcGo").onclick = () => {
-    if (asks.length && !$("bcGo").dataset.anyway){ $("bcAsk").scrollIntoView({behavior:"smooth", block:"center"}); $("bcGo").dataset.anyway = "1"; $("bcGo").textContent = "Build anyway"; toast("Answer the question in red first. Unanswered visits aren't planned."); return; }
+    if (nAsk && !$("bcGo").dataset.anyway){ $("bcAsk").scrollIntoView({behavior:"smooth", block:"center"}); $("bcGo").dataset.anyway = "1"; $("bcGo").textContent = "Build anyway"; toast("Answer the question in red first. Unanswered visits aren't planned."); return; }
     checkPending = false; closeSheet(); build(); };
+  $("sheet").querySelectorAll("[data-mealskip]").forEach(b => b.onclick = () => { S.mealSkip[b.dataset.mealskip] = 1; save(); openBuildCheck(); });
   $("sheet").querySelectorAll("[data-calnone]").forEach(b => b.onclick = () => { S.kinds[b.dataset.calnone] = "busy"; save(); openBuildCheck(); toast("Kept free on your calendar, not planned as a visit"); });
   $("bcDocs").onclick = () => openDocs();
   if ($("bcHome")) $("bcHome").onclick = () => { checkPending = false; openSettings(); };
@@ -1036,8 +1036,6 @@ function openBuildCheck(){
   $("bcShots").onclick = () => { checkPending = false; closeSheet(); $("shotBtn").click(); };
   if ($("bcCal")) $("bcCal").onclick = () => openCalendar();
   if ($("bcTracker")) $("bcTracker").onclick = () => { $("useTracker").click(); openBuildCheck(); };
-  // hand the name to the Call Tracker on this iPad (never in the web address) and open Add a provider there
-  $("sheet").querySelectorAll("[data-addprov]").forEach(b => b.onclick = () => { try { localStorage.setItem("pending.addProvider", b.dataset.addprov); } catch(e){} location.href = "../"; });
   $("sheet").querySelectorAll("[data-calok]").forEach(b => b.onclick = () => { const v = b.dataset.calok, cut = v.lastIndexOf("|"), key = v.slice(0, cut), id = v.slice(cut + 1); S.calOk[key] = [...new Set((S.calOk[key] || []).concat(id))]; save(); openBuildCheck(); });
 }
 
@@ -1050,6 +1048,26 @@ $("summary").addEventListener("click", e => {
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-z]").forEach(b => b.onclick = () => { S.zoneOverride[weekMon] = +b.dataset.z; save(); closeSheet(); render(); toast(Z[+b.dataset.z].name + " this week. Tap Rebuild week to plan it."); });
 });
+// the name left in "Matthys Lunch - Torre" once the meal word and your own name are taken out
+function mealName(e){ const myFirst = String(S.settings.myName || "").trim().split(/\s+/)[0].toLowerCase();
+  const w = String(e.summary || "").replace(/\([^)]*\)/g, " ").split(/[^\p{L}'\-]+/u).filter(x => x.length > 1 && !L.MEAL_RE.test(x) && x.toLowerCase() !== myFirst && !/^(with|and|at|the|dr|for)$/i.test(x));
+  return w.length === 1 ? w[0][0].toUpperCase() + w[0].slice(1).toLowerCase() : ""; }
+// your lunches with someone not on your list, not yet added or set aside
+function mealAsks(){ return (D.cal || []).filter(e => e.kind === "busy" && e.myMeal && mealName(e) && !(S.mealSkip || {})[e.key]); }
+// hand the name to the Call Tracker on this iPad (never in the web address) and open Add a provider there
+document.addEventListener("click", ev => { const b = ev.target.closest && ev.target.closest("[data-addprov]"); if (!b) return; try { localStorage.setItem("pending.addProvider", JSON.stringify({last: b.dataset.addprov, iso: b.dataset.addiso || ""})); } catch(e){} location.href = "../"; });
+// back from adding someone you have a lunch with: put that lunch into the day's route without rebuilding the week
+function placePendingLunch(){
+  let p = null; try { p = JSON.parse(localStorage.getItem("pending.placeLunch")); localStorage.removeItem("pending.placeLunch"); } catch(e){}
+  if (!p || !p.iso) return;
+  const mon = L.mondayOf ? L.mondayOf(p.iso) : null; if (mon && mon !== weekMon){ weekMon = mon; S.lastWeek = mon; }
+  derive(); const W = currentPlan();
+  if (!W || !W.plan.days[p.iso]){ render(); toast(`Added ${docName(p.id)}. Build the week to plan around the lunch.`); return; }
+  const C2 = L.buildContext(contextInput()); const added = L.placeFixed(C2, W.plan, p.iso);
+  W.stamp = stamp(); save(); render();
+  const day = L.fromISO(p.iso).toLocaleDateString(undefined,{weekday:"long"});
+  toast(added.length ? `${docName(p.id)} is in ${day}'s route, and the rest of ${day} was planned around the lunch.` : `Added ${docName(p.id)}. Rebuild to plan ${day} around the lunch.`);
+}
 function readTrackerRaw(){ try { return JSON.parse(localStorage.getItem(TRACKER_KEY)); } catch(e){ return null; } }
 function trackerHasCall(id, date){
   const t = readTrackerRaw(); if (!t || !Array.isArray(t.doctors)) return false;
@@ -1964,6 +1982,7 @@ function openSettings(){
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 render();
+placePendingLunch();
 if (/[?&]settings\b/.test(location.search)) { history.replaceState(null, "", location.pathname); openSettings(); }
 </script>
 </body>

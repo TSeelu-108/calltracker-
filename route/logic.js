@@ -908,6 +908,22 @@ function rebuildDay(C, plan, iso){
   plan.unscheduled = explainUnscheduled(C, plan);
   return day;
 }
+// a calendar visit that wasn't in the plan yet (someone just added): put it in and re-plan the rest of that day around it
+function placeFixed(C, plan, iso){
+  const day = plan.days[iso]; if (!day) return [];
+  const added = [];
+  for (const f of (C.fixed[iso] || [])){
+    if (day.stops.some(s => s.id === f.id)) continue;
+    for (const k in plan.days) if (k !== iso) plan.days[k].stops = plan.days[k].stops.filter(s => !(s.id === f.id && !s.fixed && !s.done && !s.manual));
+    day.stops.push(makeFixedStop(C, f, iso)); added.push(f.id);
+  }
+  if (!added.length) return added;
+  day.stops = day.stops.filter(s => s.fixed || s.done || s.manual);
+  fillDay(C, plan, iso, {variant: day.variant || 0});
+  finishDay(C, plan, iso);
+  plan.unscheduled = explainUnscheduled(C, plan);
+  return added;
+}
 function finishDay(C, plan, iso){
   const day = plan.days[iso];
   const extra = day.stops.filter(s => s.manual).length;
@@ -1110,7 +1126,7 @@ function csvRows(text){
 
 const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, MEAL_RE: MEAL, parseTSV,
-  scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
+  scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, placeFixed, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};
 if (typeof module !== "undefined") module.exports = api; else root.RouteLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);
