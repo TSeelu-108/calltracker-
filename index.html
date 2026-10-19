@@ -772,7 +772,7 @@ function openAddProvider(editId, pre){
     street: info && info.locs[0] ? info.locs[0].address : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
     days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
   if (pre && pre.last) v.last = titleCase(pre.last);
-  const note = pre && pre.last ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office, then rebuild in Plan my week.` : "";
+  const note = pre && pre.last ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
   let err = "";
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
@@ -807,6 +807,8 @@ function openAddProvider(editId, pre){
       else state.doctors.push({id, name, city:v.city.toUpperCase(), c0:0, a:0, r0:0, lastRpt:null, log:[], added:true, kind:v.kind});
       routerInfo(id, {locs:[{address:v.street, city:titleCase(v.city), days:v.days, appt:v.appt}], at:new Date().toISOString()});
       save(); ui.flash = id; render(); closeSheet(); toast(ed ? "Saved" : `Added ${titleCase(name)}`);
+      // added from a lunch on the calendar: put them into that day's route right away
+      if (!ed && pre && pre.iso){ try { localStorage.setItem("pending.placeLunch", JSON.stringify({id, iso: pre.iso})); } catch(e){} location.href = "route/"; }
     };
   };
   draw();
@@ -1218,7 +1220,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 
 render();
 // "Add Matthys" from Plan my week's build check
-try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); openAddProvider(null, {last: pend}); } } catch(e){}
+try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); openAddProvider(null, o); } } catch(e){}
 </script>
 </body>
 </html>
