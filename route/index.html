@@ -864,6 +864,7 @@ function renderRoute(){
           <div class="tags">
             ${s.anchor ? `<span class="tag cal">📌 Anchored</span>` : s.fixed ? `<span class="tag cal">On your calendar${s.time ? " · " + esc(s.time) : ""}</span>` : ""}
             ${s.manual ? `<span class="tag swap">Added by you</span>` : ""}
+            ${cpWeekTag(s.id, iso)}
             ${(D.blitz[s.id] || []).map(nm => `<button class="tag appt" data-btag="${esc(s.id)}|${esc(nm)}" style="cursor:pointer">${esc(nm)}</button>`).join("")}
             ${s.movedFrom ? `<span class="tag swap">Moved from ${L.fromISO(s.movedFrom).toLocaleDateString(undefined,{weekday:"long"})}</span>` : ""}
             ${o && o.avail && o.avail.appt ? `<span class="tag appt">Appointment only</span>` : ""}
@@ -1049,6 +1050,17 @@ $("summary").addEventListener("click", e => {
   $("sheet").querySelectorAll("[data-z]").forEach(b => b.onclick = () => { S.zoneOverride[weekMon] = +b.dataset.z; save(); closeSheet(); render(); toast(Z[+b.dataset.z].name + " this week. Tap Rebuild week to plan it."); });
 });
 // the name left in "Matthys Lunch - Torre" once the meal word and your own name are taken out
+// counterparts' visits to this doctor this week, one per person per day
+function cpWeekOf(id){ const seen = new Set(); return (D.cp || []).filter(v => v.id === id && !seen.has(v.date + v.who) && seen.add(v.date + v.who)).sort((a,b) => a.date.localeCompare(b.date)); }
+// a quiet tag when your visit makes three (or more) this week, and a red one if it makes three days in a row
+function cpWeekTag(id, iso){
+  const v = cpWeekOf(id); if (v.length < 2) return "";
+  const wd = d => L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"});
+  const all = [...new Set(v.map(x => x.date).concat(iso))].sort(), n = v.length + 1;
+  const row = all.some((d,i) => i >= 2 && L.addDays(all[i-2], 2) === d && L.addDays(all[i-1], 1) === d);
+  const ord = n === 3 ? "3rd" : n + "th";
+  return `<span class="tag ${row ? "warn" : "appt"}" title="${esc(v.map(x => x.who + " " + wd(x.date)).join(", "))}">${row ? "3 days in a row" : ord + " visit this week"} · ${esc(v.map(x => x.who + " " + wd(x.date)).join(", "))}</span>`;
+}
 function mealName(e){ const myFirst = String(S.settings.myName || "").trim().split(/\s+/)[0].toLowerCase();
   const w = String(e.summary || "").replace(/\([^)]*\)/g, " ").split(/[^\p{L}'\-]+/u).filter(x => x.length > 1 && !L.MEAL_RE.test(x) && x.toLowerCase() !== myFirst && !/^(with|and|at|the|dr|for)$/i.test(x));
   return w.length === 1 ? w[0][0].toUpperCase() + w[0].slice(1).toLowerCase() : ""; }
@@ -1671,7 +1683,7 @@ function openMove(iso, i){
   const dn = d => L.fromISO(d).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"});
   const ok = opts.filter(x => x.ok), no = opts.filter(x => !x.ok);
   openSheet(`<h2>Move ${esc(docName(s.id))}</h2>
-    <p>These days follow every rule: they're in that day per your spreadsheet, not planned or called elsewhere this week, no counterpart is seeing them, and you're not at that office another day.</p>
+    <p>These days follow every rule: they're in that day per your spreadsheet, not planned or called elsewhere this week, no counterpart is seeing them, it wouldn't make three of you on three days in a row, and you're not at that office another day.</p>
     ${ok.length ? `<div class="cands">${ok.slice().sort((a,b) => (a.near ?? 0) - (b.near ?? 0)).map(x => { const o = D.offices[x.opt.office]; return `<div class="cand"><div><div class="n">${dn(x.iso)}</div><div class="sub">${esc(addrOf(o))} · ${x.opt.am && x.opt.pm ? "morning or afternoon" : x.opt.am ? "morning only" : "afternoon only"}</div><div class="sub">${x.near == null ? "" : (L.miles(x.near) < 1 ? "In that day's area · " : "About " + Math.round(L.miles(x.near)) + " mi from that day's stops · ")}${x.count} doctor${x.count===1?"":"s"} planned${x.count >= (+S.settings.perDay||6) ? " (this makes " + (x.count+1) + ")" : ""}</div></div><button class="btn small primary" data-mv="${x.iso}">Move</button></div>`; }).join("")}</div>` : `<p><b style="color:var(--ink)">No other day this week works for this doctor.</b> Remove them and add them another week instead.</p>`}
     ${no.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Can't move to</b></p><ul class="ulist">${no.map(x => `<li><span>${dn(x.iso)}</span><span>${esc(x.reason)}</span></li>`).join("")}</ul>` : ""}
     <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
@@ -1687,7 +1699,7 @@ function openAdd(iso){
   const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   const row = c => { const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : "", c.away ? "Out of office today" : ""].filter(Boolean);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -1725,6 +1737,7 @@ function addWithConfirm(iso, c, slot, back){
   if (c.seen) reasons.push(`You already called on them ${L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"})}.`);
   if (c.away || awayNow(id, iso)) reasons.push(`<b>${esc(docName(id))} is marked out of office on ${dayName}.</b>`);
   if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
+  if (c.streak) reasons.push(`Counterparts see them the days around ${dayName}, so this would make three of you on three days in a row.`);
   if (!reasons.length) return doAdd();
   const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
   const when = offs.map(o => `<li><span>${esc(addrOf(o))}</span><span>${esc(o.availText || "No days listed")}</span></li>`).join("");
@@ -1769,7 +1782,7 @@ function openWho(){
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : "", c.streak ? "Three of you on three days in a row" : ""].filter(Boolean);
     return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""}</div>
       <div class="sub">${esc(addrOf(o))}${who.near && c.dist >= 1 ? " · about " + Math.round(L.miles(c.dist)) + " mi" : ""}</div>
       <div class="sub">${when} · ${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>

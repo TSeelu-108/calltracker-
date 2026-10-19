@@ -666,6 +666,16 @@ function buildContext(input){
   // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
   C.away = new Set();
   for (const id in (input.away || {})) for (const r of input.away[id]) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])) if (iso >= r.from && iso <= r.to){ C.away.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
+  // never the third of you on three days in a row: a day between two counterpart visits, or right before or after two back-to-back ones, is blocked too
+  C.streak = new Set(); const cpd = {};
+  input.counterpartVisits.forEach(v => (cpd[v.id] = cpd[v.id] || new Set()).add(v.date));
+  for (const id in cpd){ const s = cpd[id];
+    for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])){
+      if (s.has(iso) || C.streak.has(iso + "|" + id)) continue;
+      const p1 = s.has(addDays(iso, -1)), p2 = s.has(addDays(iso, -2)), n1 = s.has(addDays(iso, 1)), n2 = s.has(addDays(iso, 2));
+      if ((p1 && p2) || (p1 && n1) || (n1 && n2)){ C.streak.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
+    }
+  }
   // doctors already called this week (logged in the tracker or shown in the call plan report) aren't planned again
   const wkEnd = addDays(input.weekMon, 6);
   C.seen = {}; input.docs.forEach(d => { if (d.lastCall && d.lastCall >= input.weekMon && d.lastCall <= wkEnd) C.seen[d.id] = d.lastCall; });
@@ -975,7 +985,7 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
+        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id), streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
@@ -1014,6 +1024,7 @@ function moveOptions(C, plan, iso, idx){
     if (!(C.match.byDoc[s.id] || []).length) reason = "Not in your spreadsheet";
     else if (!opts.length) reason = "Not in that day, per your spreadsheet";
     else if (C.away.has(k + "|" + s.id)) reason = "Out of office that day";
+    else if (C.streak.has(k + "|" + s.id)) reason = "That would make three of you on three days in a row";
     else if (C.blocked.has(k + "|" + s.id)) reason = "A counterpart is seeing them that day";
     else if (usedD.has(s.id)) reason = "Already planned another day";
     else {
@@ -1063,7 +1074,7 @@ function explainUnscheduled(C, plan){
       const avDays = C.days.filter(iso => optionsFor(C, d.id, iso).length);
       if (!avDays.length) why = "Not in on the days you're working";
       else if (avDays.every(iso => C.away.has(iso + "|" + d.id))) why = "Out of office";
-      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = avDays.some(iso => C.away.has(iso + "|" + d.id)) ? "Out of office or a counterpart is seeing them" : "A counterpart sees them on the only days they're in";
+      else if (avDays.every(iso => C.blocked.has(iso + "|" + d.id))) why = avDays.some(iso => C.away.has(iso + "|" + d.id)) ? "Out of office or a counterpart is seeing them" : "Counterparts see them on, or right around, the only days they're in";
       else why = "Didn't fit this week's areas";
     }
     return {id:d.id, why};
@@ -1079,7 +1090,7 @@ function checkPlan(C, plan){
     const ak = C.addrRule === "day" ? iso + "|" + s.addrKey : s.addrKey;
     if (seenA.has(ak)) probs.push("address twice: " + s.addrKey); seenA.set(ak, iso);
     if (C.away.has(iso + "|" + s.id)) probs.push("out of office: " + s.id + " " + iso);
-    else if (C.blocked.has(iso + "|" + s.id)) probs.push("counterpart same day: " + s.id + " " + iso);
+    else if (C.blocked.has(iso + "|" + s.id) && !(s.fixed && C.streak.has(iso + "|" + s.id))) probs.push((C.streak.has(iso + "|" + s.id) ? "three days in a row: " : "counterpart same day: ") + s.id + " " + iso);
     if (!s.fixed){ const a = s.office != null ? availableOn(C.offices[s.office], iso) : null; if (!a || !(s.slot === "am" ? a.am : a.pm)) probs.push("not available: " + s.id + " " + iso + " " + s.slot); }
   });
   return probs;
