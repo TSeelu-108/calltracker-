@@ -678,8 +678,8 @@ function openAnchors(back){
   $("anAdd").onclick = () => openAnchorAdd(() => openAnchors(back));
   $("sheet").querySelectorAll("[data-anrm]").forEach(b => b.onclick = () => { dropAnchor(b.dataset.anrm); save(); render(); openAnchors(back); });
 }
-function openAnchorAdd(back){
-  const days = D.days.filter(iso => iso >= todayISO()); let pick = {id:null, iso: days[0] || D.days[0], slot:""}, q = "";
+function openAnchorAdd(back, presetId){
+  const days = D.days.filter(iso => iso >= todayISO()); let pick = {id: presetId || null, iso: days[0] || D.days[0], slot:""}, q = "";
   const draw = () => {
     const w = pick.id ? anchorWarn(pick.id, pick.iso, pick.slot) : [];
     const list = D.docs.slice().sort((a,b) => a.name.split(" ").pop().localeCompare(b.name.split(" ").pop()));
@@ -1372,7 +1372,7 @@ function openDocInfo(id, back){
         </div>
         <div class="field">When they're in<span class="sub">Tap morning and afternoon for each day they're there. Tap the day to switch both.</span>
           ${[1,2,3,4,5].map(k => { const x = (loc.days||{})[k] || {}; return `<div class="wk"><button class="dl" data-dall="${i}|${k}">${WD[k]}</button><button data-g="${i}|${k}|am" aria-pressed="${!!x.am}">Morning</button><button data-g="${i}|${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
-          <span class="sub" style="margin-top:10px">How often</span>
+          <span class="sub" style="margin-top:10px">How often<br>Leave on <b>Every week</b> unless they're only here some weeks. 1st and 3rd = only the 1st and 3rd week of each month.</span>
           <div class="chips">${[0,6,1,2,3,4,5].map(n => { const on = n === 0 ? !(loc.nth||[]).length && !loc.alt : n === 6 ? !!loc.alt : !loc.alt && (loc.nth||[]).includes(n); return `<button type="button" class="chip" style="padding:6px 12px;${on ? "background:var(--accent);color:var(--accent-ink);border-color:var(--accent)" : ""}" data-nth="${i}|${n}" aria-pressed="${on}">${n === 0 ? "Every week" : n === 6 ? "Every other week" : ["","1st","2nd","3rd","4th","5th"][n]}</button>`; }).join("")}</div>
           ${loc.alt ? `<span class="sub" style="margin-top:8px">Are they in this week or next week?</span><div class="seg" role="group">${[0,7].map(k => { const mon = L.addDays(thisMon, k); return `<button type="button" data-alt="${i}|${mon}" aria-pressed="${altOn(loc.alt, mon)}">${k ? "Next week" : "This week"} (${fmtShort(mon)})</button>`; }).join("")}</div>` : ""}
           <label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" data-appt="${i}" ${loc.appt ? "checked" : ""}> Appointment only</label>
@@ -1996,6 +1996,12 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 render();
 placePendingLunch();
+// opened from a doctor in the Call Tracker: Office and days, or anchor them to a day this week
+(() => { let p = null; try { p = JSON.parse(localStorage.getItem("pending.routerOpen")); localStorage.removeItem("pending.routerOpen"); } catch(e){}
+  if (!p || !p.id) return; derive();
+  if (p.act === "info") openDocInfo(p.id, () => { closeSheet(); setTimeout(() => { location.href = "../"; }, 700); });
+  else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That doctor isn't in your list here yet"); return; } openAnchorAdd(closeSheet, p.id); }
+})();
 if (/[?&]settings\b/.test(location.search)) { history.replaceState(null, "", location.pathname); openSettings(); }
 </script>
 </body>

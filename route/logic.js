@@ -903,6 +903,7 @@ function planWeek(input){
       plan.days[iso] = JSON.parse(saveA); plan.days[other] = JSON.parse(saveB);
     }
   }
+  if (!input.noRescue) rescueStranded(C, plan);
   for (const iso of C.days) finishDay(C, plan, iso);
   plan.unscheduled = explainUnscheduled(C, plan);
   return {plan, C};
@@ -933,6 +934,60 @@ function placeFixed(C, plan, iso){
   finishDay(C, plan, iso);
   plan.unscheduled = explainUnscheduled(C, plan);
   return added;
+}
+// A doctor can be left out only because their area landed on a day they aren't in (Patel in Turlock is in Mon/Tue/Thu,
+// but the valley day came out as Friday).
+function rescueStranded(C, plan){
+  const auto = s => !s.fixed && !s.done && !s.manual;
+  // value of a visit: the doctor's priority, a bit more when they're in on only a few days (the same weighting the day planner uses)
+  const feas = C.feas || (C.feas = Object.fromEntries(C.docs.map(d => [d.id, feasibleDays(C, d.id).length])));
+  const val = id => { const d = C.docById[id]; return d ? (d.score || 0) * (1 + 0.6 / Math.max(1, feas[id] || 5)) : 0; };
+  const tally = () => { let n = 0, v = 0; for (const k in plan.days) plan.days[k].stops.forEach(s => { n++; v += val(s.id); }); return [n, v]; };
+  // the most valuable doctor near one day's area who is in on the other day (and not planned on a third day)
+  const seedFor = (fromIso, toIso) => {
+    const c = plan.days[fromIso].center; if (!c) return null;
+    const elsewhere = new Set(); for (const k in plan.days) if (k !== fromIso && k !== toIso) plan.days[k].stops.forEach(s => elsewhere.add(s.id));
+    const taken = new Set(); for (const k in plan.days) if (k !== fromIso && k !== toIso && C.addrRule !== "day") plan.days[k].stops.forEach(s => { if (!s.manual) taken.add(s.addrKey); });
+    plan.days[toIso].stops.filter(s => !auto(s)).forEach(s => taken.add(s.addrKey));
+    let best = null;
+    for (const d of C.docs){
+      if (elsewhere.has(d.id) || C.seen[d.id] || C.blocked.has(toIso + "|" + d.id)) continue;
+      for (const o of optionsFor(C, d.id, toIso)){
+        if (!o.coords || taken.has(o.addrKey) || km(o.coords, c) > 25) continue;
+        const v = val(d.id); if (!best || v > best.v) best = {v, o};
+      }
+    }
+    return best && best.o;
+  };
+  const place = (iso, o) => {
+    const day = plan.days[iso]; if (!o || day.stops.length >= C.caps[iso].total) return;
+    const amUsed = day.stops.filter(s => s.slot === "am").length;
+    const slot = o.am && amUsed < C.caps[iso].am ? "am" : o.pm ? "pm" : "am";
+    day.stops.push({id:o.id, office:o.office, slot, am:o.am, pm:o.pm, coords:o.coords, addrKey:o.addrKey, history:[]});
+  };
+  // Swap two days' areas: plan each day around the other day's area, and keep it only if the week ends up with
+  // as many visits and more valuable ones. This is what puts the valley on a day Patel is in.
+  for (let pass = 0; pass < 2; pass++){
+    let changed = false;
+    for (let i = 0; i < C.days.length; i++) for (let j = i + 1; j < C.days.length; j++){
+      const A = C.days[i], B = C.days[j];
+      if (!plan.days[A].center || !plan.days[B].center || km(plan.days[A].center, plan.days[B].center) < 15) continue;
+      const before = tally(), saveA = JSON.stringify(plan.days[A]), saveB = JSON.stringify(plan.days[B]);
+      const toB = seedFor(A, B), toA = seedFor(B, A);
+      if (!toB && !toA) continue;
+      plan.days[A].stops = plan.days[A].stops.filter(s => !auto(s)); plan.days[B].stops = plan.days[B].stops.filter(s => !auto(s));
+      place(B, toB); if (!(toA && toB && toA.id === toB.id)) place(A, toA);
+      fillDay(C, plan, B); fillDay(C, plan, A);
+      const now = tally();
+      // and neither day may end up thinner, or stretched across two far-apart areas
+      const spread = stops => { let m = 0; const p = stops.filter(s => s.coords); p.forEach(a => p.forEach(b => { m = Math.max(m, km(a.coords, b.coords)); })); return m; };
+      const oA = JSON.parse(saveA).stops, oB = JSON.parse(saveB).stops, lim = Math.max(70, spread(oA), spread(oB));
+      const tidy = Math.min(plan.days[A].stops.length, plan.days[B].stops.length) >= Math.min(oA.length, oB.length) && spread(plan.days[A].stops) <= lim && spread(plan.days[B].stops) <= lim;
+      if (tidy && now[0] >= before[0] && now[1] > before[1] + 1e-6) changed = true;
+      else { plan.days[A] = JSON.parse(saveA); plan.days[B] = JSON.parse(saveB); }
+    }
+    if (!changed) break;
+  }
 }
 function finishDay(C, plan, iso){
   const day = plan.days[iso];
