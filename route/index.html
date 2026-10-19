@@ -878,7 +878,7 @@ function renderRoute(){
         </div>
         <div class="sbtns">
           ${s.done ? `<button class="btn small" data-undone="${iso}|${i}">Not done</button>` : `<button class="btn small primary" data-done="${iso}|${i}">Done</button>`}
-          ${s.done || s.manual ? "" : `<button class="btn small" data-notin="${iso}|${i}">Not in</button><button class="btn small" data-sub="${iso}|${i}">Substitute</button>`}
+          ${s.done ? "" : `<button class="btn small" data-notin="${iso}|${i}">Not in</button><button class="btn small" data-sub="${iso}|${i}">Substitute</button>`}
           ${prev && !s.done ? `<button class="btn small ghost" data-undo="${iso}|${i}">Undo swap</button>` : ""}
           <button class="btn small ghost" data-more="${iso}|${i}" aria-label="More for ${esc(docName(s.id))}">⋯</button>
         </div>
@@ -1348,6 +1348,9 @@ function openDocInfo(id, back){
     : [{address:"", city: title(d.city), days:{}, appt:false}];
   const known = []; const seenK = new Set();
   D.offices.forEach(o => { if (!o.address || seenK.has(o.addrKey)) return; seenK.add(o.addrKey); known.push(o); });
+  // who is at each office, so typing a doctor's name finds their office too
+  const atOff = {}; for (const did in D.match.byDoc) (D.match.byDoc[did] || []).forEach(j => { const k = D.offices[j] && D.offices[j].addrKey; if (k && did !== id){ (atOff[k] = atOff[k] || []); const ln = title(docName(did).split(" ").pop()); if (!atOff[k].includes(ln)) atOff[k].push(ln); } });
+  const hay = o => (o.address + " " + o.city + " " + (atOff[o.addrKey] || []).join(" ")).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ");
   known.sort((a,b) => (L.cityKey(b.city) === L.cityKey(d.city)) - (L.cityKey(a.city) === L.cityKey(d.city)) || a.city.localeCompare(b.city) || a.address.localeCompare(b.address));
   const cityNames = [...new Set(Object.keys(L.CITIES).map(title).concat(D.offices.map(o => o.city).filter(Boolean)))].sort();
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
@@ -1367,7 +1370,8 @@ function openDocInfo(id, back){
         ${locs.length > 1 ? `<div class="actions" style="justify-content:space-between;align-items:center"><b>Office ${i+1}</b><button class="btn small ghost" data-lrm="${i}">Remove</button></div>` : ""}
         <div class="field">Office address
           ${known.length ? `<select data-pick="${i}" style="width:100%"><option value="">Same office as a doctor already on your list…</option>${known.map((o,k) => `<option value="${k}">${esc(o.city)} · ${esc(o.address)}</option>`).join("")}</select>` : ""}
-          <input data-street="${i}" class="wide" placeholder="Street, e.g. 2222 East St, Suite 300" value="${esc(loc.address)}" autocomplete="off" maxlength="80">
+          <input data-street="${i}" class="wide" placeholder="Type the street or another doctor's name" value="${esc(loc.address)}" autocomplete="off" maxlength="80">
+          <div class="chips" data-ssug="${i}"></div>
           <input data-city="${i}" class="wide" list="cityList" placeholder="City" value="${esc(loc.city)}" autocomplete="off" maxlength="40">
         </div>
         <div class="field">When they're in<span class="sub">Tap morning and afternoon for each day they're there. Tap the day to switch both.</span>
@@ -1388,6 +1392,14 @@ function openDocInfo(id, back){
     if ($("lSheet")) $("lSheet").onclick = () => { delete S.docInfo[id]; save(); render(); toast("Using your spreadsheet for " + title(d.name)); back ? back() : closeSheet(); };
     if ($("lAdd")) $("lAdd").onclick = () => { sync(); locs.push({address:"", city:"", days:{}, appt:false}); draw(); };
     $("sheet").querySelectorAll("[data-lrm]").forEach(b => b.onclick = () => { sync(); locs.splice(+b.dataset.lrm, 1); draw(); });
+    // offices you already have, offered as you type the street (or a doctor's name)
+    $("sheet").querySelectorAll("[data-street]").forEach(inp => inp.addEventListener("input", () => {
+      const i = +inp.dataset.street, box = $("sheet").querySelector(`[data-ssug="${i}"]`);
+      const q = inp.value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+      const hits = q.length < 2 ? [] : known.filter(o => q.split(" ").every(w => hay(o).includes(w))).slice(0, 5);
+      box.innerHTML = hits.map((o,k) => `<button type="button" class="chip" data-sg="${k}" style="display:block;text-align:left;line-height:1.35;padding:8px 12px;border-radius:12px;height:auto">${esc(o.address)}, ${esc(o.city)}${(atOff[o.addrKey] || []).length ? `<br><span class="sub">Same office as ${esc(atOff[o.addrKey].slice(0,3).join(", "))}${atOff[o.addrKey].length > 3 ? " +" + (atOff[o.addrKey].length - 3) : ""}</span>` : ""}</button>`).join("");
+      box.querySelectorAll("[data-sg]").forEach(b => b.onclick = () => { const o = hits[+b.dataset.sg]; inp.value = o.address; $("sheet").querySelector(`[data-city="${i}"]`).value = o.city; box.innerHTML = `<span class="sub" style="color:var(--grn-ink)">✓ ${(atOff[o.addrKey] || []).length ? "Same office as " + esc(atOff[o.addrKey].slice(0,3).join(", ")) : "Office you already have"}</span>`; });
+    }));
     $("sheet").querySelectorAll("[data-pick]").forEach(s2 => s2.onchange = () => { if (s2.value === "") return; const o = known[+s2.value], i = +s2.dataset.pick; $("sheet").querySelector(`[data-street="${i}"]`).value = o.address; $("sheet").querySelector(`[data-city="${i}"]`).value = o.city; });
     $("sheet").querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const [i,k,sl] = b.dataset.g.split("|"); const dd = locs[+i].days = locs[+i].days || {}; const x = dd[k] = dd[k] || {am:false, pm:false}; x[sl] = !x[sl]; b.setAttribute("aria-pressed", String(x[sl])); });
     $("sheet").querySelectorAll("[data-nth]").forEach(b => b.onclick = () => { sync(); const [i,n] = b.dataset.nth.split("|").map(Number); const l = locs[i]; let s = new Set(l.nth || []);

@@ -1099,7 +1099,7 @@ function moveStop(C, plan, iso, idx, toIso, opt){
 }
 function applySubstitute(C, plan, iso, idx, opt){
   const day = plan.days[iso], cur = day.stops[idx];
-  const next = {id:opt.id, office:opt.office, slot:cur.slot, am:opt.am, pm:opt.pm, coords:opt.coords, addrKey:opt.addrKey, history: cur.history.concat([{id:cur.id, office:cur.office, am:cur.am, pm:cur.pm, coords:cur.coords, addrKey:cur.addrKey, fixed:cur.fixed, note:cur.note, time:cur.time}])};
+  const next = {id:opt.id, office:opt.office, slot:cur.slot, am:opt.am, pm:opt.pm, coords:opt.coords, addrKey:opt.addrKey, history: (cur.history || []).concat([{id:cur.id, office:cur.office, am:cur.am, pm:cur.pm, coords:cur.coords, addrKey:cur.addrKey, fixed:cur.fixed, manual:cur.manual, note:cur.note, time:cur.time}])};
   day.stops[idx] = next; finishDay(C, plan, iso);
   return next;
 }
@@ -1109,7 +1109,7 @@ function undoSubstitute(C, plan, iso, idx){
   const prev = cur.history[cur.history.length-1];
   const {d, a} = weekUse(plan, iso, idx, C.addrRule);
   if (d.has(prev.id)) return {ok:false, reason:"conflict-doc", id:prev.id};
-  if (a.has(prev.addrKey)) return {ok:false, reason:"conflict-addr", id:prev.id};
+  if (!prev.manual && a.has(prev.addrKey)) return {ok:false, reason:"conflict-addr", id:prev.id};
   day.stops[idx] = {...prev, slot:cur.slot, history: cur.history.slice(0,-1)};
   finishDay(C, plan, iso);
   return {ok:true, id:prev.id};
