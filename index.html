@@ -245,6 +245,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
       <button class="tile t-green" id="dayBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg></span>Today's calls</button>
       <a class="tile t-blue" href="route/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span>Plan my week</a>
       <button class="tile t-amber" id="evBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5.5 13.5H11L10 21.5l8.5-12H13z"/></svg></span>Chargers</button>
+      <button class="tile t-slate" id="mapBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/></svg></span><span>Maps<span class="small" id="mapNext" style="display:block;font-weight:600;margin-top:2px"></span></span></button>
       <button class="tile t-plum dd" id="ddBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>DoorDash</button>
     </nav>
     <div class="stats">
@@ -641,11 +642,11 @@ function renderList(){
   }).join("");
   ui.flash = null;
 }
-function render(){ renderHeader(); renderList(); }
+function render(){ renderHeader(); renderList(); try { mapsTile(); } catch(e){} }
 
 /* ---------- actions ---------- */
 let toastT;
-function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2400); }
+function toast(msg, act){ const t=$("toast"); t.textContent=msg; if (act){ const a=document.createElement("a"); a.href=act.href; a.target="_blank"; a.rel="noopener"; a.textContent=act.label; a.style.cssText="display:block;margin-top:6px;color:inherit;text-decoration:underline"; t.appendChild(a); } t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, act ? 6000 : 2400); }
 const find = id => state.doctors.find(d => d.id === id);
 
 $("list").addEventListener("click", e => {
@@ -654,7 +655,8 @@ $("list").addEventListener("click", e => {
     // a call already logged for this doctor on this day: ask before adding a second one
     if (allDates(d).includes(logDay)){ confirmSecondCall(d); return; }
     d.log.push(logDay); ui.flash = d.id; save(); render();
-    toast(`Logged call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`) + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : "")); }
+    const nx = logDay === todayISO() ? stopsToday().find(x => !x.done) : null;
+    toast(`Logged call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`) + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : ""), nx && nx.addr ? {label: `Directions to next: ${titleCase(nx.name)}`, href: dirUrl(nx.addr)} : null); }
   else if (u){ const d = find(u.dataset.u); if (!d.log.length) return;
     const i = d.log.lastIndexOf(logDay); const removed = d.log.splice(i>=0?i:d.log.length-1,1)[0];
     save(); render(); toast(`Removed ${shortDate(removed)} call · ${d.name}`); }
@@ -1254,6 +1256,35 @@ function openChargers(){
   $("sheet").querySelectorAll("[data-cht]").forEach(b => b.onclick = () => { state.chType = b.dataset.cht === "tesla" ? "tesla" : ""; save(); openChargers(); });
   $("evGo").onclick = () => { const c = $("evCity").value.trim(); if (!c){ $("evCity").focus(); return; } window.open(chargerUrl(c), "_blank"); };
   $("evCity").onkeydown = e => { if (e.key === "Enter") $("evGo").click(); };
+}
+/* Maps: directions to today's next stop (only the office address goes to Maps, never a name), or Maps itself */
+const isAndroid = () => /Android/i.test(navigator.userAgent);
+const dirUrl = addr => isAndroid() ? "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(addr) : "https://maps.apple.com/?daddr=" + encodeURIComponent(addr);
+const searchUrl = q => isAndroid() ? "https://www.google.com/maps/search/" + encodeURIComponent(q) : "https://maps.apple.com/?q=" + encodeURIComponent(q);
+// today's planned stops from Plan my week, in route order, with whether each is already logged today
+function stopsToday(){
+  try {
+    const r = routerRaw(), t = todayISO(), d = new Date(); const mon = isoDay(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)));
+    const day = r.weeks && r.weeks[mon] && r.weeks[mon].plan.days[t]; if (!day) return [];
+    let offs = {}; try { offs = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+    const am = day.stops.filter(s => s.slot === "am"), pm = day.stops.filter(s => s.slot !== "am");
+    return am.concat(pm).map(s => { const doc = find(s.id); const o = (offs[s.id] || []).find(x => x.k === s.addrKey) || (offs[s.id] || [])[0];
+      const addr = o && o.a && !/not set yet/.test(o.a) ? o.a : "";
+      return {id: s.id, name: doc ? doc.name : s.id, city: addr ? addr.split(", ").pop() : titleCase((doc && doc.city) || ""), addr, done: !!s.done || !!(doc && doc.log.includes(t))}; });
+  } catch(e){ return []; }
+}
+function mapsTile(){ const nx = stopsToday().find(x => !x.done); $("mapNext").textContent = nx ? "Next: " + titleCase(nx.name.split(" ").pop()) : ""; }
+$("mapBtn").onclick = () => openMaps();
+function openMaps(){
+  const st = stopsToday(), nx = st.find(x => !x.done);
+  openSheet(`<h2>Maps</h2>
+    ${nx ? `<div class="foot" style="justify-content:flex-start;margin-top:8px">${nx.addr ? `<a class="btn primary" href="${esc(dirUrl(nx.addr))}" target="_blank" rel="noopener">➜ Next stop: ${esc(titleCase(nx.name))} · ${esc(nx.city)}</a>` : `<span class="small">Next stop: ${esc(titleCase(nx.name))} · ${esc(nx.city)} (address not set, so no directions)</span>`}</div>` : ""}
+    ${st.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Today's route</b></p><div class="cands">${st.map(x => x.addr && !x.done ? `<a class="cand" style="text-decoration:none;color:inherit;display:flex;justify-content:space-between;gap:8px" href="${esc(dirUrl(x.addr))}" target="_blank" rel="noopener"><span><b>${esc(titleCase(x.name))}</b><br><span class="small">${esc(x.addr)}</span></span><span class="small" style="align-self:center">Directions ›</span></a>` : `<div class="cand" style="opacity:.6"><b>${esc(titleCase(x.name))}</b> <span class="small">· ${x.done ? "✓ logged today" : esc(x.city) + " · no address yet"}</span></div>`).join("")}</div>` : `<p class="small">No route for today. Build your week in Plan my week to get directions to each stop here.</p>`}
+    <p style="margin-top:14px"><b style="color:var(--ink)">Near me</b></p>
+    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><a class="btn" href="${esc(searchUrl("restaurants"))}" target="_blank" rel="noopener">🍴 Food</a><a class="btn" href="${esc(searchUrl("coffee"))}" target="_blank" rel="noopener">☕ Coffee</a><a class="btn" href="${esc(searchUrl("gas station"))}" target="_blank" rel="noopener">⛽ Gas</a><a class="btn" href="${isAndroid() ? "https://www.google.com/maps" : "https://maps.apple.com/"}" target="_blank" rel="noopener">Just open Maps</a></div>
+    <p class="small" style="margin-top:12px">Opens ${isAndroid() ? "Google" : "Apple"} Maps. Only an office address or your search goes to Maps, never a doctor's name.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
 }
 /* DoorDash: just opens the app, where your saved addresses already are. Nothing is sent from here. */
 $("ddBtn").onclick = () => {
