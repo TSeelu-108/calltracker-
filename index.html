@@ -714,7 +714,7 @@ function openHistory(id){
     <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
     ${awayOf(d.id).map((r,k) => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${awayLbl(r)}</span><button class="btn small ghost" data-awrm="${k}">Remove</button></div>`).join("")}
     <div class="logday" style="margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="awF" value="${todayISO()}"></label><label class="small">Through <input type="date" id="awT"></label><button class="btn small" id="awAdd">Add</button></div>
-    <div class="foot" style="justify-content:flex-start;margin-top:10px"><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:10px;flex-wrap:wrap">${d.added ? "" : `<button class="btn" id="hInfo">Office and days</button>`}<button class="btn" id="hPin">📌 Plan on a day</button><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
     <div id="staffArea"></div>
     ${d.added ? "" : `<p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>`}
     ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
@@ -723,6 +723,10 @@ function openHistory(id){
   renderStaff(d);
   $("closeS").onclick = () => { closeSheet(); renderList(); };
   $("hBook").onclick = () => openBook(d.id, () => openHistory(d.id));
+  // these live in Plan my week: hand the doctor over on this iPad (never in the web address) and open it there
+  const toRouter = act => { try { localStorage.setItem("pending.routerOpen", JSON.stringify({act, id: d.id})); } catch(e){} location.href = "route/"; };
+  if ($("hInfo")) $("hInfo").onclick = () => toRouter("info");
+  $("hPin").onclick = () => toRouter("anchor");
   $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const l = awayOf(d.id); l.splice(+b.dataset.awrm, 1); awaySet(d.id, l); render(); openHistory(d.id); });
   $("awAdd").onclick = () => { let f = $("awF").value, to = $("awT").value || f; if (!f){ toast("Pick a start date"); return; } if (to < f) [f, to] = [to, f]; awaySet(d.id, awayOf(d.id).concat({from:f, to})); render(); openHistory(d.id); toast(`${d.name} out ${awayLbl({from:f, to})}`); };
   $("sheet").querySelectorAll("[data-bzrm]").forEach(b => b.onclick = () => { blitzRemove(b.dataset.bzrm, d.id); render(); openHistory(d.id); toast("Removed from the blitz"); });
