@@ -1877,9 +1877,9 @@ function weekText(){
   for (const iso of Object.keys(W.plan.days).sort()){
     const d = W.plan.days[iso]; if (!d.stops.length) continue;
     lines.push("", enDay(iso) + (d.area ? " · " + d.area : ""));
-    for (const slot of ["am","pm"]){
-      const st = d.stops.filter(s => s.slot === slot); if (!st.length) continue;
-      lines.push((slot === "am" ? "Morning: " : "Afternoon: ") + st.map(s => { const o = officeOf(s); const mw = s.fixed && s.note && (s.note.match(MEALW) || [])[1];
+    // the day in visiting order, without "Morning:" and "Afternoon:" labels
+    { const st = d.stops.filter(s => s.slot === "am").concat(d.stops.filter(s => s.slot !== "am"));
+      lines.push(st.map(s => { const o = officeOf(s); const mw = s.fixed && s.note && (s.note.match(MEALW) || [])[1];
         return docName(s.id) + (o && o.city ? " (" + o.city + ")" : "") + (mw ? " – " + mw.toLowerCase().replace(/^in-?service$/, "in-service") + (s.time ? " " + s.time : "") : ""); }).join(", "));
     }
   }
