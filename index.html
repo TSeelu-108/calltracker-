@@ -765,6 +765,21 @@ function routerInfo(id, info){
   try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
 }
 const cleanPerson = s => String(s||"").replace(/[^\p{L}\s'\-.]/gu,"").replace(/\s+/g," ").trim().slice(0,30);
+// every office the planner knows, with the doctors at it (from Plan my week, on this iPad)
+function knownOffices(){
+  let all = {}; try { all = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  const by = {};
+  for (const id in all) for (const o of (all[id] || [])){
+    if (!o || !o.a || /not set yet/.test(o.a)) continue;
+    const cut = o.a.lastIndexOf(", "); if (cut < 0) continue;
+    const street = o.a.slice(0, cut), city = o.a.slice(cut + 2);
+    const x = by[o.k] = by[o.k] || {street, city, names: []};
+    const d = find(id); const nm = d ? titleCase(d.name.split(" ").pop()) : titleCase(String(id).split(" ").pop());
+    if (!x.names.includes(nm)) x.names.push(nm);
+    x.full = (x.full || "") + " " + (d ? d.name : id);
+  }
+  return Object.values(by).map(x => ({...x, hay: (x.street + " " + x.city + " " + x.full).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ")}));
+}
 function openAddProvider(editId, pre){
   const ed = editId ? find(editId) : null; const info = editId ? routerInfo(editId) : null;
   const parts = ed ? ed.name.split(" ") : [];
@@ -783,15 +798,25 @@ function openAddProvider(editId, pre){
       <div class="fld">Provider type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
       <label class="fld">First name<input id="apF" value="${esc(v.first)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
       <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
-      <label class="fld">Office street address<input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
+      <label class="fld">Office street address<span class="small" style="font-weight:400">Type the street or another doctor's name to reuse an office you already have.</span><input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
+      <div id="apSug" class="chips" style="margin-top:-4px"></div>
       <label class="fld">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label>
       <datalist id="apCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
       <div class="fld">When they're in<span class="small" style="font-weight:400">Tap morning and afternoon for each day. None ticked means any day.</span>
         ${[1,2,3,4,5].map(k => { const x = v.days[k] || {}; return `<div class="wk"><button type="button" class="dl" data-dall="${k}">${WD[k]}</button><button type="button" data-g="${k}|am" aria-pressed="${!!x.am}">Morning</button><button type="button" data-g="${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
-        <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:400"><input type="checkbox" id="apA" ${v.appt ? "checked" : ""}> Appointment only</label></div>
+        <label class="small" style="display:flex;gap:8px;align-items:center;justify-content:flex-start;margin-top:8px;font-weight:400"><input type="checkbox" id="apA" ${v.appt ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Appointment only</span></label></div>
       ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
       <div class="foot"><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apOk">${ed ? "Save" : "Add to my list"}</button></div>`);
     $("sheet").querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { sync(); v.kind = b.dataset.kind; draw(); });
+    // offices you already have: typing part of the street, or a doctor's name, offers them
+    const known = knownOffices();
+    const sug = () => {
+      const q = $("apS").value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+      const hits = q.length < 2 ? [] : known.filter(o => q.split(" ").every(w => o.hay.includes(w))).slice(0, 5);
+      $("apSug").innerHTML = hits.map((o,i) => `<button type="button" class="chip" data-sug="${i}" style="display:block;text-align:left;line-height:1.35;padding:8px 12px;border-radius:12px;height:auto">${esc(o.street)}, ${esc(o.city)}<br><span class="small">Same office as ${esc(o.names.slice(0,3).join(", "))}${o.names.length > 3 ? " +" + (o.names.length - 3) : ""}</span></button>`).join("");
+      $("apSug").querySelectorAll("[data-sug]").forEach(b => b.onclick = () => { const o = hits[+b.dataset.sug]; $("apS").value = o.street; $("apC").value = o.city; $("apSug").innerHTML = `<span class="small" style="color:var(--grn-ink, #1d6a33)">✓ Same office as ${esc(o.names.slice(0,3).join(", "))}. Office staff saved there will show for this provider too.</span>`; });
+    };
+    $("apS").addEventListener("input", sug);
     $("sheet").querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const [k,sl] = b.dataset.g.split("|"); const x = v.days[k] = v.days[k] || {am:false,pm:false}; x[sl] = !x[sl]; b.setAttribute("aria-pressed", String(x[sl])); });
     $("sheet").querySelectorAll("[data-dall]").forEach(b => b.onclick = () => { const k = b.dataset.dall; const x = v.days[k] || {}; const on = !(x.am && x.pm); v.days[k] = {am:on, pm:on}; $("sheet").querySelectorAll(`[data-g^="${k}|"]`).forEach(g => g.setAttribute("aria-pressed", String(on))); });
     $("apX").onclick = () => ed ? openHistory(ed.id) : closeSheet();
