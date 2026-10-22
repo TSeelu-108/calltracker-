@@ -112,6 +112,21 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .sub{font-size:13px;color:var(--muted)}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 
+.instrip{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.instrip button{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
+.instrip button.more{color:var(--accent)}
+.instrip .lead{align-self:center;font-size:13px;font-weight:700;color:var(--muted);margin-right:2px}
+.inhead{margin-top:18px}.inhead h2{margin:0;font-size:18px}.inhead p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+.inum{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;margin-right:6px;vertical-align:1px}
+.card p.what{color:var(--ink);font-size:13.5px}
+.inhead + .inputs{margin-top:10px}
+.daynav{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-bottom:6px;background:var(--bg)}
+.daynav button{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:inherit;font-weight:700;font-size:14px;color:var(--ink);cursor:pointer;min-width:64px}
+.daynav button span{font-size:11px;font-weight:600;color:var(--muted)}
+.daynav button.today{border-color:var(--accent);background:var(--accent-soft)}
+.daynav button.past{opacity:.6}
+.day.past .dayhead{border-bottom:0}
+.day{scroll-margin-top:76px}
 .inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:8px}
 .card h3{margin:0;font-size:15px;display:flex;align-items:center;gap:8px}
@@ -250,9 +265,12 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
     <div class="summary" id="summary"></div>
   </header>
 
-  <section class="inputs" aria-label="This week's files">
+  <div class="instrip" id="inStrip" hidden></div>
+  <div class="inhead" id="inHead"><h2>What the planner uses</h2><p>Plan my week builds your route from these four things. The more you add, the better the plan.</p></div>
+  <section class="inputs" aria-label="What the planner uses">
     <div class="card">
-      <h3><span class="dot" id="d1"></span>Remaining calls<button class="info" data-info="calls" aria-label="About remaining calls">i</button></h3>
+      <h3><span class="dot" id="d1"></span><span><span class="inum">1</span>Who you need to see</span><button class="info" data-info="calls" aria-label="About remaining calls">i</button></h3>
+      <p class="what">Your remaining calls, from the Call Tracker.</p>
       <p id="s1"></p>
       <div class="actions">
         <button class="btn small" id="useTracker" hidden>Use my Call Tracker</button>
@@ -261,7 +279,8 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d2"></span>Offices and days<button class="info" data-info="sheet" aria-label="About offices and days">i</button></h3>
+      <h3><span class="dot" id="d2"></span><span><span class="inum">2</span>Where and when they're in</span><button class="info" data-info="sheet" aria-label="About offices and days">i</button></h3>
+      <p class="what">Your best-times spreadsheet: each doctor's office and the days they're there.</p>
       <p id="s2"></p>
       <div class="actions">
         <label class="btn small" for="f2">Load spreadsheet</label>
@@ -271,7 +290,8 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d3"></span><span id="cpTitle">Counterparts this week</span><button class="info" data-info="cp" aria-label="About counterparts">i</button></h3>
+      <h3><span class="dot" id="d3"></span><span><span class="inum">3</span><span id="cpTitle">Who your counterparts are seeing</span></span><button class="info" data-info="cp" aria-label="About counterparts">i</button></h3>
+      <p class="what">Their schedules for this week, so you never see the same doctor on the same day.</p>
       <p id="s3"></p>
       <div class="actions">
         <button class="btn small" id="shotBtn">Add schedule screenshots</button>
@@ -280,7 +300,8 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot" id="d4"></span>Calendar (.ics)<button class="info" data-info="cal" aria-label="About the calendar file">i</button></h3>
+      <h3><span class="dot" id="d4"></span><span><span class="inum">4</span>What's already on your calendar</span><button class="info" data-info="cal" aria-label="About the calendar file">i</button></h3>
+      <p class="what">An export from Outlook (.ics file). Meetings and time off stay free, and your lunches are planned in.</p>
       <p id="s4"></p>
       <div class="actions">
         <label class="btn small" for="f4">Load .ics file</label>
@@ -640,14 +661,27 @@ function render(){
     const found = D.docs.filter(d => D.src[d.id] === "sheet").length;
     setCard(2, need ? "warn" : "ok", `${S.sheet.offices.length} offices · ${S.sheet.name}` + (D.docs.length ? ` · ${found} of ${D.docs.length} doctors found` + (nApp ? `, ${nApp} set in the app` : "") + "." + (need ? ` ${need} need a look: tap Doctors.` : "") : ""));
   } else if (D.docs.length) setCard(2, need ? "warn" : "ok", (nApp ? `${nApp} of ${D.docs.length} doctors set in the app.` : "No spreadsheet loaded.") + (need ? ` ${need} still need an address and days. Tap Doctors to add them, or load a spreadsheet.` : ""));
-  else setCard(2, "", "Where and when each doctor is in. Load your spreadsheet, or add them one by one under Doctors.");
+  else setCard(2, "", "Not loaded yet. Load your spreadsheet, or add doctors one by one under Doctors.");
+  { const nn = cpNames(); $("cpTitle").textContent = nn.length ? `Who ${cpList()} ${nn.length === 1 ? "is" : "are"} seeing` : "Who your counterparts are seeing"; }
   const byWho = {}; D.cp.forEach(v => byWho[v.who] = (byWho[v.who]||0)+1);
-  setCard(3, D.cp.length ? "ok" : "", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${w}: ${n} visit${n>1?"s":""}`).join(" · ") + ". You won't be routed to these doctors on those days." : (cpNames().length ? `Add weekly schedule screenshots from ${cpList()} so you're never at the same doctor on the same day.` : "Add your counterparts' weekly schedule screenshots so you're never at the same doctor on the same day."));
+  setCard(3, D.cp.length ? "ok" : "", D.cp.length ? Object.entries(byWho).map(([w,n]) => `${w}: ${n} visit${n>1?"s":""}`).join(" · ") + ". You won't be routed to these doctors on those days." : (cpNames().length ? `None added for this week yet. Add ${cpList()}'s schedule screenshots, or paste a week they shared.` : "None added for this week yet. Add their schedule screenshots, or paste a week they shared."));
   if (S.ics){
     const c = k => D.cal.filter(e => e.kind === k).length;
     setCard(4, "ok", `${S.ics.name} · this week: ${c("busy")} busy time${c("busy")===1?"":"s"}, ${c("mine")} doctor visit${c("mine")===1?"":"s"} of yours, ${c("counterpart")} counterpart visit${c("counterpart")===1?"":"s"}, ${c("ignore")} ignored`);
-  } else setCard(4, "", "Your calendar export. Meetings and time off are kept free, and counterparts' scheduled in-services are avoided.");
+  } else setCard(4, "", "Not loaded yet.");
   $("buildBtn").disabled = !S.docs;
+  // once the week is built, the four inputs fold into one row; tap it to see or change them
+  // remember which inputs have ever been used; until all four have, new users keep seeing the full explanations
+  S.usedInputs = S.usedInputs || {}; let newly = false;
+  for (let k = 1; k <= 4; k++) if (!S.usedInputs[k] && $("d" + k).className.replace("dot","").trim()){ S.usedInputs[k] = 1; newly = true; }
+  if (newly) save();
+  const learned = [1,2,3,4].every(k => S.usedInputs[k]);
+  const canFold = !!currentPlan() && learned, fold = canFold && !inputsOpen;
+  document.querySelector(".inputs").hidden = fold; $("inHead").hidden = fold;
+  const lbl = ["Your calls", "Offices & times", "Counterparts' week", "Your Outlook calendar"];
+  $("inStrip").hidden = !canFold;
+  $("inStrip").innerHTML = canFold ? `<span class="lead">Built from:</span>` + lbl.map((t,k) => { const st = $("d" + (k+1)).className.replace("dot","").trim(); return `<button type="button" data-instrip="1"><span class="dot ${st}"></span>${t}${st === "warn" ? " · check" : st ? "" : " · none yet"}</button>`; }).join("") + `<button type="button" class="more" data-instrip="1">${fold ? "Show ▾" : "Hide ▴"}</button>` : "";
+  $("inStrip").querySelectorAll("[data-instrip]").forEach(b => b.onclick = () => { inputsOpen = !inputsOpen; render(); });
   renderRoute();
 }
 // doctors without a sure spreadsheet match or entered office/days
@@ -831,6 +865,7 @@ function contextInput(){
   return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away};
 }
 let STAFF = {};
+const openPast = new Set(); let jumpedToday = false, inputsOpen = false;
 function renderRoute(){
   const W = currentPlan();
   $("stale").hidden = !(W && W.stamp !== stamp());
@@ -848,9 +883,17 @@ function renderRoute(){
   $("buildLbl").textContent = "Rebuild week";
   $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
-  let html = `<div class="days">`;
-  for (const iso of Object.keys(plan.days).sort()){
+  const isos = Object.keys(plan.days).sort(), tday = todayISO();
+  let html = `<nav class="daynav" aria-label="Jump to a day">${isos.map(iso => { const d = plan.days[iso], dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
+    return `<button type="button" data-jump="${iso}" class="${iso === tday ? "today" : iso < tday ? "past" : ""}">${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(iso).getDate()}<span>${iso < tday || dn ? dn + "/" + d.stops.length + " ✓" : d.stops.length + " stops"}</span></button>`; }).join("")}</nav><div class="days">`;
+  for (const iso of isos){
     const d = plan.days[iso]; let k = 0;
+    // days already gone by fold up to one line, so the day you need is near the top
+    if (iso < tday && !openPast.has(iso)){
+      const dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
+      html += `<section class="day past" id="day-${iso}"><div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")} · ${dn} of ${d.stops.length} done</span></div><div class="dayact"><button class="btn small ghost" data-openpast="${iso}">Show</button></div></div></section>`;
+      continue;
+    }
     const stopHtml = (s, i) => {
       const o = officeOf(s); const doc = D.docs.find(x => x.id === s.id) || {};
       const prev = s.history.length ? s.history[s.history.length-1] : null;
@@ -887,7 +930,7 @@ function renderRoute(){
     const am = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "am"), pm = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "pm");
     const cps = (cpBy[iso]||[]);
     const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
-    html += `<section class="day">
+    html += `<section class="day" id="day-${iso}">
       <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}</span></div><div class="dayact"><button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. Doctors were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
@@ -905,6 +948,9 @@ function renderRoute(){
   const uns = (plan.unscheduled || []).slice(0, 25);
   if (uns.length) html += `<details class="uns"><summary>Not this week (${plan.unscheduled.length})</summary><p class="sub">Most behind first, with the reason they weren't planned.</p><ul class="ulist">${uns.map(u => `<li><span>${esc(docName(u.id))}</span><span>${esc(u.why)}</span></li>`).join("")}</ul></details>`;
   $("routeArea").innerHTML = html;
+  $("routeArea").querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { const el = $("day-" + b.dataset.jump); if (el) el.scrollIntoView({behavior:"smooth", block:"start"}); });
+  $("routeArea").querySelectorAll("[data-openpast]").forEach(b => b.onclick = () => { openPast.add(b.dataset.openpast); render(); const el = $("day-" + b.dataset.openpast); if (el) el.scrollIntoView({block:"start"}); });
+  if (!jumpedToday && isos.includes(tday) && isos[0] !== tday){ jumpedToday = true; const el = $("day-" + tday); if (el) setTimeout(() => el.scrollIntoView({block:"start"}), 50); }
   if ($("shareBtn")) $("shareBtn").onclick = shareWeek;
   $("summary").querySelectorAll("[data-bprog]").forEach(b => b.onclick = () => {
     const p = blitzProgress(plan)[+b.dataset.bprog]; const why = Object.fromEntries((plan.unscheduled || []).map(u => [u.id, u.why]));
@@ -1674,6 +1720,7 @@ function openStopMenu(iso, i){
     <div class="cands">
       ${s.anchor ? `<button class="btn" id="mUnpin">Unpin from ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : !s.fixed && !s.done ? `<button class="btn" id="mPin">📌 Anchor to ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : ""}
       ${!s.done && !s.fixed ? `<button class="btn" id="mMove">Move to another day</button>` : ""}
+      ${!s.done && (!s.fixed || s.anchor) ? `<button class="btn" id="mSlot">Move to the ${s.slot === "am" ? "afternoon" : "morning"}</button>` : ""}
       ${!s.done ? `<button class="btn" id="mRemove">Remove from ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : ""}
       <button class="btn" id="mStaff">Office staff</button>
       <button class="btn" id="mInfo">Office and days</button>
@@ -1694,6 +1741,14 @@ function openStopMenu(iso, i){
   if ($("mUnpin")) $("mUnpin").onclick = () => { dropAnchor(s.id); delete s.anchor; delete s.fixed; save(); closeSheet(); render(); toast(`Unpinned ${docName(s.id)}`); };
   if ($("mRemove")) $("mRemove").onclick = () => { if (s.anchor) dropAnchor(s.id); const r = L.removeStop(C, W.plan, iso, i); save(); closeSheet(); render(); toast(r.manual ? "Removed " + docName(r.id) : `Removed ${docName(r.id)}. Tap Put back under ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} to undo.`); };
   if ($("mMove")) $("mMove").onclick = () => openMove(iso, i);
+  // switch a stop between morning and afternoon; it stays there when the day is re-ordered
+  if ($("mSlot")) $("mSlot").onclick = () => {
+    const to = s.slot === "am" ? "pm" : "am"; const o = s.office != null ? D.offices[s.office] : null; const a = o ? L.availableOn(o, iso) : null;
+    s.slot = to; s.am = to === "am"; s.pm = to === "pm";
+    if (s.anchor) setAnchor(s.id, iso, to, s.addrKey);
+    L.finishDay(C, W.plan, iso); save(); closeSheet(); render();
+    toast(`${docName(s.id)} moved to the ${to === "am" ? "morning" : "afternoon"}` + (a && !(to === "am" ? a.am : a.pm) ? `. Your spreadsheet doesn't list them as in that ${to === "am" ? "morning" : "afternoon"}.` : "."));
+  };
 }
 function openMove(iso, i){
   const W = currentPlan(); const s = W.plan.days[iso].stops[i];
