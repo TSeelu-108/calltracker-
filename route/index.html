@@ -1240,7 +1240,8 @@ $("f1").onchange = async e => {
 };
 
 /* ---------- spreadsheet (.xlsx read on the iPad) ---------- */
-async function inflateRaw(u8){ const ds = new DecompressionStream("deflate-raw"); return new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer(); }
+async function inflateRaw(u8){ if (typeof DecompressionStream === "undefined") throw new Error("This iPad's software is too old to open .xlsx files (it needs iPadOS 16.4 or newer). Update the iPad, or save the spreadsheet as a .csv file and load that instead.");
+  const ds = new DecompressionStream("deflate-raw"); return new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer(); }
 async function readXlsx(buf){
   const u8 = new Uint8Array(buf), dv = new DataView(buf), td = new TextDecoder();
   let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
@@ -2068,6 +2069,14 @@ function openSettings(){
 }
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+// a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
+  if (!ev.data || ev.data.type !== "app-updated" || document.getElementById("updBar")) return;
+  const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.onclick = () => location.reload(); document.body.appendChild(b);
+});
+if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 render();
 placePendingLunch();
