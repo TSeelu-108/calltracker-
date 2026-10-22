@@ -1419,7 +1419,7 @@ function openDocInfo(id, back){
   };
   const draw = () => {
     openSheet(`<h2>${esc(title(d.name))}</h2>
-      <p>${esc(title(d.city) || "No city on your call plan")} · ${d.remaining} of ${d.assigned} calls left</p>
+      <p>${esc(title(d.city) || "No city on your call plan")} · ${d.added ? "added by you, not on your call plan" : `${d.remaining} of ${d.assigned} calls left`}</p>
       <div class="actions"><button class="btn small" id="lAway">Out of office${(S.away[id]||[]).length ? " (" + S.away[id].map(awayLabel).join(", ") + ")" : "…"}</button></div>
       ${locs.map((loc, i) => `<div class="zone">
         ${locs.length > 1 ? `<div class="actions" style="justify-content:space-between;align-items:center"><b>Office ${i+1}</b><button class="btn small ghost" data-lrm="${i}">Remove</button></div>` : ""}
