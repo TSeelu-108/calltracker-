@@ -737,7 +737,7 @@ function openHistory(id){
     <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
     ${awayOf(d.id).map((r,k) => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${awayLbl(r)}</span><button class="btn small ghost" data-awrm="${k}">Remove</button></div>`).join("")}
     <div class="logday" style="margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="awF" value="${todayISO()}"></label><label class="small">Through <input type="date" id="awT"></label><button class="btn small" id="awAdd">Add</button></div>
-    <div class="foot" style="justify-content:flex-start;margin-top:10px;flex-wrap:wrap">${d.added ? "" : `<button class="btn" id="hInfo">Office and days</button>`}<button class="btn" id="hPin">📌 Plan on a day</button><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:10px;flex-wrap:wrap"><button class="btn" id="hInfo">Office and days${d.added && (routerInfo(d.id) || {locs:[]}).locs.length > 1 ? " (" + routerInfo(d.id).locs.length + " offices)" : ""}</button><button class="btn" id="hPin">📌 Plan on a day</button><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
     <div id="staffArea"></div>
     ${d.added ? "" : `<p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>`}
     ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
@@ -833,7 +833,7 @@ function openAddProvider(editId, pre){
   if (pre && pre.last) v.last = titleCase(pre.last);
   if (pre && pre.first) v.first = titleCase(pre.first);
   const note = pre && pre.last && pre.cal ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
-  let err = "";
+  let err = "", wantMore = false;
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
   const draw = () => {
@@ -851,7 +851,9 @@ function openAddProvider(editId, pre){
         ${[1,2,3,4,5].map(k => { const x = v.days[k] || {}; return `<div class="wk"><button type="button" class="dl" data-dall="${k}">${WD[k]}</button><button type="button" data-g="${k}|am" aria-pressed="${!!x.am}">Morning</button><button type="button" data-g="${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
         <label class="small" style="display:flex;gap:8px;align-items:center;justify-content:flex-start;margin-top:8px;font-weight:400"><input type="checkbox" id="apA" ${v.appt ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Appointment only</span></label></div>
       ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
+      <div class="offbox" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span class="small">Works at more than one office?${info && info.locs && info.locs.length > 1 ? ` <b>${info.locs.length} offices saved.</b>` : ""}</span><button type="button" class="btn small" id="apMore">${info && info.locs && info.locs.length > 1 ? "See all offices" : "+ Add another office"}</button></div>
       <div class="foot"><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apOk">${ed ? "Save" : "Add to my list"}</button></div>`);
+    $("apMore").onclick = () => { wantMore = true; $("apOk").click(); wantMore = false; };
     $("sheet").querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { sync(); v.kind = b.dataset.kind; draw(); });
     // offices you already have: typing part of the street, or a doctor's name, offers them
     const known = knownOffices();
@@ -875,9 +877,12 @@ function openAddProvider(editId, pre){
       for (const k in v.days) if (!v.days[k].am && !v.days[k].pm) delete v.days[k];
       if (ed){ ed.kind = v.kind; ed.city = v.city.toUpperCase(); }
       else state.doctors.push({id, name, city:v.city.toUpperCase(), c0:0, a:0, r0:0, lastRpt:null, log:[], added:true, kind:v.kind});
-      routerInfo(id, {locs:[{address:v.street, city:titleCase(v.city), days:v.days, appt:v.appt}], at:new Date().toISOString()});
+      const others = ed && info && info.locs ? info.locs.slice(1) : [];
+      routerInfo(id, {locs:[{...(ed && info && info.locs && info.locs[0] || {}), address:v.street, city:titleCase(v.city), days:v.days, appt:v.appt}].concat(others), at:new Date().toISOString()});
       save(); ui.flash = id; render(); closeSheet(); toast(ed ? "Saved" : `Added ${titleCase(name)}`);
       // added from a lunch on the calendar: put them into that day's route right away
+      // more offices are added in Plan my week's Office and days, which holds up to 8
+      if (wantMore){ try { localStorage.setItem("pending.routerOpen", JSON.stringify({act:"info", id: ed ? ed.id : id})); } catch(e){} location.href = "route/"; return; }
       if (!ed && pre && pre.iso){ try { localStorage.setItem("pending.placeLunch", JSON.stringify({id, iso: pre.iso})); } catch(e){} location.href = "route/"; }
     };
   };
