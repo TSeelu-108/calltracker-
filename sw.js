@@ -1,12 +1,13 @@
 // Call Tracker offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "calltracker-shell-v30";
+const SHELL = "calltracker-shell-v32";
 const FILES = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, {cache:"reload"})))).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("calltracker-shell-") && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
+  if (url.pathname.includes("/geo/")) return; // place data keeps its own cache (geo-places-v1)
   if (url.pathname.includes("/route/")) return; // Plan my week has its own offline files
   const key = req.mode === "navigate" ? "index.html" : req;
   const fresh = async () => {

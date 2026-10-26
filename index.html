@@ -797,7 +797,43 @@ function openDay(t){
 }
 
 /* ---------- providers you add yourself (not on the call plan) ---------- */
-const CITY_NAMES = ["acampo", "adin", "ahwahnee", "alameda", "alamo", "albany", "albion", "alderpoint", "alleghany", "alpaugh", "alta", "altaville", "alturas", "alviso", "amador city", "american canyon", "anderson", "angels camp", "angwin", "annapolis", "antelope", "antioch", "applegate", "aptos", "arbuckle", "arcata", "armona", "arnold", "aromas", "artois", "atherton", "atwater", "auberry", "auburn", "avenal", "avery", "badger", "ballico", "bangor", "bass lake", "bay point", "bayside", "beale afb", "beckwourth", "belden", "bella vista", "belmont", "belvedere", "belvedere tiburon", "ben lomond", "benicia", "benton", "berkeley", "berry creek", "bethel island", "bieber", "big bar", "big bend", "big creek", "big oak flat", "big pine", "big sur", "biggs", "biola", "birds landing", "bishop", "blairsden graeagle", "blocksburg", "blue lake", "bodega", "bodega bay", "bolinas", "boonville", "boulder creek", "boyes hot springs", "bradley", "branscomb", "brentwood", "bridgeport", "bridgeville", "brisbane", "brookdale", "brooks", "browns valley", "brownsville", "burlingame", "burney", "burnt ranch", "burrel", "burson", "butte city", "byron", "california hot springs", "calistoga", "callahan", "calpella", "calpine", "cameron park", "camino", "camp meeker", "camp nelson", "campbell", "campo seco", "camptonville", "canby", "cantua creek", "canyon", "canyon dam", "capay", "capitola", "carlotta", "carmel", "carmel by the sea", "carmel valley", "carmichael", "carnelian bay", "caruthers", "caspar", "cassel", "castella", "castro valley", "castroville", "catheys valley", "cazadero", "cedar ridge", "cedarville", "ceres", "challenge", "chester", "chicago park", "chico", "chilcoot", "chinese camp", "chowchilla", "chualar", "citrus heights", "clarksburg", "clayton", "clearlake", "clearlake oaks", "clearlake park", "clements", "clio", "clipper mills", "cloverdale", "clovis", "coalinga", "coarsegold", "cobb", "coleville", "colfax", "colma", "coloma", "columbia", "colusa", "comptche", "concord", "cool", "copperopolis", "corcoran", "corning", "corralitos", "corte madera", "cotati", "cottonwood", "coulterville", "courtland", "covelo", "coyote", "crescent city", "crescent mills", "cressey", "crockett", "crows landing", "cupertino", "cutler", "cutten", "daly city", "danville", "dardanelle", "darwin", "davenport", "davis", "davis creek", "death valley", "deer park", "del rey", "del rey oaks", "delhi", "denair", "diablo", "diamond springs", "dillon beach", "dinuba", "discovery bay", "dixon", "dobbins", "dorris", "dos palos", "dos rios", "douglas city", "douglas flat", "downieville", "doyle", "drytown", "dublin", "ducor", "duncans mills", "dunlap", "dunnigan", "dunsmuir", "durham", "dutch flat", "eagleville", "earlimart", "east palo alto", "echo lake", "el cerrito", "el dorado", "el dorado hills", "el granada", "el nido", "el portal", "el sobrante", "el verano", "eldridge", "elk", "elk creek", "elk grove", "elmira", "elverta", "emerald hills", "emeryville", "emigrant gap", "empire", "escalon", "esparto", "etna", "eureka", "exeter", "fair oaks", "fairfax", "fairfield", "fall river mills", "farmersville", "farmington", "feather falls", "felton", "ferndale", "fiddletown", "fields landing", "finley", "firebaugh", "fish camp", "five points", "floriston", "flournoy", "folsom", "forbestown", "forest knolls", "forest ranch", "foresthill", "forestville", "forks of salmon", "fort bidwell", "fort bragg", "fort dick", "fort jones", "fortuna", "foster city", "fowler", "freedom", "fremont", "french camp", "french gulch", "fresno", "friant", "fulton", "galt", "garberville", "garden valley", "gasquet", "gazelle", "georgetown", "gerber", "geyserville", "gilroy", "glen ellen", "glencoe", "glenhaven", "glenn", "gold run", "gonzales", "goodyears bar", "goshen", "granite bay", "grass valley", "graton", "greenbrae", "greenfield", "greenview", "greenville", "greenwood", "grenada", "gridley", "grimes", "grizzly flats", "groveland", "gualala", "guerneville", "guinda", "gustine", "half moon bay", "hamilton city", "hanford", "happy camp", "hat creek", "hathaway pines", "hayfork", "hayward", "healdsburg", "helm", "herald", "hercules", "herlong", "hickman", "hidden valley lake", "hillsborough", "hilmar", "hollister", "holt", "holy city", "homewood", "honeydew", "hood", "hoopa", "hopland", "hornbrook", "hornitos", "hughson", "hume", "huron", "hyampom", "hydesville", "igo", "independence", "inverness", "ione", "isleton", "ivanhoe", "jackson", "jamestown", "janesville", "jenner", "jolon", "junction city", "june lake", "kaweah", "keeler", "kelseyville", "kentfield", "kenwood", "kerman", "kettleman city", "keyes", "king city", "kings beach", "kings canyon national pk", "kingsburg", "kirkwood", "kit carson", "klamath", "klamath river", "kneeland", "knights landing", "knightsen", "korbel", "kyburz", "la grange", "la honda", "la selva beach", "ladera", "lafayette", "laguna", "lagunitas", "lake city", "lakehead", "lakeport", "lakeshore", "larkspur", "lathrop", "laton", "laytonville", "le grand", "lee vining", "leggett", "lemon cove", "lemoore", "lewiston", "likely", "lincoln", "linden", "lindsay", "litchfield", "little lake", "little river", "live oak", "livermore", "livingston", "lockeford", "lockwood", "lodi", "loleta", "loma mar", "lone pine", "long barn", "lookout", "loomis", "los altos", "los altos hills", "los banos", "los gatos", "los molinos", "lotus", "lower lake", "loyalton", "lucerne", "macdoel", "mad river", "madeline", "madera", "madison", "magalia", "mammoth lakes", "manchester", "manteca", "manton", "marina", "mariposa", "markleeville", "marshall", "martell", "martinez", "marysville", "mather", "maxwell", "mcarthur", "mcclellan", "mccloud", "mckinleyville", "meadow valley", "meadow vista", "mendocino", "mendota", "menlo park", "merced", "meridian", "mi wuk village", "middletown", "midpines", "milford", "mill creek", "mill valley", "millbrae", "millville", "milpitas", "mineral", "miramonte", "miranda", "moccasin", "modesto", "mokelumne hill", "mono hot springs", "montague", "montara", "monte rio", "monte sereno", "monterey", "montgomery creek", "moraga", "morgan hill", "moss beach", "moss landing", "mount aukum", "mount hamilton", "mount hermon", "mount shasta", "mountain house", "mountain ranch", "mountain view", "murphys", "myers flat", "napa", "natomas", "navarro", "nelson", "nevada city", "new almaden", "newark", "newcastle", "newman", "nicasio", "nice", "nicolaus", "norden", "north fork", "north highlands", "north san juan", "novato", "nubieber", "o neals", "oak run", "oakdale", "oakhurst", "oakland", "oakley", "oakville", "obrien", "occidental", "olancha", "old station", "olema", "olivehurst", "olympic valley", "orange cove", "orangevale", "oregon house", "orick", "orinda", "orland", "orleans", "orosi", "oroville", "pacific grove", "pacifica", "paicines", "palermo", "palo alto", "palo cedro", "paradise", "parlier", "paskenta", "patterson", "paynes creek", "pebble beach", "penn valley", "penngrove", "penryn", "pescadero", "petaluma", "petrolia", "phillipsville", "philo", "piedmont", "piedra", "piercy", "pilot hill", "pine grove", "pinecrest", "pinole", "pioneer", "pittsburg", "pixley", "placerville", "planada", "platina", "pleasant grove", "pleasant hill", "pleasanton", "plymouth", "point arena", "point reyes station", "pollock pines", "pope valley", "port costa", "porterville", "portola", "portola valley", "portola vally", "posey", "potter valley", "prather", "princeton", "proberta", "prunedale", "quincy", "rackerby", "rail road flat", "raisin city", "rancho cordova", "ravendale", "raymond", "red bluff", "redcrest", "redding", "redway", "redwood city", "redwood estates", "redwood valley", "reedley", "represa", "rescue", "richgrove", "richmond", "richvale", "rio dell", "rio linda", "rio nido", "rio oso", "rio vista", "ripon", "river pines", "riverbank", "riverdale", "robbins", "rocklin", "rodeo", "rohnert park", "roseville", "ross", "rough and ready", "round mountain", "rumsey", "rutherford", "ryde", "sacramento", "saint helena", "salida", "salinas", "salyer", "samoa", "san andreas", "san anselmo", "san ardo", "san bruno", "san carlos", "san francisco", "san geronimo", "san gregorio", "san joaquin", "san jose", "san juan bautista", "san leandro", "san lorenzo", "san lucas", "san martin", "san mateo", "san pablo", "san quentin", "san rafael", "san ramon", "sand city", "sanger", "santa clara", "santa cruz", "santa rita park", "santa rosa", "saratoga", "sausalito", "scotia", "scott bar", "scotts valley", "seaside", "sebastopol", "seiad valley", "selma", "sequoia national park", "shasta", "shasta lake", "shaver lake", "sheep ranch", "sheridan", "shingle springs", "shingletown", "shoshone", "sierra city", "sierraville", "sloughhouse", "smartville", "smith river", "snelling", "soda springs", "soledad", "somerset", "somes bar", "sonoma", "sonora", "soquel", "soulsbyville", "south dos palos", "south lake tahoe", "south san francisco", "spreckels", "springville", "squaw valley", "st helena", "standard", "standish", "stanford", "stevinson", "stewarts point", "stinson beach", "stirling city", "stockton", "stonyford", "storrie", "stratford", "strathmore", "strawberry", "strawberry valley", "suisun city", "sultana", "sunnyvale", "sunol", "susanville", "sutter", "sutter creek", "tahoe city", "tahoe vista", "tahoma", "talmage", "taylorsville", "tecopa", "tehama", "termo", "terra bella", "the sea ranch", "thornton", "three rivers", "tiburon", "tipton", "tollhouse", "tomales", "topaz", "tracy", "tranquillity", "traver", "travis afb", "tres pinos", "trinidad", "trinity center", "truckee", "tulare", "tulelake", "tuolumne", "turlock", "twain", "twain harte", "twin bridges", "ukiah", "union city", "upper lake", "vacaville", "vallecito", "vallejo", "valley ford", "valley springs", "vernalis", "victor", "villa grande", "vina", "vineburg", "vinton", "visalia", "volcano", "wallace", "walnut creek", "walnut grove", "washington", "waterford", "watsonville", "waukena", "weaverville", "weed", "weimar", "wendel", "weott", "west point", "west sacramento", "westley", "westport", "westwood", "wheatland", "whiskeytown", "whitethorn", "whitmore", "williams", "willits", "willow creek", "willows", "wilseyville", "wilton", "windsor", "winters", "winton", "wishon", "witter springs", "woodacre", "woodbridge", "woodlake", "woodland", "yettem", "yolo", "yorkville", "yosemite national park", "yountville", "yreka", "yuba city", "zamora", "zenia"];
+// towns and ZIP codes of your states, loaded from the app's own geo files (see places below)
+let CITY_NAMES = []; const GEO_ZIPS = {};
+function applyGeo(d){ if (!d) return; const have = new Set(CITY_NAMES); for (const k in (d.c || {})) if (!have.has(k)) CITY_NAMES.push(k); Object.assign(GEO_ZIPS, d.z || {}); }
+/*__GEO_START__*/
+/* ---------- places (shared by the Call Tracker and Plan my week) ----------
+   City and ZIP locations come from one file per state in the app's own geo/ folder (public reference data, nothing of
+   yours is sent). The states you use are downloaded once and kept in their own offline cache, separate from the app's
+   files, so app updates never remove them. A ZIP from a state not loaded yet downloads that state in the background. */
+const GEO_KEY = "geo.states.v1", GEO_CACHE = "geo-places-v1";
+const GEO_ZIP3 = [[5,5,"NY"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[50,54,"VT"],[55,55,"MA"],[56,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,212,"MD"],[214,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[320,339,"FL"],[341,342,"FL"],[344,344,"FL"],[346,347,"FL"],[349,349,"FL"],[350,352,"AL"],[354,369,"AL"],[370,385,"TN"],[386,397,"MS"],[398,399,"GA"],[400,418,"KY"],[420,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,516,"IA"],[520,528,"IA"],[530,532,"WI"],[534,535,"WI"],[537,549,"WI"],[550,551,"MN"],[553,567,"MN"],[569,569,"DC"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,620,"IL"],[622,629,"IL"],[630,631,"MO"],[633,641,"MO"],[644,658,"MO"],[660,662,"KS"],[664,679,"KS"],[680,681,"NE"],[683,693,"NE"],[700,701,"LA"],[703,708,"LA"],[710,714,"LA"],[716,729,"AR"],[730,731,"OK"],[733,733,"TX"],[734,741,"OK"],[743,749,"OK"],[750,770,"TX"],[772,799,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,853,"AZ"],[855,857,"AZ"],[859,860,"AZ"],[863,865,"AZ"],[870,875,"NM"],[877,884,"NM"],[885,885,"TX"],[889,891,"NV"],[893,895,"NV"],[897,898,"NV"],[900,908,"CA"],[910,928,"CA"],[930,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,986,"WA"],[988,994,"WA"],[995,999,"AK"]];
+const US_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",PR:"Puerto Rico",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+function stateOfZip(zip){ const m = String(zip || "").match(/\b(\d{5})(?:-\d{4})?\b/); if (!m) return null; const n = +m[1].slice(0, 3); const r = GEO_ZIP3.find(x => n >= x[0] && n <= x[1]); return r ? r[2] : null; }
+function zipIn(s){ const m = String(s || "").match(/\b(\d{5})(?:-\d{4})?\s*$/); return m ? m[1] : ""; }
+function geoStates(){ try { const l = JSON.parse(localStorage.getItem(GEO_KEY)); return Array.isArray(l) ? l.filter(s => US_STATES[s]) : []; } catch(e){ return []; } }
+function geoSetStates(l){ try { localStorage.setItem(GEO_KEY, JSON.stringify([...new Set(l)].filter(s => US_STATES[s]))); } catch(e){} }
+const geoLoaded = new Set(), geoTried = new Set();
+const geoUrl = st => new URL((location.pathname.includes("/route/") ? "../geo/" : "geo/") + st + ".json", location.href).href;
+async function geoFetch(st){
+  const url = geoUrl(st); let c = null; try { c = await caches.open(GEO_CACHE); } catch(e){}
+  let res = c ? await c.match(url) : null;
+  if (!res){ res = await fetch(url, {cache:"no-cache"}); if (!res.ok) throw new Error("no file for " + st); if (c) await c.put(url, res.clone()); }
+  return res.json();
+}
+// load the states chosen in Settings (remembered on this iPad)
+async function geoLoad(apply){
+  const sts = geoStates();
+  for (const st of sts){ if (geoLoaded.has(st)) continue; try { apply(await geoFetch(st)); geoLoaded.add(st); } catch(e){} }
+}
+// make sure these states are loaded; resolves true when something new arrived
+async function geoEnsure(states, apply){
+  const need = [...new Set(states)].filter(s => s && US_STATES[s] && !geoLoaded.has(s) && !geoTried.has(s)); if (!need.length) return false;
+  let got = false;
+  for (const st of need){ geoTried.add(st); try { apply(await geoFetch(st)); geoLoaded.add(st); geoSetStates(geoStates().concat(st)); got = true; } catch(e){ geoTried.delete(st); } }
+  return got;
+}
+
+/*__GEO_END__*/
 const KIND_LBL = {md:"Physician", np:"Nurse practitioner", pa:"Physician assistant"};
 const titleCase = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
 function confirmTap(btn, msg){ if (btn.dataset.armed) return true; btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = msg; setTimeout(() => { if (btn.isConnected){ btn.textContent = old; delete btn.dataset.armed; } }, 3000); return false; }
@@ -824,18 +860,33 @@ function knownOffices(){
   }
   return Object.values(by).map(x => ({...x, hay: (x.street + " " + x.city + " " + x.full).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ")}));
 }
+// a ZIP in a state whose places aren't on this iPad yet: add that state, or go back and fix the ZIP
+function askState(st, where, onAdd, onTypo){
+  const first = !geoLoaded.size, name = US_STATES[st];
+  openSheet(`<h2>${first ? "This office is in " + esc(name) : esc(where) + " is in " + esc(name)}</h2>
+    <p>${first ? `The app needs ${esc(name)}'s towns and ZIP codes to plan routes. It's a one-time download of public place data; nothing of yours is sent.` : `Your map has ${esc([...geoLoaded].map(x => US_STATES[x]).join(", "))} so far. Add ${esc(name)} if you work there too. If not, the ZIP code is probably mistyped.`}</p>
+    <p class="small" id="gsMsg" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="gsTypo">${first ? "Back" : "It's a typo: I'll fix the ZIP"}</button><button class="btn primary" id="gsAdd">Add ${esc(name)}</button></div>`);
+  $("gsTypo").onclick = onTypo;
+  $("gsAdd").onclick = async () => {
+    $("gsAdd").disabled = true; $("gsAdd").textContent = "Downloading…";
+    await geoEnsure([st], applyGeo);
+    if (!geoLoaded.has(st)){ $("gsAdd").disabled = false; $("gsAdd").textContent = "Add " + name; $("gsMsg").textContent = navigator.onLine ? name + " isn't available yet." : "This needs an internet connection. Connect and try again."; return; }
+    onAdd();
+  };
+}
 function openAddProvider(editId, pre){
   const ed = editId ? find(editId) : null; const info = editId ? routerInfo(editId) : null;
   const parts = ed ? ed.name.split(" ") : [];
   const v = {first: ed ? titleCase(parts.slice(0,-1).join(" ")) : "", last: ed ? titleCase(parts[parts.length-1]) : "", kind: ed ? ed.kind || "md" : "md",
-    street: info && info.locs[0] ? info.locs[0].address : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
+    street: info && info.locs[0] ? info.locs[0].address : "", zip: info && info.locs[0] ? info.locs[0].zip || "" : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
     days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
   if (pre && pre.last) v.last = titleCase(pre.last);
   if (pre && pre.first) v.first = titleCase(pre.first);
   const note = pre && pre.last && pre.cal ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
   let err = "", wantMore = false;
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
-  const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.appt = $("apA").checked; };
+  const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.zip = String($("apZ").value).replace(/\D/g, "").slice(0, 5); v.appt = $("apA").checked; };
   const draw = () => {
     openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add a provider"}</h2>
       <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the doctors on your plan.</p>
@@ -845,7 +896,7 @@ function openAddProvider(editId, pre){
       <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
       <label class="fld">Office street address<span class="small" style="font-weight:400">Type the street or another doctor's name to reuse an office you already have.</span><input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
       <div id="apSug" class="chips" style="margin-top:-4px"></div>
-      <label class="fld">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label>
+      <div style="display:flex;gap:10px"><label class="fld" style="flex:1">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label><label class="fld" style="width:110px">ZIP<input id="apZ" value="${esc(v.zip)}" inputmode="numeric" maxlength="5" autocomplete="off"></label></div>
       <datalist id="apCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
       <div class="fld">When they're in<span class="small" style="font-weight:400">Tap morning and afternoon for each day. None ticked means any day.</span>
         ${[1,2,3,4,5].map(k => { const x = v.days[k] || {}; return `<div class="wk"><button type="button" class="dl" data-dall="${k}">${WD[k]}</button><button type="button" data-g="${k}|am" aria-pressed="${!!x.am}">Morning</button><button type="button" data-g="${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
@@ -873,12 +924,15 @@ function openAddProvider(editId, pre){
       if (!ed && (!v.first || !v.last)){ err = "Add a first and last name."; return draw(); }
       if (!ed && find(id)){ err = "That name is already on your list."; return draw(); }
       if (!v.city){ err = "Add the city."; return draw(); }
-      if (!CITY_NAMES.includes(v.city.toLowerCase())){ err = `“${v.city}” isn't a city the app knows. Pick one from the list as you type.`; return draw(); }
+      if (v.zip && (v.zip.length !== 5 || !stateOfZip(v.zip))){ err = `“${v.zip}” isn't a US ZIP code.`; return draw(); }
+      const zst = stateOfZip(v.zip);
+      if (zst && !geoLoaded.has(zst)) return askState(zst, `${titleCase(v.city)} ${v.zip}`, () => { draw(); $("apOk").click(); }, () => { draw(); setTimeout(() => $("apZ") && $("apZ").focus(), 50); });
+      if (!GEO_ZIPS[v.zip] && !CITY_NAMES.includes(v.city.toLowerCase())){ err = geoLoaded.size ? `“${v.city}” isn't a town the app can find. Pick one from the list as you type, or add the ZIP code.` : "Add the office's ZIP code so the app can place it on your map."; return draw(); }
       for (const k in v.days) if (!v.days[k].am && !v.days[k].pm) delete v.days[k];
       if (ed){ ed.kind = v.kind; ed.city = v.city.toUpperCase(); }
       else state.doctors.push({id, name, city:v.city.toUpperCase(), c0:0, a:0, r0:0, lastRpt:null, log:[], added:true, kind:v.kind});
       const others = ed && info && info.locs ? info.locs.slice(1) : [];
-      routerInfo(id, {locs:[{...(ed && info && info.locs && info.locs[0] || {}), address:v.street, city:titleCase(v.city), days:v.days, appt:v.appt}].concat(others), at:new Date().toISOString()});
+      routerInfo(id, {locs:[{...(ed && info && info.locs && info.locs[0] || {}), address:v.street, city:titleCase(v.city), zip:v.zip || undefined, days:v.days, appt:v.appt}].concat(others), at:new Date().toISOString()});
       save(); ui.flash = id; render(); closeSheet(); toast(ed ? "Saved" : `Added ${titleCase(name)}`);
       // added from a lunch on the calendar: put them into that day's route right away
       // more offices are added in Plan my week's Office and days, which holds up to 8
@@ -910,16 +964,13 @@ $("moreBtn").onclick = async () => {
     <p style="margin-top:16px"><b style="color:var(--ink)">Plan my week</b></p>
     <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Backup</b></p>
-    <p>Save a backup file now and then so nothing is lost if the app is deleted.</p>
+    <p style="margin-top:16px"><b style="color:var(--ink)">Your data</b></p>
+    <p>Everything you enter stays in this app on this iPad. Nothing is uploaded, and there's no export to Files or iCloud. Deleting the app's icon from the Home Screen deletes its data.</p>
     <div class="foot" style="justify-content:flex-start">
-      <button class="btn primary" id="saveB" ${state.doctors.length?"":"disabled"}>Save backup file</button>
-      <label class="btn" for="restoreF">Restore from backup</label>
+      <label class="btn small ghost" for="restoreF">Restore from an older backup file</label>
       <input type="file" id="restoreF" accept=".json,application/json,text/plain,*/*" hidden>
     </div>
     <p class="small" id="bMsg"></p>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Remaining calls</b></p>
-    <div class="foot" style="justify-content:flex-start"><button class="btn" id="saveCSV2" ${state.doctors.length?"":"disabled"}>Save as a spreadsheet</button></div>
     <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   const keepMe = () => { const n = staffName($("meName").value).trim(); let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
@@ -931,11 +982,6 @@ $("moreBtn").onclick = async () => {
   $("invBtn").onclick = () => { keepMe(); openInvitees(() => $("moreBtn").click()); };
   $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
   $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
-  $("saveCSV2").onclick = async () => { const how = await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(routingRows().rows), "text/csv", "Remaining calls"); if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files”." : "Saved to Downloads in the Files app."; };
-  $("saveB").onclick = async () => {
-    const how = await saveFile("call-plan-backup-" + todayISO() + ".json", JSON.stringify({...state, staff: staffAll()}), "application/json", "Call plan backup");
-    if (how) $("bMsg").textContent = how === "shared" ? "Choose “Save to Files” to keep it on this device." : "Backup saved to Downloads in the Files app.";
-  };
   $("restoreF").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
@@ -946,15 +992,7 @@ $("moreBtn").onclick = async () => {
 };
 
 /* ---------- saving files (share sheet → Save to Files / AirDrop; never uploaded) ---------- */
-async function saveFile(name, text, type, title){
-  const blob = new Blob([text], {type});
-  try {
-    const file = new File([blob], name, {type});
-    if (navigator.canShare && navigator.canShare({files:[file]})) { await navigator.share({files:[file], title}); return "shared"; }
-  } catch(e){ if (e && e.name === "AbortError") return null; }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  return "downloaded";
-}
+async function saveFile(){ return null; } // no data exports: everything stays in this app
 
 /* ---------- export for routing ---------- */
 function weekStartISO(iso){ const d = fromISO(iso); const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k); return isoDay(d); }
@@ -982,36 +1020,6 @@ function routingCSV(rows){
   const head = ["Priority","Doctor","City","Completed","Assigned","Remaining","Last call","Days since last call","Calls this week","Calls per week needed","Status"];
   const body = rows.map(r => [r.priority,r.name,r.city,r.completed,r.assigned,r.remaining,r.lastCall||"",r.daysSinceLastCall??"",r.callsThisWeek,r.callsPerWeekNeeded??"",r.status].map(csvCell).join(","));
   return [head.join(","), ...body].join("\n");
-}
-function openExport(){
-  if (!state.doctors.length){ toast("Load your call plan first"); return; }
-  const {rows, weeksLeft, end} = routingRows();
-  const R = rows.reduce((n,r)=>n+r.remaining,0);
-  openSheet(`<h2>Export for routing</h2>
-    <p>Saves every doctor who still has calls left, most behind first.</p>
-    <div class="logday" style="margin-top:12px">
-      <label for="planEnd">Call plan ends on</label>
-      <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
-      ${end ? `<span>${weeksLeft} week${weeksLeft>1?"s":""} left · about ${Math.ceil(R/weeksLeft)} calls a week</span>` : `<span class="small">Optional. Adds “calls per week needed” so the most behind doctors come first.</span>`}
-    </div>
-    <div class="summary"><span>${rows.length} doctors · ${R} calls remaining</span></div>
-    <div class="rtable"><table><thead><tr><th>#</th><th>Doctor</th><th>City</th><th>R</th><th>Last call</th><th>This week</th>${end?"<th>Per week</th>":""}</tr></thead><tbody>
-      ${rows.slice(0,25).map(r=>`<tr><td>${r.priority}</td><td>${esc(r.name)}</td><td>${esc(r.city)}</td><td>${r.remaining}</td><td>${r.lastCall?shortDate(r.lastCall)+" · "+r.daysSinceLastCall+"d":"None logged"}</td><td>${r.callsThisWeek}</td>${end?`<td>${r.callsPerWeekNeeded}</td>`:""}</tr>`).join("")}
-    </tbody></table></div>
-    ${rows.length>25?`<p class="small">Showing the top 25. The file has all ${rows.length}.</p>`:""}
-    <p class="small" id="eMsg"></p>
-    <div class="foot">
-      <button class="btn" id="closeS">Close</button>
-      <button class="btn" id="saveCSV">Save as spreadsheet (CSV)</button>
-      <button class="btn primary" id="saveRoute">Save routing file</button>
-    </div>`);
-  $("closeS").onclick = closeSheet;
-  $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); openExport(); };
-  const msg = how => { if (how) $("eMsg").textContent = how==="shared" ? "Choose “Save to Files”, or AirDrop it." : "Saved to Downloads in the Files app."; };
-  $("saveCSV").onclick = async () => msg(await saveFile("remaining-calls-"+todayISO()+".csv", routingCSV(rows), "text/csv", "Remaining calls"));
-  $("saveRoute").onclick = async () => msg(await saveFile("remaining-calls-"+todayISO()+".json",
-    JSON.stringify({format:"calltracker-remaining-calls", version:1, exportedOn:todayISO(), planEnds:end, weeksLeft, doctors:rows}, null, 1),
-    "application/json", "Remaining calls"));
 }
 
 /* ---------- on-device screenshot reading ---------- */
@@ -1404,6 +1412,8 @@ $("ddBtn").onclick = () => {
 const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
 $("installTip").hidden = standalone;
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+// ask iPadOS to keep this app's data even when the iPad is low on space
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
   if (!ev.data || ev.data.type !== "app-updated" || document.getElementById("updBar")) return;
@@ -1414,6 +1424,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 
 render();
+geoLoad(applyGeo);
 // "Add Matthys" from Plan my week's build check
 try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); o.cal = true; openAddProvider(null, o); } } catch(e){}
 </script>
