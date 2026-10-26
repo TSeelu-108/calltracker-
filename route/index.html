@@ -558,6 +558,40 @@ async function bShare(ics, name, n){
 }
 
 /*__BOOK_END__*/
+/*__GEO_START__*/
+/* ---------- places (shared by the Call Tracker and Plan my week) ----------
+   City and ZIP locations come from one file per state in the app's own geo/ folder (public reference data, nothing of
+   yours is sent). The states you use are downloaded once and kept in their own offline cache, separate from the app's
+   files, so app updates never remove them. A ZIP from a state not loaded yet downloads that state in the background. */
+const GEO_KEY = "geo.states.v1", GEO_CACHE = "geo-places-v1";
+const GEO_ZIP3 = [[5,5,"NY"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[50,54,"VT"],[55,55,"MA"],[56,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,212,"MD"],[214,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[320,339,"FL"],[341,342,"FL"],[344,344,"FL"],[346,347,"FL"],[349,349,"FL"],[350,352,"AL"],[354,369,"AL"],[370,385,"TN"],[386,397,"MS"],[398,399,"GA"],[400,418,"KY"],[420,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,516,"IA"],[520,528,"IA"],[530,532,"WI"],[534,535,"WI"],[537,549,"WI"],[550,551,"MN"],[553,567,"MN"],[569,569,"DC"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,620,"IL"],[622,629,"IL"],[630,631,"MO"],[633,641,"MO"],[644,658,"MO"],[660,662,"KS"],[664,679,"KS"],[680,681,"NE"],[683,693,"NE"],[700,701,"LA"],[703,708,"LA"],[710,714,"LA"],[716,729,"AR"],[730,731,"OK"],[733,733,"TX"],[734,741,"OK"],[743,749,"OK"],[750,770,"TX"],[772,799,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,853,"AZ"],[855,857,"AZ"],[859,860,"AZ"],[863,865,"AZ"],[870,875,"NM"],[877,884,"NM"],[885,885,"TX"],[889,891,"NV"],[893,895,"NV"],[897,898,"NV"],[900,908,"CA"],[910,928,"CA"],[930,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,986,"WA"],[988,994,"WA"],[995,999,"AK"]];
+const US_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",PR:"Puerto Rico",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+function stateOfZip(zip){ const m = String(zip || "").match(/\b(\d{5})(?:-\d{4})?\b/); if (!m) return null; const n = +m[1].slice(0, 3); const r = GEO_ZIP3.find(x => n >= x[0] && n <= x[1]); return r ? r[2] : null; }
+function zipIn(s){ const m = String(s || "").match(/\b(\d{5})(?:-\d{4})?\s*$/); return m ? m[1] : ""; }
+function geoStates(){ try { const l = JSON.parse(localStorage.getItem(GEO_KEY)); return Array.isArray(l) ? l.filter(s => US_STATES[s]) : []; } catch(e){ return []; } }
+function geoSetStates(l){ try { localStorage.setItem(GEO_KEY, JSON.stringify([...new Set(l)].filter(s => US_STATES[s]))); } catch(e){} }
+const geoLoaded = new Set(), geoTried = new Set();
+const geoUrl = st => new URL((location.pathname.includes("/route/") ? "../geo/" : "geo/") + st + ".json", location.href).href;
+async function geoFetch(st){
+  const url = geoUrl(st); let c = null; try { c = await caches.open(GEO_CACHE); } catch(e){}
+  let res = c ? await c.match(url) : null;
+  if (!res){ res = await fetch(url, {cache:"no-cache"}); if (!res.ok) throw new Error("no file for " + st); if (c) await c.put(url, res.clone()); }
+  return res.json();
+}
+// load the states chosen in Settings (remembered on this iPad)
+async function geoLoad(apply){
+  const sts = geoStates();
+  for (const st of sts){ if (geoLoaded.has(st)) continue; try { apply(await geoFetch(st)); geoLoaded.add(st); } catch(e){} }
+}
+// make sure these states are loaded; resolves true when something new arrived
+async function geoEnsure(states, apply){
+  const need = [...new Set(states)].filter(s => s && US_STATES[s] && !geoLoaded.has(s) && !geoTried.has(s)); if (!need.length) return false;
+  let got = false;
+  for (const st of need){ geoTried.add(st); try { apply(await geoFetch(st)); geoLoaded.add(st); geoSetStates(geoStates().concat(st)); got = true; } catch(e){ geoTried.delete(st); } }
+  return got;
+}
+
+/*__GEO_END__*/
 /* ---------- derived inputs ---------- */
 let D = {};
 function derive(){
@@ -568,7 +602,7 @@ function derive(){
   D.match = L.matchDoctors(D.docs, sheetOff, S.overrides);
   D.sheetByDoc = {...D.match.byDoc}; D.sheetHow = {...D.match.how};
   D.sheetUnmatched = D.match.unmatched.filter(id => !(S.docInfo[id] && S.docInfo[id].locs.length));
-  D.offices = sheetOff.slice(); D.src = {};
+  D.offices = sheetOff.map(o => ({...o, coords: L.cityCoords(o.city, o.address, o.zip) || o.coords || null})); D.src = {};
   const docOff = {};
   for (const d of D.docs){
     const info = S.docInfo[d.id];
@@ -636,8 +670,8 @@ function dayAvail(loc){
 }
 function appOffice(d, loc){
   const avail = dayAvail(loc);
-  return {rawName:"", last:"", first:"", app:true, docId:d.id, address:loc.address || "", city:loc.city || "", avail, availText:L.availText(avail), notes:"", org:"", zip:L.zipOf("", loc.address),
-    coords:L.cityCoords(loc.city, loc.address), addrKey:L.addressKey(loc.address || loc.city, loc.city)};
+  return {rawName:"", last:"", first:"", app:true, docId:d.id, address:loc.address || "", city:loc.city || "", avail, availText:L.availText(avail), notes:"", org:"", zip: loc.zip || L.zipOf("", loc.address),
+    coords:L.cityCoords(loc.city, loc.address, loc.zip), addrKey:L.addressKey(loc.address || loc.city, loc.city)};
 }
 // a stop keeps the office index from when it was planned; if offices changed since, find it again by address
 const addrOf = o => o ? [o.address, o.city].filter(Boolean).join(", ") : "";
@@ -1301,7 +1335,29 @@ $("f2").onchange = async e => {
   useSheet(f.name, sheets[best.si], best.offices);
   if (D.docs.length && needInfo().length) toast(`Loaded ${best.offices.length} offices. ${needInfo().length} doctors need a look: tap Doctors.`);
 };
+// offices whose ZIP is in a state whose places aren't loaded yet, grouped by state
+function newStates(list){ const by = {}; list.forEach(o => { const st = stateOfZip(o.zip); if (st && !geoLoaded.has(st)) (by[st] = by[st] || []).push(o); }); return by; }
+// "3 offices are in Nevada": add that state's places, or stop because it's a typo
+function askStates(by, what, onAdd, onTypo){
+  const sts = Object.keys(by), names = sts.map(st => US_STATES[st]).join(" and ");
+  const n = sts.reduce((t, st) => t + by[st].length, 0), first = !geoLoaded.size;
+  openSheet(`<h2>${first ? `Your offices are in ${esc(names)}` : `${n} office${n === 1 ? " is" : "s are"} in ${esc(names)}`}</h2>
+    <p>${first ? `The app needs ${esc(names)}'s towns and ZIP codes to plan your routes. It's a one-time download of public place data; nothing of yours is sent.` : `Your map has ${esc([...geoLoaded].map(x => US_STATES[x]).join(", "))} so far. Add ${esc(names)} if you work there too. If not, a ZIP code is probably mistyped.`}</p>
+    ${sts.map(st => `<p style="margin-top:8px"><b style="color:var(--ink)">${esc(US_STATES[st])}</b></p><ul class="ulist">${by[st].slice(0, 8).map(o => `<li><span>${esc(o.rawName ? title(o.rawName) : (o.label || ""))}</span><span>${esc([o.address, o.city].filter(Boolean).join(", "))} ${esc(o.zip || "")}</span></li>`).join("")}${by[st].length > 8 ? `<li><span class="sub">and ${by[st].length - 8} more</span></li>` : ""}</ul>`).join("")}
+    <p class="small" id="gsMsg" style="color:var(--red-ink)"></p>
+    <div class="foot">${first ? "" : `<button class="btn" id="gsTypo">It's a typo: ${esc(what)}</button>`}<button class="btn primary" id="gsAdd">Add ${esc(names)}</button></div>`);
+  if ($("gsTypo")) $("gsTypo").onclick = () => { closeSheet(); onTypo(); };
+  $("gsAdd").onclick = async () => {
+    $("gsAdd").disabled = true; $("gsAdd").textContent = "Downloading…";
+    await geoEnsure(sts, L.loadGeo);
+    const left = sts.filter(st => !geoLoaded.has(st));
+    if (left.length){ $("gsAdd").disabled = false; $("gsAdd").textContent = `Add ${names}`; $("gsMsg").textContent = navigator.onLine ? `${left.map(x => US_STATES[x]).join(", ")} isn't available yet.` : "This needs an internet connection. Connect and try again."; return; }
+    closeSheet(); onAdd();
+  };
+}
 function useSheet(fileName, sh, offices){
+  const by = newStates(offices);
+  if (Object.keys(by).length) return askStates(by, "I'll fix the spreadsheet", () => useSheet(fileName, sh, offices), () => toast("Spreadsheet not loaded. Fix the ZIP codes, then load it again."));
   // keep the raw rows (only this tab) so the columns can be changed later without loading the file again
   S.sheet = {name:fileName, tab:sh.name, offices, rows: sh.rows.length <= 3000 ? Array.from(sh.rows, r => r || []) : null, at:new Date().toISOString()};
   save(); render(); toast(`Loaded ${offices.length} offices`);
@@ -1415,6 +1471,7 @@ function openDocInfo(id, back){
   const sync = () => {
     $("sheet").querySelectorAll("[data-street]").forEach(i => locs[+i.dataset.street].address = cleanStreet(i.value));
     $("sheet").querySelectorAll("[data-city]").forEach(i => locs[+i.dataset.city].city = cleanCity(i.value));
+    $("sheet").querySelectorAll("[data-zip]").forEach(i => { const z = String(i.value).replace(/\D/g, "").slice(0, 5); if (z) locs[+i.dataset.zip].zip = z; else delete locs[+i.dataset.zip].zip; });
     $("sheet").querySelectorAll("[data-appt]").forEach(i => locs[+i.dataset.appt].appt = i.checked);
   };
   const draw = () => {
@@ -1427,7 +1484,7 @@ function openDocInfo(id, back){
           ${known.length ? `<select data-pick="${i}" style="width:100%"><option value="">Same office as a doctor already on your list…</option>${known.map((o,k) => `<option value="${k}">${esc(o.city)} · ${esc(o.address)}</option>`).join("")}</select>` : ""}
           <input data-street="${i}" class="wide" placeholder="Type the street or another doctor's name" value="${esc(loc.address)}" autocomplete="off" maxlength="80">
           <div class="chips" data-ssug="${i}"></div>
-          <input data-city="${i}" class="wide" list="cityList" placeholder="City" value="${esc(loc.city)}" autocomplete="off" maxlength="40">
+          <div style="display:flex;gap:8px"><input data-city="${i}" class="wide" list="cityList" placeholder="City" value="${esc(loc.city)}" autocomplete="off" maxlength="40" style="flex:1"><input data-zip="${i}" placeholder="ZIP" value="${esc(loc.zip || "")}" inputmode="numeric" autocomplete="off" maxlength="5" style="width:96px"></div>
         </div>
         <div class="field">When they're in<span class="sub">Tap morning and afternoon for each day they're there. Tap the day to switch both.</span>
           ${[1,2,3,4,5].map(k => { const x = (loc.days||{})[k] || {}; return `<div class="wk"><button class="dl" data-dall="${i}|${k}">${WD[k]}</button><button data-g="${i}|${k}|am" aria-pressed="${!!x.am}">Morning</button><button data-g="${i}|${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
@@ -1466,8 +1523,12 @@ function openDocInfo(id, back){
       sync();
       const bad = locs.find(l => !l.city);
       if (bad){ errMsg = "Every office needs a city."; draw(); return; }
-      const unknown = locs.find(l => !L.cityCoords(l.city, l.address));
-      if (unknown){ errMsg = `“${unknown.city}” isn't a city the app can find on its map. Pick one from the list as you type.`; draw(); return; }
+      const badZip = locs.find(l => l.zip && (l.zip.length !== 5 || !stateOfZip(l.zip)));
+      if (badZip){ errMsg = `“${badZip.zip}” isn't a US ZIP code.`; draw(); return; }
+      const by = newStates(locs.map(l => ({...l, label: title(d.name)})));
+      if (Object.keys(by).length) return askStates(by, "I'll fix the ZIP", () => { draw(); $("lSave").click(); }, () => draw());
+      const unknown = locs.find(l => !L.cityCoords(l.city, l.address, l.zip));
+      if (unknown){ errMsg = `“${unknown.city}” isn't a town the app can find. Pick one from the list as you type, or add the ZIP code.`; draw(); return; }
       locs.forEach(l => { for (const k in l.days) if (!l.days[k].am && !l.days[k].pm) delete l.days[k]; });
       S.docInfo[id] = {locs, at:new Date().toISOString()}; save(); render();
       toast("Saved " + title(d.name)); back ? back() : closeSheet();
@@ -1970,12 +2031,6 @@ async function shareWeek(){
 }
 
 /* ---------- backup of router data (spreadsheet, notes, contacts, settings) ---------- */
-async function saveRouterBackup(){
-  const name = "week-router-backup-" + todayISO() + ".json";
-  const blob = new Blob([JSON.stringify({...S, staff: staffAll()})], {type:"application/json"});
-  try { const f = new File([blob], name, {type:"application/json"}); if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-}
 
 /* ---------- settings ---------- */
 $("settingsBtn").onclick = () => openSettings();
@@ -1990,14 +2045,17 @@ function openSettings(){
       <div class="seg" role="group" aria-label="Planning style"><button data-mode="area" aria-pressed="${st.mode!=="zones"}">Anywhere, grouped by area</button><button data-mode="zones" aria-pressed="${st.mode==="zones"}">By zones</button></div>
     </div>
     <div id="zoneBox" ${st.mode==="zones"?"":"hidden"}></div>
+    <div class="field">Your states<span class="sub">Towns and ZIP codes for these states are on this iPad for planning. Offices with a ZIP in another state ask before adding it.</span>
+      <div class="chips" style="margin-top:6px">${[...geoLoaded].map(x => `<span class="chip">${esc(US_STATES[x])}</span>`).join("") || `<span class="sub">None yet. Pick the state you work in.</span>`}
+      <select id="sState" style="max-width:220px"><option value="">Add a state…</option>${Object.entries(US_STATES).filter(([k]) => !geoLoaded.has(k)).map(([k,v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div><p class="small" id="sStateMsg"></p><p class="small" style="opacity:.7">Place data: US Cities Database (MIT) and GeoNames ZIP codes (CC BY 3.0).</p></div>
     <label class="field" for="sHome">Start and end each day in<select id="sHome"><option value=""${st.home ? "" : " selected"}>Choose your city…</option>${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <div class="field">Days you're in the field<div class="seg" role="group" aria-label="Working days">${wd.map((d,i) => `<button data-wd="${i+1}" aria-pressed="${st.workDays.includes(i+1)}">${d}</button>`).join("")}</div></div>
     <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
     <label class="field" for="sMe">Your name<span class="sub">First and last, as it appears in your Outlook calendar. Events you set up are then always counted as yours, even when a counterpart is invited.</span><input id="sMe" placeholder="e.g. Jordan Smith" value="${esc(st.myName||"")}" autocomplete="off" autocapitalize="words"></label>
     <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Sam, Alex" value="${esc(st.counterparts.join(", "))}"></label>
-    <div class="field">Backup<span class="sub">Saves your spreadsheet, the offices and days you've set, office staff and settings to a file.</span>
-      <div class="actions"><button class="btn small" id="bSave">Save backup</button><label class="btn small" for="bLoad">Restore backup</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
+    <div class="field">Your data<span class="sub">Everything stays in this app on this iPad. Nothing is uploaded, and there's no export.</span>
+      <div class="actions"><label class="btn small ghost" for="bLoad">Restore from an older backup file</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
   const sheet = $("sheet");
   const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
@@ -2056,8 +2114,10 @@ function openSettings(){
     if ($("zAdd")) $("zAdd").onclick = () => { keepInputs(); st.zones.push({name:"Zone " + "ABCDEF"[st.zones.length], cities:[], zips:[]}); save(); drawZones(st.zones.length - 1); };
   };
   drawZones();
-  $("bSave").onclick = saveRouterBackup;
+
   $("bLoad").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const s = JSON.parse(await f.text()); if (!s.settings) throw 0; if (s.staff) staffMerge(s.staff); delete s.staff; delete s.sharedNotes; delete s.notes; localStorage.setItem(KEY, JSON.stringify(s)); location.reload(); } catch(_){ toast("That file isn't a Week Router backup."); } };
+  $("sState").onchange = async e => { const v = e.target.value; if (!v) return; keepInputs(); st.home = $("sHome").value; save(); $("sStateMsg").textContent = "Downloading " + US_STATES[v] + "…";
+    await geoEnsure([v], L.loadGeo); if (!geoLoaded.has(v)){ $("sStateMsg").textContent = navigator.onLine ? US_STATES[v] + " isn't available yet." : "This needs an internet connection."; return; } render(); openSettings(); };
   $("closeS").onclick = () => {
     keepInputs();
     st.home = $("sHome").value; st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
@@ -2069,6 +2129,7 @@ function openSettings(){
 }
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
   if (!ev.data || ev.data.type !== "app-updated" || document.getElementById("updBar")) return;
@@ -2078,7 +2139,8 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 });
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
-render();
+geoLoad(L.loadGeo).then(() => { render(); afterStart(); });
+function afterStart(){
 placePendingLunch();
 // opened from a doctor in the Call Tracker: Office and days, or anchor them to a day this week
 (() => { let p = null; try { p = JSON.parse(localStorage.getItem("pending.routerOpen")); localStorage.removeItem("pending.routerOpen"); } catch(e){}
@@ -2087,6 +2149,8 @@ placePendingLunch();
   else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That doctor isn't in your list here yet"); return; } openAnchorAdd(closeSheet, p.id); }
 })();
 if (/[?&]settings\b/.test(location.search)) { history.replaceState(null, "", location.pathname); openSettings(); }
+else if (!geoStates().length) openSettings();
+}
 </script>
 </body>
 </html>

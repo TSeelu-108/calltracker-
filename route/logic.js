@@ -12,146 +12,19 @@ const weekDays = mon => [0,1,2,3,4].map(i => addDays(mon,i));
 const dow = iso => fromISO(iso).getDay(); // 1..5 Mon..Fri
 
 /* ---------------- geography (approximate city centers) ---------------- */
-/* Northern California towns (approximate centers). Built from the open US Cities Database (MIT license, github.com/kelvins/US-Cities-Database), plus a few added by hand. */
-const CITIES = {
- "acampo":[38.2,-121.219],"adin":[41.218,-120.943],"ahwahnee":[37.408,-119.723],"alameda":[37.765,-122.242],"alamo":[37.85,-122.032],"albany":[37.887,-122.298],
- "albion":[39.216,-123.721],"alderpoint":[40.176,-123.611],"alleghany":[39.513,-120.727],"alpaugh":[35.888,-119.486],"alta":[39.228,-120.773],"altaville":[38.077,-120.552],
- "alturas":[41.477,-120.546],"alviso":[37.428,-121.969],"amador city":[38.419,-120.823],"american canyon":[38.175,-122.26],"anderson":[40.457,-122.328],"angels camp":[38.064,-120.554],
- "angwin":[38.577,-122.448],"annapolis":[38.714,-123.314],"antelope":[38.708,-121.329],"antioch":[38.005,-121.806],"applegate":[38.995,-120.991],"aptos":[36.977,-121.898],
- "arbuckle":[39.014,-122.027],"arcata":[40.867,-124.082],"armona":[36.309,-119.705],"arnold":[38.242,-120.342],"aromas":[36.879,-121.64],"artois":[39.62,-122.193],
- "atherton":[37.456,-122.2],"atwater":[37.348,-120.609],"auberry":[37.073,-119.457],"auburn":[38.983,-121.094],"avenal":[35.988,-120.123],"avery":[38.204,-120.369],
- "badger":[36.631,-119.012],"ballico":[37.452,-120.7],"bangor":[39.425,-121.35],"bass lake":[37.324,-119.557],"bay point":[38.029,-121.962],"bayside":[40.822,-124.027],
- "beale afb":[39.146,-121.59],"beckwourth":[39.82,-120.378],"belden":[39.922,-121.326],"bella vista":[40.741,-122.072],"belmont":[37.517,-122.293],"belvedere":[37.873,-122.464],
- "belvedere tiburon":[37.89,-122.473],"ben lomond":[37.086,-122.084],"benicia":[38.049,-122.159],"benton":[37.798,-118.499],"berkeley":[37.872,-122.273],"berry creek":[39.638,-121.385],
- "bethel island":[38.015,-121.639],"bieber":[41.121,-121.143],"big bar":[40.748,-123.229],"big bend":[41.021,-121.91],"big creek":[37.205,-119.245],"big oak flat":[37.824,-120.257],
- "big pine":[37.168,-118.292],"big sur":[36.246,-121.701],"biggs":[39.415,-121.696],"biola":[36.802,-120.015],"birds landing":[38.15,-121.844],"bishop":[37.386,-118.442],
- "blairsden graeagle":[39.785,-120.627],"blocksburg":[40.276,-123.635],"blue lake":[40.929,-123.897],"bodega":[38.339,-122.951],"bodega bay":[38.331,-123.037],"bolinas":[37.908,-122.695],
- "boonville":[39.035,-123.402],"boulder creek":[37.15,-122.133],"boyes hot springs":[38.314,-122.481],"bradley":[35.809,-120.973],"branscomb":[39.701,-123.555],"brentwood":[37.932,-121.696],
- "bridgeport":[38.257,-119.208],"bridgeville":[40.469,-123.549],"brisbane":[37.681,-122.4],"brookdale":[37.106,-122.105],"brooks":[38.739,-122.133],"browns valley":[39.284,-121.346],
- "brownsville":[39.453,-121.261],"burlingame":[37.584,-122.366],"burney":[40.895,-121.655],"burnt ranch":[40.772,-123.461],"burrel":[36.488,-119.984],"burson":[38.184,-120.889],
- "butte city":[39.456,-121.978],"byron":[37.903,-121.602],"california hot springs":[35.892,-118.646],"calistoga":[38.582,-122.581],"callahan":[41.383,-122.764],"calpella":[39.15,-123.207],
- "calpine":[39.652,-120.444],"cameron park":[38.669,-120.987],"camino":[38.745,-120.672],"camp meeker":[38.425,-122.958],"camp nelson":[36.13,-118.817],"campbell":[37.28,-121.955],
- "campo seco":[38.227,-120.852],"camptonville":[39.451,-121.023],"canby":[41.466,-120.922],"cantua creek":[36.492,-120.335],"canyon":[37.832,-122.187],"canyon dam":[40.208,-121.156],
- "capay":[38.697,-122.101],"capitola":[36.977,-121.952],"carlotta":[40.507,-123.974],"carmel":[36.448,-121.84],"carmel by the sea":[36.555,-121.92],"carmel valley":[36.479,-121.724],
- "carmichael":[38.628,-121.329],"carnelian bay":[39.232,-120.075],"caruthers":[36.536,-119.845],"caspar":[39.365,-123.798],"cassel":[40.908,-121.524],"castella":[41.139,-122.317],
- "castro valley":[37.694,-122.086],"castroville":[36.771,-121.747],"catheys valley":[37.441,-120.069],"cazadero":[38.566,-123.183],"cedar ridge":[39.199,-121.02],"cedarville":[41.476,-120.152],
- "ceres":[37.595,-120.958],"challenge":[39.487,-121.222],"chester":[40.297,-121.227],"chicago park":[39.145,-120.966],"chico":[39.756,-121.852],"chilcoot":[39.806,-120.175],
- "chinese camp":[37.857,-120.407],"chowchilla":[37.101,-120.269],"chualar":[36.595,-121.432],"citrus heights":[38.695,-121.269],"clarksburg":[38.396,-121.557],"clayton":[37.941,-121.936],
- "clearlake":[38.957,-122.636],"clearlake oaks":[39.035,-122.669],"clearlake park":[38.968,-122.654],"clements":[38.191,-121.087],"clio":[39.743,-120.56],"clipper mills":[39.533,-121.156],
- "cloverdale":[38.799,-123.012],"clovis":[36.824,-119.682],"coalinga":[36.162,-120.349],"coarsegold":[37.221,-119.746],"cobb":[38.822,-122.722],"coleville":[38.503,-119.483],
- "colfax":[39.077,-120.96],"colma":[37.677,-122.46],"coloma":[38.8,-120.889],"columbia":[38.04,-120.406],"colusa":[39.213,-122.012],"comptche":[39.25,-123.586],
- "concord":[37.978,-122.031],"cool":[38.904,-120.973],"copperopolis":[37.937,-120.638],"corcoran":[36.086,-119.561],"corning":[39.93,-122.196],"corralitos":[36.989,-121.806],
- "corte madera":[37.922,-122.513],"cotati":[38.326,-122.705],"cottonwood":[40.369,-122.337],"coulterville":[37.739,-119.986],"courtland":[38.306,-121.554],"covelo":[39.802,-123.215],
- "coyote":[37.217,-121.746],"crescent city":[41.785,-124.178],"crescent mills":[40.082,-120.882],"cressey":[37.42,-120.666],"crockett":[38.052,-122.218],"crows landing":[37.439,-121.02],
- "cupertino":[37.317,-122.039],"cutler":[36.524,-119.287],"cutten":[40.77,-124.142],"daly city":[37.688,-122.47],"danville":[37.822,-121.999],"dardanelle":[38.341,-119.833],
- "darwin":[36.268,-117.591],"davenport":[37.063,-122.226],"davis":[38.555,-121.748],"davis creek":[41.863,-120.324],"death valley":[36.467,-116.894],"deer park":[38.576,-122.449],
- "del rey":[36.654,-119.593],"del rey oaks":[36.593,-121.835],"delhi":[37.429,-120.775],"denair":[37.538,-120.796],"diablo":[37.839,-121.961],"diamond springs":[38.663,-120.836],
- "dillon beach":[38.251,-122.964],"dinuba":[36.535,-119.391],"discovery bay":[37.909,-121.6],"dixon":[38.459,-121.816],"dobbins":[39.371,-121.234],"dorris":[41.968,-121.917],
- "dos palos":[37.003,-120.633],"dos rios":[39.709,-123.298],"douglas city":[40.634,-122.924],"douglas flat":[38.087,-120.472],"downieville":[39.57,-120.678],"doyle":[40.001,-120.108],
- "drytown":[38.393,-120.801],"dublin":[37.702,-121.936],"ducor":[35.892,-119.046],"duncans mills":[38.454,-123.054],"dunlap":[36.745,-119.09],"dunnigan":[38.894,-121.997],
- "dunsmuir":[41.212,-122.273],"durham":[39.642,-121.792],"dutch flat":[39.198,-120.826],"eagleville":[41.316,-120.115],"earlimart":[35.854,-119.253],"east palo alto":[37.469,-122.141],
- "echo lake":[38.81,-120.07],"el cerrito":[37.916,-122.311],"el dorado":[38.683,-120.847],"el dorado hills":[38.685,-121.069],"el granada":[37.503,-122.468],"el nido":[37.135,-120.483],
- "el portal":[37.675,-119.783],"el sobrante":[37.977,-122.295],"el verano":[38.298,-122.491],"eldridge":[38.349,-122.51],"elk":[39.16,-123.724],"elk creek":[39.599,-122.557],
- "elk grove":[38.409,-121.372],"elmira":[38.348,-121.909],"elverta":[38.716,-121.431],"emerald hills":[37.463,-122.264],"emeryville":[37.831,-122.285],"emigrant gap":[39.287,-120.663],
- "empire":[37.638,-120.901],"escalon":[37.797,-120.998],"esparto":[38.694,-122.021],"etna":[41.468,-122.914],"eureka":[40.776,-124.156],"exeter":[36.304,-119.129],
- "fair oaks":[38.655,-121.261],"fairfax":[37.988,-122.594],"fairfield":[38.249,-122.04],"fall river mills":[41.039,-121.461],"farmersville":[36.3,-119.205],"farmington":[37.945,-120.852],
- "feather falls":[39.593,-121.255],"felton":[37.063,-122.062],"ferndale":[40.574,-124.252],"fiddletown":[38.531,-120.716],"fields landing":[40.725,-124.214],"finley":[39.004,-122.874],
- "firebaugh":[36.865,-120.47],"fish camp":[37.517,-119.642],"five points":[36.429,-120.102],"floriston":[39.446,-120.025],"flournoy":[39.921,-122.435],"folsom":[38.688,-121.141],
- "forbestown":[39.542,-121.213],"forest knolls":[38.012,-122.691],"forest ranch":[40.13,-121.5],"foresthill":[39.002,-120.861],"forestville":[38.489,-122.897],"forks of salmon":[41.257,-123.098],
- "fort bidwell":[41.864,-120.162],"fort bragg":[39.437,-123.788],"fort dick":[41.838,-124.166],"fort jones":[41.617,-122.883],"fortuna":[40.585,-124.141],"foster city":[37.559,-122.271],
- "fowler":[36.628,-119.671],"freedom":[36.936,-121.777],"fremont":[37.548,-121.989],"french camp":[37.878,-121.283],"french gulch":[40.704,-122.623],"fresno":[36.841,-119.8],
- "friant":[37.002,-119.697],"fulton":[38.495,-122.776],"galt":[38.255,-121.3],"garberville":[40.1,-123.794],"garden valley":[38.866,-120.857],"gasquet":[41.863,-123.912],
- "gazelle":[41.51,-122.537],"georgetown":[38.92,-120.793],"gerber":[40.043,-122.165],"geyserville":[38.7,-122.889],"gilroy":[37.016,-121.578],"glen ellen":[38.363,-122.521],
- "glencoe":[38.352,-120.595],"glenhaven":[38.99,-122.522],"glenn":[39.607,-122.038],"gold run":[39.175,-120.857],"gonzales":[36.49,-121.41],"goodyears bar":[39.573,-120.821],
- "goshen":[36.351,-119.419],"granite bay":[38.744,-121.19],"grass valley":[39.208,-121.037],"graton":[38.435,-122.867],"greenbrae":[37.951,-122.536],"greenfield":[36.32,-121.245],
- "greenview":[41.551,-122.904],"greenville":[40.142,-120.927],"greenwood":[38.936,-120.917],"grenada":[41.613,-122.526],"gridley":[39.359,-121.69],"grimes":[39.074,-121.893],
- "grizzly flats":[38.629,-120.543],"groveland":[37.841,-120.192],"gualala":[38.804,-123.554],"guerneville":[38.51,-122.994],"guinda":[38.817,-122.19],"gustine":[37.242,-121.004],
- "half moon bay":[37.479,-122.446],"hamilton city":[39.743,-122.013],"hanford":[36.331,-119.649],"happy camp":[41.802,-123.388],"hat creek":[40.768,-121.464],"hathaway pines":[38.192,-120.364],
- "hayfork":[40.55,-123.163],"hayward":[37.669,-122.081],"healdsburg":[38.616,-122.857],"helm":[36.499,-120.094],"herald":[38.313,-121.159],"hercules":[38.017,-122.289],
- "herlong":[40.148,-120.171],"hickman":[37.62,-120.717],"hidden valley lake":[39.963,-123.815],"hillsborough":[37.574,-122.379],"hilmar":[37.408,-120.856],"hollister":[36.848,-121.387],
- "holt":[37.934,-121.426],"holy city":[37.157,-121.978],"homewood":[39.078,-120.179],"honeydew":[40.244,-124.122],"hood":[38.368,-121.516],"hoopa":[41.106,-123.693],
- "hopland":[38.972,-123.117],"hornbrook":[41.908,-122.527],"hornitos":[37.492,-120.226],"hughson":[37.594,-120.865],"hume":[36.785,-118.913],"huron":[36.237,-120.102],
- "hyampom":[40.617,-123.451],"hydesville":[40.55,-124.084],"igo":[40.432,-122.654],"independence":[36.84,-118.205],"inverness":[38.084,-122.857],"ione":[38.352,-120.943],
- "isleton":[38.155,-121.605],"ivanhoe":[36.386,-119.219],"jackson":[38.358,-120.755],"jamestown":[37.907,-120.495],"janesville":[40.296,-120.51],"jenner":[38.474,-123.135],
- "jolon":[35.971,-121.175],"junction city":[40.768,-123.063],"june lake":[37.777,-119.082],"kaweah":[36.47,-118.918],"keeler":[36.487,-117.873],"kelseyville":[38.946,-122.782],
- "kentfield":[37.952,-122.556],"kenwood":[38.417,-122.555],"kerman":[36.731,-120.072],"kettleman city":[36.022,-119.964],"keyes":[37.557,-120.914],"king city":[36.203,-121.127],
- "kings beach":[39.24,-120.023],"kings canyon national pk":[36.781,-119.068],"kingsburg":[36.508,-119.543],"kirkwood":[38.703,-120.072],"kit carson":[38.432,-120.571],"klamath":[41.542,-124.034],
- "klamath river":[41.864,-122.82],"kneeland":[40.713,-123.946],"knights landing":[38.822,-121.72],"knightsen":[37.982,-121.672],"korbel":[40.824,-123.859],"kyburz":[38.78,-120.255],
- "la grange":[37.679,-120.358],"la honda":[37.272,-122.294],"la selva beach":[36.937,-121.864],"ladera":[37.4,-122.199],"lafayette":[37.886,-122.118],"laguna":[38.421,-121.424],
- "lagunitas":[38.014,-122.702],"lake city":[41.668,-120.181],"lakehead":[40.959,-122.359],"lakeport":[39.055,-122.915],"lakeshore":[37.253,-119.174],"larkspur":[37.937,-122.536],
- "lathrop":[37.823,-121.276],"laton":[36.438,-119.716],"laytonville":[39.668,-123.487],"le grand":[37.234,-120.252],"lee vining":[37.989,-119.123],"leggett":[39.866,-123.713],
- "lemon cove":[36.396,-119.005],"lemoore":[36.31,-119.831],"lewiston":[40.746,-122.843],"likely":[41.231,-120.503],"lincoln":[38.904,-121.296],"linden":[38.022,-121.074],
- "lindsay":[36.21,-119.088],"litchfield":[40.363,-120.254],"little lake":[35.937,-117.906],"little river":[39.271,-123.753],"live oak":[39.267,-121.664],"livermore":[37.682,-121.768],
- "livingston":[37.387,-120.724],"lockeford":[38.162,-121.136],"lockwood":[35.989,-121.206],"lodi":[38.13,-121.272],"loleta":[40.653,-124.229],"loma mar":[37.254,-122.282],
- "lone pine":[36.58,-118.058],"long barn":[38.203,-120.001],"lookout":[41.208,-121.154],"loomis":[38.807,-121.17],"los altos":[37.381,-122.126],"los altos hills":[37.38,-122.138],
- "los banos":[37.058,-120.85],"los gatos":[37.183,-121.98],"los molinos":[40.05,-122.099],"lotus":[38.802,-120.929],"lower lake":[38.861,-122.575],"loyalton":[39.663,-120.23],
- "lucerne":[39.083,-122.785],"macdoel":[41.883,-121.944],"mad river":[40.352,-123.414],"madeline":[41.051,-120.474],"madera":[36.953,-119.881],"madison":[38.68,-121.972],
- "magalia":[39.832,-121.597],"mammoth lakes":[37.642,-118.976],"manchester":[38.992,-123.671],"manteca":[37.797,-121.216],"manton":[40.433,-121.837],"marina":[36.685,-121.793],
- "mariposa":[37.504,-119.892],"markleeville":[38.765,-119.807],"marshall":[38.176,-122.89],"martell":[38.367,-120.795],"martinez":[38.019,-122.134],"marysville":[39.142,-121.522],
- "mather":[38.549,-121.282],"maxwell":[39.292,-122.195],"mcarthur":[41.111,-121.215],"mcclellan":[38.655,-121.403],"mccloud":[41.252,-122.136],"mckinleyville":[40.876,-124.083],
- "meadow valley":[39.918,-121.056],"meadow vista":[39.003,-121.029],"mendocino":[39.323,-123.788],"mendota":[36.742,-120.409],"menlo park":[37.453,-122.179],"merced":[37.302,-120.483],
- "meridian":[39.117,-121.881],"mi wuk village":[38.106,-120.132],"middletown":[38.783,-122.644],"midpines":[37.571,-119.947],"milford":[40.183,-120.39],"mill creek":[40.326,-121.522],
- "mill valley":[37.896,-122.534],"millbrae":[37.6,-122.402],"millville":[40.565,-122.111],"milpitas":[37.428,-121.907],"mineral":[40.329,-121.525],"miramonte":[36.689,-119.048],
- "miranda":[40.235,-123.823],"moccasin":[37.811,-120.299],"modesto":[37.639,-120.997],"mokelumne hill":[38.329,-120.568],"mono hot springs":[37.168,-119.21],"montague":[41.724,-122.464],
- "montara":[37.542,-122.515],"monte rio":[38.463,-123.004],"monte sereno":[37.236,-121.992],"monterey":[36.596,-121.885],"montgomery creek":[40.912,-121.923],"moraga":[37.835,-122.13],
- "morgan hill":[37.129,-121.646],"moss beach":[37.531,-122.507],"moss landing":[36.804,-121.786],"mount aukum":[38.55,-120.73],"mount hamilton":[37.316,-121.64],"mount hermon":[37.051,-122.058],
- "mount shasta":[41.317,-122.324],"mountain house":[37.783,-121.543],"mountain ranch":[38.22,-120.548],"mountain view":[37.386,-122.084],"murphys":[38.127,-120.462],"myers flat":[40.195,-123.823],
- "napa":[38.297,-122.287],"natomas":[38.648,-121.513],"navarro":[39.066,-123.444],"nelson":[39.552,-121.764],"nevada city":[39.275,-121.02],"new almaden":[37.176,-121.82],
- "newark":[37.53,-122.04],"newcastle":[38.872,-121.143],"newman":[37.314,-121.021],"nicasio":[38.055,-122.696],"nice":[39.122,-122.842],"nicolaus":[38.883,-121.553],
- "norden":[39.32,-120.401],"north fork":[37.213,-119.514],"north highlands":[38.689,-121.375],"north san juan":[39.354,-121.135],"novato":[38.116,-122.571],"nubieber":[41.096,-121.182],
- "o neals":[37.087,-119.745],"oak run":[40.686,-122.041],"oakdale":[37.767,-120.847],"oakhurst":[37.348,-119.645],"oakland":[37.804,-122.271],"oakley":[37.997,-121.712],
- "oakville":[38.437,-122.401],"obrien":[40.812,-122.323],"occidental":[38.397,-122.988],"olancha":[36.321,-118.026],"old station":[40.626,-121.458],"olema":[38.041,-122.787],
- "olivehurst":[39.089,-121.55],"olympic valley":[39.156,-120.215],"orange cove":[36.624,-119.314],"orangevale":[38.682,-121.223],"oregon house":[39.314,-121.209],"orick":[41.307,-124.05],
- "orinda":[37.877,-122.18],"orland":[39.745,-122.158],"orleans":[41.318,-123.53],"orosi":[36.546,-119.282],"oroville":[39.533,-121.578],"pacific grove":[36.617,-121.922],
- "pacifica":[37.62,-122.482],"paicines":[36.495,-121.033],"palermo":[39.436,-121.545],"palo alto":[37.442,-122.143],"palo cedro":[40.577,-122.24],"paradise":[39.746,-121.636],
- "parlier":[36.61,-119.537],"paskenta":[39.885,-122.545],"patterson":[37.472,-121.13],"paynes creek":[40.351,-121.765],"pebble beach":[36.591,-121.942],"penn valley":[39.219,-121.194],
- "penngrove":[38.316,-122.672],"penryn":[38.857,-121.179],"pescadero":[37.207,-122.365],"petaluma":[38.24,-122.678],"petrolia":[40.301,-124.251],"phillipsville":[40.209,-123.785],
- "philo":[39.12,-123.538],"piedmont":[37.824,-122.232],"piedra":[36.81,-119.381],"piercy":[39.966,-123.794],"pilot hill":[38.826,-121.03],"pine grove":[38.397,-120.644],
- "pinecrest":[38.341,-119.865],"pinole":[38.004,-122.299],"pioneer":[38.46,-120.532],"pittsburg":[38.028,-121.885],"pixley":[35.955,-119.256],"placerville":[38.719,-120.805],
- "planada":[37.291,-120.317],"platina":[40.317,-122.918],"pleasant grove":[38.788,-121.508],"pleasant hill":[37.948,-122.061],"pleasanton":[37.662,-121.875],"plymouth":[38.488,-120.87],
- "point arena":[38.915,-123.661],"point reyes station":[38.065,-122.816],"pollock pines":[38.746,-120.585],"pope valley":[38.678,-122.472],"port costa":[38.046,-122.187],"porterville":[36.069,-119.032],
- "portola":[39.811,-120.467],"portola valley":[37.384,-122.235],"portola vally":[37.379,-122.208],"posey":[35.813,-118.664],"potter valley":[39.33,-123.104],"prather":[36.994,-119.527],
- "princeton":[39.428,-122.03],"proberta":[40.082,-122.169],"prunedale":[36.776,-121.67],"quincy":[39.941,-120.928],"rackerby":[39.406,-121.336],"rail road flat":[38.343,-120.511],
- "raisin city":[36.599,-119.903],"rancho cordova":[38.602,-121.289],"ravendale":[40.832,-120.16],"raymond":[37.279,-119.877],"red bluff":[40.18,-122.238],"redcrest":[40.406,-123.942],
- "redding":[40.56,-122.412],"redway":[40.11,-123.844],"redwood city":[37.485,-122.236],"redwood estates":[37.156,-121.986],"redwood valley":[39.269,-123.213],"reedley":[36.604,-119.438],
- "represa":[38.688,-121.448],"rescue":[38.719,-120.995],"richgrove":[35.797,-119.107],"richmond":[37.936,-122.348],"richvale":[39.494,-121.744],"rio dell":[40.495,-124.104],
- "rio linda":[38.689,-121.445],"rio nido":[38.521,-122.976],"rio oso":[38.961,-121.505],"rio vista":[38.164,-121.702],"ripon":[37.742,-121.124],"river pines":[38.546,-120.743],
- "riverbank":[37.736,-120.935],"riverdale":[36.43,-119.872],"robbins":[38.87,-121.705],"rocklin":[38.792,-121.243],"rodeo":[38.033,-122.267],"rohnert park":[38.327,-122.706],
- "roseville":[38.735,-121.234],"ross":[37.962,-122.554],"rough and ready":[39.229,-121.151],"round mountain":[40.794,-121.941],"rumsey":[38.876,-122.254],"rutherford":[38.459,-122.421],
- "ryde":[38.239,-121.559],"sacramento":[38.582,-121.494],"saint helena":[38.514,-122.462],"salida":[37.707,-121.09],"salinas":[36.668,-121.66],"salyer":[40.891,-123.548],
- "samoa":[40.804,-124.194],"san andreas":[38.187,-120.669],"san anselmo":[37.985,-122.571],"san ardo":[35.986,-120.861],"san bruno":[37.625,-122.429],"san carlos":[37.497,-122.267],
- "san francisco":[37.775,-122.419],"san geronimo":[38.017,-122.678],"san gregorio":[37.326,-122.356],"san joaquin":[36.606,-120.189],"san jose":[37.338,-121.886],"san juan bautista":[36.85,-121.533],
- "san leandro":[37.725,-122.156],"san lorenzo":[37.681,-122.124],"san lucas":[36.129,-121.019],"san martin":[37.091,-121.6],"san mateo":[37.563,-122.326],"san pablo":[37.962,-122.346],
- "san quentin":[37.943,-122.489],"san rafael":[37.969,-122.511],"san ramon":[37.78,-121.978],"sand city":[36.617,-121.848],"sanger":[36.724,-119.548],"santa clara":[37.354,-121.955],
- "santa cruz":[36.983,-122.044],"santa rita park":[37.047,-120.594],"santa rosa":[38.443,-122.752],"saratoga":[37.273,-122.018],"sausalito":[37.86,-122.495],"scotia":[40.455,-124.039],
- "scott bar":[41.774,-122.988],"scotts valley":[37.058,-122.015],"seaside":[36.609,-121.836],"sebastopol":[38.392,-122.839],"seiad valley":[41.887,-123.244],"selma":[36.57,-119.617],
- "sequoia national park":[36.574,-118.772],"shasta":[40.611,-122.497],"shasta lake":[40.68,-122.365],"shaver lake":[37.14,-119.273],"sheep ranch":[38.209,-120.463],"sheridan":[38.992,-121.362],
- "shingle springs":[38.666,-120.976],"shingletown":[40.505,-121.886],"shoshone":[35.899,-116.264],"sierra city":[39.559,-120.624],"sierraville":[39.594,-120.348],"sloughhouse":[38.507,-121.094],
- "smartville":[39.204,-121.267],"smith river":[41.936,-124.166],"snelling":[37.514,-120.482],"soda springs":[39.338,-120.465],"soledad":[36.42,-121.324],"somerset":[38.607,-120.666],
- "somes bar":[41.433,-123.476],"sonoma":[38.296,-122.473],"sonora":[37.984,-120.382],"soquel":[37.004,-121.95],"soulsbyville":[37.993,-120.26],"south dos palos":[36.964,-120.652],
- "south lake tahoe":[38.917,-119.986],"south san francisco":[37.654,-122.408],"spreckels":[36.622,-121.646],"springville":[36.136,-118.796],"squaw valley":[36.707,-119.181],"st helena":[38.514,-122.462],
- "standard":[37.984,-120.381],"standish":[40.351,-120.407],"stanford":[37.424,-122.162],"stevinson":[37.326,-120.87],"stewarts point":[38.652,-123.398],"stinson beach":[37.902,-122.639],
- "stirling city":[39.908,-121.527],"stockton":[37.958,-121.291],"stonyford":[39.334,-122.518],"storrie":[39.514,-121.555],"stratford":[36.179,-119.824],"strathmore":[36.147,-119.079],
- "strawberry":[38.202,-119.998],"strawberry valley":[39.604,-121.075],"suisun city":[38.241,-122.042],"sultana":[36.546,-119.339],"sunnyvale":[37.369,-122.036],"sunol":[37.609,-121.899],
- "susanville":[40.416,-120.652],"sutter":[39.168,-121.757],"sutter creek":[38.419,-120.785],"tahoe city":[39.181,-120.145],"tahoe vista":[39.245,-120.052],"tahoma":[39.064,-120.136],
- "talmage":[39.131,-123.165],"taylorsville":[40.065,-120.802],"tecopa":[35.898,-115.83],"tehama":[40.027,-122.122],"termo":[40.947,-120.517],"terra bella":[35.957,-119.031],
- "the sea ranch":[38.726,-123.467],"thornton":[38.226,-121.424],"three rivers":[36.438,-118.888],"tiburon":[37.873,-122.457],"tipton":[36.055,-119.308],"tollhouse":[36.994,-119.391],
- "tomales":[38.246,-122.904],"topaz":[38.642,-119.512],"tracy":[37.74,-121.425],"tranquillity":[36.658,-120.262],"traver":[36.455,-119.484],"travis afb":[38.274,-121.946],
- "tres pinos":[36.79,-121.32],"trinidad":[41.088,-124.101],"trinity center":[41.062,-122.724],"truckee":[39.328,-120.182],"tulare":[36.202,-119.338],"tulelake":[41.932,-121.435],
- "tuolumne":[37.971,-120.237],"turlock":[37.495,-120.847],"twain":[40.003,-121.151],"twain harte":[38.045,-120.216],"twin bridges":[38.809,-120.129],"ukiah":[39.152,-123.201],
- "union city":[37.596,-122.044],"upper lake":[39.161,-122.896],"vacaville":[38.357,-121.988],"vallecito":[38.101,-120.468],"vallejo":[38.104,-122.257],"valley ford":[38.316,-122.924],
- "valley springs":[38.154,-120.86],"vernalis":[37.618,-121.259],"victor":[38.138,-121.205],"villa grande":[38.473,-123.024],"vina":[39.933,-122.053],"vineburg":[38.273,-122.438],
- "vinton":[39.721,-120.205],"visalia":[36.311,-119.306],"volcano":[38.477,-120.618],"wallace":[38.194,-120.977],"walnut creek":[37.906,-122.065],"walnut grove":[38.236,-121.525],
- "washington":[39.359,-120.798],"waterford":[37.651,-120.754],"watsonville":[36.921,-121.763],"waukena":[36.098,-119.559],"weaverville":[40.732,-122.935],"weed":[41.439,-122.385],
- "weimar":[39.038,-120.971],"wendel":[40.346,-120.352],"weott":[40.322,-123.921],"west point":[38.406,-120.516],"west sacramento":[38.592,-121.526],"westley":[37.549,-121.198],
- "westport":[39.644,-123.764],"westwood":[40.27,-121.109],"wheatland":[39.019,-121.422],"whiskeytown":[40.639,-122.559],"whitethorn":[40.024,-123.942],"whitmore":[40.653,-121.877],
- "williams":[39.149,-122.162],"willits":[39.411,-123.35],"willow creek":[40.939,-123.631],"willows":[39.524,-122.199],"wilseyville":[38.385,-120.442],"wilton":[38.412,-121.226],
- "windsor":[38.543,-122.804],"winters":[38.529,-121.975],"winton":[37.392,-120.613],"wishon":[37.281,-119.557],"witter springs":[39.182,-122.971],"woodacre":[38.007,-122.638],
- "woodbridge":[38.155,-121.309],"woodlake":[36.431,-119.092],"woodland":[38.674,-121.779],"yettem":[36.486,-119.259],"yolo":[38.732,-121.807],"yorkville":[38.909,-123.234],
- "yosemite national park":[37.747,-119.584],"yountville":[38.404,-122.359],"yreka":[41.721,-122.638],"yuba city":[39.129,-121.622],"zamora":[38.8,-121.907],"zenia":[40.206,-123.491]
-};
+/* City and ZIP locations are not built in: the page loads one file per state from the app's geo/ folder
+   (see the shared places code) and hands each to loadGeo. The first state loaded wins a city name shared by two states. */
+const CITIES = {}, ZIPS = {};
+function loadGeo(d){
+  if (!d) return;
+  for (const k in (d.c || {})) if (!(k in CITIES)) CITIES[k] = d.c[k];
+  for (const z in (d.z || {})) if (!(z in ZIPS)) ZIPS[z] = d.z[z];
+}
 const cityKey = s => String(s||"").toLowerCase().replace(/[^a-z ]+/g," ").replace(/\s+/g," ").trim();
-function cityCoords(city, address){
+function cityCoords(city, address, zip){
+  // a ZIP places an office more closely than its town's centre
+  const z = String(zip || "").match(/\b(\d{5})\b/) || String(address || "").match(/\b(\d{5})(?:-\d{4})?\s*$/);
+  if (z && ZIPS[z[1]]) return ZIPS[z[1]];
   const k = cityKey(city);
   if (CITIES[k]) return CITIES[k];
   const hay = " " + cityKey((address||"") + " " + (city||"")) + " ";
@@ -207,7 +80,7 @@ function addressKey(addr, city){
 }
 function zipOf(cell, address){
   const c = String(cell||"").match(/\b(\d{5})(?:-\d{4})?\b/); if (c) return c[1];
-  const m = String(address||"").match(/(?:,|\bCA\b|\bCalifornia\b)\s*(\d{5})(?:-\d{4})?\s*$/i); return m ? m[1] : "";
+  const m = String(address||"").match(/(?:,|\b[A-Z]{2}\b|\b[A-Za-z]+\b)\s*(\d{5})(?:-\d{4})?\s*$/); return m ? m[1] : "";
 }
 function officeInZone(o, zone){
   if (!zone) return true;
@@ -320,7 +193,7 @@ function officesFromRows(rows, given){
       notes, org: cell(r, map.org),
       zip: zipOf(cell(r, map.zip), address),
       onLeave: /maternity leave|on leave|leave of absence|retired|no longer (here|with|at)/i.test(notes),
-      coords: cityCoords(city, address), addrKey: addressKey(address || city, city)
+      coords: cityCoords(city, address, zipOf(cell(r, map.zip), address)), addrKey: addressKey(address || city, city)
     });
   });
   return offices;
@@ -523,6 +396,14 @@ function isPerson(text, person){
   if (w.every(x => new RegExp("(^|[^a-z])" + x + "([^a-z]|$)").test(t))) return true;
   return w.length > 1 && (t.includes(w[0] + "." + w[w.length-1]) || t.includes(w[0] + w[w.length-1]) || t.includes(w[0][0] + w[w.length-1] + "@"));
 }
+const TIME_OFF = /\b(pto|vacation|holiday|out of (the )?office|ooo|day off|off today|sick|leave|personal day|jury|bereavement|conference|convention|national (sales )?meeting|nsm|poa|plan of action|offsite|off-site|training|travel)\b/i;
+// "Lien/Yunji Lunch": a first name in a lunch or coffee title, when only one doctor has it
+function firstNameHits(text, nameIndex, skip){
+  if (!nameIndex.byFirst){ const m = {}; nameIndex.idx.forEach(e => { if (e.first && e.first.length >= 3) (m[e.first] = m[e.first] || new Set()).add(e.id); }); nameIndex.byFirst = m; }
+  const out = [];
+  normName(text).split(" ").forEach(w => { const g = nameIndex.byFirst[w]; if (g && g.size === 1 && !nameIndex.byLast[w] && !skip.includes(w)) out.push([...g][0]); });
+  return out;
+}
 function classifyEvent(ev, counterparts, nameIndex, myName){
   const own = [ev.summary, ev.location, ev.description].join(" \n ");
   const text = own + " \n " + (ev.attendees||[]).join(" ");
@@ -530,6 +411,10 @@ function classifyEvent(ev, counterparts, nameIndex, myName){
   const docs = findDoctorsInText(own, nameIndex);
   // "Lunch - Lee" or "Coffee w/ Lee": a meal word next to a single name is enough to be sure
   if (docs.length === 1 && docs[0].sure === false && MEAL.test(ev.summary || "")) docs[0].sure = true;
+  if (MEAL.test(ev.summary || "")){
+    const skip = [String(myName || "").trim().split(/\s+/)[0]].concat(counterparts).filter(Boolean).map(x => normName(x));
+    firstNameHits(ev.summary, nameIndex, skip).forEach(id => { const d = docs.find(x => x.id === id); if (d) d.sure = true; else docs.push({id, sure:true}); });
+  }
   const mine = !!(myName && ev.organizer && isPerson(ev.organizer, myName));
   // your own event: a counterpart who is only on the invite list is a guest, not their visit
   if (mine) who = who.filter(c => wordIn(own, c));
@@ -538,7 +423,7 @@ function classifyEvent(ev, counterparts, nameIndex, myName){
   if (who.length && docs.length) kind = "counterpart";
   else if (who.length) kind = "ignore";
   else if (docs.length) kind = "mine";
-  else kind = ev.transp === "TRANSPARENT" ? "ignore" : "busy";
+  else kind = ev.transp === "TRANSPARENT" || (ev.allDay && !TIME_OFF.test(own)) ? "ignore" : "busy";
   // your own lunch or coffee with someone who isn't on your list ("Matthys Lunch - Torre")
   const first = String(myName || "").trim().split(/\s+/)[0] || "";
   const myMeal = kind === "busy" && !ev.allDay && MEAL.test(ev.summary || "") && (mine || (first.length > 1 && wordIn(ev.summary || "", first)));
@@ -685,9 +570,11 @@ function buildContext(input){
   for (const iso of input.days){
     let busyA = 0, busyP = 0, off = false; const notes = [];
     for (const ev of input.calendar){
-      if (ev.kind !== "busy" && ev.kind !== "mine") continue;
       const covers = ev.allDay ? (ev.start <= fromISO(iso) && ev.end > fromISO(iso)) : isoDay(ev.start) === iso;
       if (!covers) continue;
+      // an all-day item that isn't time off (a training series, say) is shown on the day but leaves it open
+      if (ev.kind === "ignore" && ev.allDay && !(ev.who || []).length){ notes.push({label:"All day", text:ev.summary + " (day left open)"}); continue; }
+      if (ev.kind !== "busy" && ev.kind !== "mine") continue;
       if (ev.kind === "busy"){
         if (ev.allDay){ off = true; notes.push({label:"All day", text:ev.summary}); continue; }
         const mA = minutesOverlap(ev, iso, 8, 12), mP = minutesOverlap(ev, iso, 12, 17);
@@ -697,7 +584,7 @@ function buildContext(input){
         (ev.docs||[]).filter(x => x.sure !== false).forEach(x => {
           if (!C.docById[x.id]) return;
           const slot = ev.allDay ? "am" : (ev.start.getHours() < 12 ? "am" : "pm");
-          (C.fixed[iso] = C.fixed[iso] || []).push({id:x.id, slot, from:"calendar", note:ev.summary, hour: ev.allDay ? null : ev.start.getHours() + ev.start.getMinutes()/60, time:ev.allDay ? "" : ev.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})});
+          (C.fixed[iso] = C.fixed[iso] || []).push({id:x.id, slot, from:"calendar", note:ev.summary, where:[ev.summary, ev.location].join(" "), hour: ev.allDay ? null : ev.start.getHours() + ev.start.getMinutes()/60, time:ev.allDay ? "" : ev.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})});
         });
       }
     }
@@ -744,12 +631,18 @@ function orderDay(stops, home, capAM, capPM){
   // a visit at a set time around midday (a lunch): everything before it in the loop is the morning
   const noon = stops.find(s => s.fixed && s.hour != null && s.hour >= 11 && s.hour < 14);
   if (noon){
+    // roughly one visit an hour from 8:30 until the lunch (3 before a noon lunch), the rest after it.
+    // The loop is cut around the lunch: the k stops just before it in the loop are the morning, the rest follow the lunch.
+    const target = Math.max(0, Math.min(capAM, Math.floor(noon.hour - 8.5)));
     let best = null;
-    for (const seq of [tour, tour.slice().reverse()]){
-      const k = seq.indexOf(noon);
-      const ok = seq.every((s,i) => i < k ? s.am : (s === noon || s.pm));
-      const score = (ok ? 0 : 100) + Math.abs(k - n/2) + (k > capAM ? 50 : 0) + (n - k > capPM + 1 ? 50 : 0);
-      if (!best || score < best.score) best = {seq, k, score};
+    for (const dir of [tour, tour.slice().reverse()]){
+      const j = dir.indexOf(noon), cyc = dir.slice(j + 1).concat(dir.slice(0, j));
+      for (let k = 0; k <= n - 1; k++){
+        const pm = cyc.slice(0, n - 1 - k), am = cyc.slice(n - 1 - k), seq = am.concat([noon], pm);
+        const ok = am.every(s => s.am) && pm.every(s => s.pm) && k <= capAM && pm.length <= capPM;
+        const score = (ok ? 0 : 100) + 3 * Math.abs(k - target) + miles(tourLength(seq, home)) / 10;
+        if (!best || score < best.score) best = {seq, k, score};
+      }
     }
     if (best.score < 100){
       best.seq.forEach((s,i) => s.slot = i < best.k ? "am" : "pm");
@@ -777,7 +670,11 @@ function orderDay(stops, home, capAM, capPM){
 }
 
 function makeFixedStop(C, f, iso){
-  const opts = optionsFor(C, f.id, iso); const o = opts[0] || null;
+  const t = " " + String(f.where || f.note || "").toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+  const named = i => { const c = String(C.offices[i].city || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); return c && t.includes(" " + c + " "); };
+  const opts = optionsFor(C, f.id, iso);
+  let o = opts.find(x => named(x.office)) || opts[0] || null;
+  if (o && !named(o.office)){ const i = (C.match.byDoc[f.id] || []).find(named); if (i != null) o = {office:i}; }
   const off = o ? C.offices[o.office] : (C.match.byDoc[f.id]||[]).map(i => C.offices[i])[0];
   return {id:f.id, office: o ? o.office : ((C.match.byDoc[f.id]||[])[0] ?? null), slot:f.slot, coords: off ? off.coords : null, addrKey: off ? off.addrKey : "cal|"+f.id, fixed:true, am:f.slot === "am", pm:f.slot === "pm", note:f.note, time:f.time, hour:f.hour, history:[]};
 }
@@ -992,6 +889,9 @@ function rescueStranded(C, plan){
 }
 function finishDay(C, plan, iso){
   const day = plan.days[iso];
+  const pr = s => s.done ? 3 : s.fixed ? 2 : s.manual ? 1 : 0, keepAt = {};
+  day.stops.forEach((s,i) => { const k = keepAt[s.id]; if (k == null || pr(s) > pr(day.stops[k])) keepAt[s.id] = i; });
+  day.stops = day.stops.filter((s,i) => keepAt[s.id] === i);
   const extra = day.stops.filter(s => s.manual).length;
   const o = orderDay(day.stops.filter(s => s.coords), C.home, (day.capAM ?? 4) + extra, (day.capPM ?? 5) + extra);
   day.stops = o.stops.concat(day.stops.filter(s => !s.coords)); day.miles = o.miles;
@@ -1192,7 +1092,7 @@ function csvRows(text){
   return rows.filter(r => r.some(c => String(c).trim()));
 }
 
-const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
+const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, ZIPS, loadGeo, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, MEAL_RE: MEAL, parseTSV,
   scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, placeFixed, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};

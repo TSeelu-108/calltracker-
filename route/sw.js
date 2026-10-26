@@ -1,12 +1,13 @@
 // Week Router offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "weekrouter-shell-v39";
+const SHELL = "weekrouter-shell-v42";
 const FILES = ["./", "index.html", "logic.js", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, {cache:"reload"})))).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("weekrouter-shell-") && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
+  if (url.pathname.includes("/geo/")) return; // place data keeps its own cache (geo-places-v1)
   const key = req.mode === "navigate" ? "index.html" : req;
   const fresh = async () => {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
