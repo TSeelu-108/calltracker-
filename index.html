@@ -126,6 +126,8 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .tile.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .tile.primary .ic{background:rgba(255,255,255,.2);color:var(--accent-ink)}
 .t-blue{--tb:#e3eff7;--tf:#0f5f8c}.t-green{--tb:#dcf1e2;--tf:#1d6a33}.t-amber{--tb:#fdf0c8;--tf:#7a5a00}.t-plum{--tb:#ece5f5;--tf:#5b3f8c}.t-slate{--tb:#e8edf2;--tf:#3a4757}.t-teal{--tb:#d6f1ec;--tf:#0b6b5e}.tile.t-teal{border-color:#9fd9cd}
+.sechd{display:block;margin:18px 0 8px;padding:7px 12px;border-radius:9px;background:#e3eff7;color:#0f5f8c;font-weight:700;letter-spacing:.01em}
+@media (prefers-color-scheme:dark){.sechd{background:#1a3244;color:#8fcaf0}}
 @media (prefers-color-scheme:dark){.t-blue{--tb:#1a3244;--tf:#8fcaf0}.t-green{--tb:#1d3d27;--tf:#b8ecc5}.t-amber{--tb:#463b14;--tf:#ffe69a}.t-plum{--tb:#33284a;--tf:#d6c6f2}.t-slate{--tb:#26303b;--tf:#c9d3dd}.t-teal{--tb:#17393a;--tf:#9fe3d6}.tile.t-teal{border-color:#2f6b62}}
 .tile.dd{border-color:#c9b8e3}
 
@@ -237,7 +239,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
   <header class="top">
     <div class="titlebar">
       <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></svg></span><div><h1>Call Tracker</h1><div class="bsub" id="todayLbl"></div></div></div>
-      <button class="iconbtn" id="moreBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
+      <button class="iconbtn" id="moreBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
     <div class="sub" id="planLbl" style="margin-top:6px"></div>
     <nav class="tiles" aria-label="Main">
@@ -256,7 +258,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
     </div>
     <div class="bar" aria-hidden="true"><i id="barG" style="background:var(--grn-edge)"></i><i id="barY" style="background:var(--yel-edge)"></i><i id="barR" style="background:var(--red-edge)"></i></div>
     <div class="logday">
-      <label for="logDate">Calls are logged on</label>
+      <label for="logDate">Calls today are logged on</label>
       <input type="date" id="logDate">
       <span id="logWarn" class="warn" hidden>Not today</span>
       <button class="btn ghost" id="backToday" hidden style="min-height:40px;padding:6px 10px">Back to today</button>
@@ -271,11 +273,12 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
   <div class="tools">
     <input type="search" id="q" placeholder="Find a doctor or city" aria-label="Find a doctor or city">
     <select id="city" aria-label="City"></select>
-    <div class="seg" role="group" aria-label="Show">
+    <div style="display:flex;flex-direction:column;gap:4px"><span class="small" style="font-weight:600">Call completion status</span>
+    <div class="seg" role="group" aria-label="Call completion status">
       <button data-f="all" aria-pressed="true">All</button>
       <button data-f="todo" aria-pressed="false">Still to do</button>
       <button data-f="done" aria-pressed="false">Done</button>
-    </div>
+    </div></div>
     <select id="sort" aria-label="Sort">
       <option value="lastAZ">Last name A–Z</option>
       <option value="lastZA">Last name Z–A</option>
@@ -957,14 +960,14 @@ $("moreBtn").onclick = async () => {
     </div>
     <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
     <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Providers</b></p>
+    <p class="sechd">Providers</p>
     <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add a provider not on my call plan</button><button class="btn" id="findMiss">Find a missing doctor${missingCands().length ? " (" + missingCands().length + ")" : ""}</button></div>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Lunches and coffees</b></p>
+    <p class="sechd">Lunches and coffees</p>
     <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Plan my week</b></p>
+    <p class="sechd">Plan my week</p>
     <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
     <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
-    <p style="margin-top:16px"><b style="color:var(--ink)">Your data</b></p>
+    <p class="sechd">Your data</p>
     <p>Everything you enter stays in this app on this iPad. Nothing is uploaded, and there's no export to Files or iCloud. Deleting the app's icon from the Home Screen deletes its data.</p>
     <div class="foot" style="justify-content:flex-start">
       <label class="btn small ghost" for="restoreF">Restore from an older backup file</label>
