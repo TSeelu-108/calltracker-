@@ -1,8 +1,16 @@
 // Week Router offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "weekrouter-shell-v49";
+const SHELL = "weekrouter-shell-v50";
 const FILES = ["./", "index.html", "logic.js", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
-self.addEventListener("install", e => e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES.map(f => new Request(f, {cache:"reload"})))).then(() => self.skipWaiting())));
+const looksWhole = (text, path, mode) => mode === "navigate" || /(^|\/)(index\.html)?$/.test(path) ? /<\/html>\s*$/i.test(text) && text.length > 2000 : /\.js$/.test(path) ? text.trim().length > 200 : true;
+// install only when the page itself arrived whole; otherwise the version already on the iPad keeps running
+self.addEventListener("install", e => e.waitUntil((async () => {
+  const page = await fetch("index.html", {cache:"reload"}); const text = await page.clone().text();
+  if (!page.ok || !looksWhole(text, "index.html", "navigate")) throw new Error("incomplete upload");
+  const c = await caches.open(SHELL); await c.addAll(FILES.filter(f => f !== "index.html" && f !== "./").map(f => new Request(f, {cache:"reload"})));
+  await c.put("index.html", page); await c.put("./", new Response(text, {headers: page.headers}));
+  await self.skipWaiting();
+})()));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("weekrouter-shell-") && k !== SHELL).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
@@ -25,6 +33,8 @@ self.addEventListener("fetch", e => {
     const res = await fresh(); if (!res) return;
     const [a, b] = await Promise.all([copy.text(), res.clone().text()]);
     if (a === b) return;
+    // never replace a working copy with a broken upload (an empty or cut-off file)
+    if (!looksWhole(b, url.pathname, req.mode)) return;
     await cache.put(key, res);
     if (req.mode === "navigate" || /\.js$/.test(url.pathname)){
       await cache.put("__updated", new Response("1"));
