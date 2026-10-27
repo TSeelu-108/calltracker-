@@ -317,7 +317,7 @@ const daysAgo = s => Math.round((fromISO(todayISO()) - fromISO(s))/864e5);
 
 /* ---------- state (saved only on this device) ---------- */
 const norm = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
-/* A misread name ("OROTHY YIP", "HI GREGORY BENSCH", "ASID MAJID") is matched to the doctor already on your list,
+/* A misread name ("ORAH KIM", "HI SAMUEL OKAFOR", "ANA ROSS") is matched to the doctor already on your list,
    when exactly one is that close. A misread city ("LOPI") to the nearest known city. */
 function editDist(a, b){ const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9; let prev = Array.from({length:n+1}, (_,j) => j);
   for (let i = 1; i <= m; i++){ const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; } return prev[n]; }
@@ -327,7 +327,7 @@ function snapName(raw){
   const lastOf = x => x.split(" ").pop(), flat = x => x.replace(/ /g, "");
   const hits = known.filter(k => {
     if (id.endsWith(" " + k.id) && id.slice(0, -k.id.length).trim().split(" ").every(t => t.length <= 3)) return true;   // junk in front
-    if (flat(id) === flat(k.id)) return true;                                                                            // "KALING" / "KA LING"
+    if (flat(id) === flat(k.id)) return true;                                                                            // "MEILING" / "MEI LING"
     return k.id.length >= 7 && editDist(id, k.id) <= 2 && editDist(lastOf(id), lastOf(k.id)) <= 1;                     // a letter or two off
   });
   const uniq = [...new Map(hits.map(h => [h.id, h])).values()];
@@ -713,7 +713,7 @@ function confirmSecondCall(d){
 }
 /* ---------- sheets ---------- */
 let busy = false, importCtl = null;
-function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); }
+function openSheet(html){ const fresh = $("scrim").hidden; $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); }
 /* a clear (×) button for every search box */
 function addClears(root){
   root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
@@ -729,7 +729,7 @@ function addClears(root){
 }
 
 function closeSheet(){ if (importCtl) importCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
-$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) sheetLeave(); });
 
 function openHistory(id){
   const d = find(id); const days = d.log.slice().sort().reverse();
@@ -860,6 +860,50 @@ function cityAhead(inp, getList, getMine){
     box.querySelectorAll("[data-ca]").forEach(b => b.onclick = () => { inp.value = b.dataset.ca; box.innerHTML = ""; inp.dispatchEvent(new Event("change", {bubbles:true})); });
   };
   inp.addEventListener("input", show); inp.addEventListener("focus", show);
+}
+
+/* ---------- the ✕ in the corner of every sheet ----------
+   Closes right away when nothing was changed. After a change on a screen with a save button, it asks first:
+   save (that screen's own button), don't save (its Cancel, so Settings goes back to how it was), or keep editing. */
+var sheetDirty = false;
+(function sheetXStyle(){ const st = document.createElement("style");
+  st.textContent = `.sheetxw{position:sticky;top:-20px;height:0;display:flex;justify-content:flex-end;z-index:6;margin-top:-6px}
+  .sheetx{width:40px;height:40px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .sheet h2{padding-right:48px}
+  .sheetask{position:fixed;inset:0;z-index:40;background:rgba(10,15,20,.35);display:flex;align-items:center;justify-content:center;padding:20px}
+  .sheetask > div{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 16px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.25)}`;
+  document.head.appendChild(st); })();
+function sheetX(fresh){
+  const sh = document.getElementById("sheet"); if (!sh) return;
+  if (fresh) sheetDirty = false;
+  if (!sh.dataset.watch){ sh.dataset.watch = "1";
+    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty]")) sheetDirty = true; };
+    sh.addEventListener("input", mark); sh.addEventListener("change", mark);
+    sh.addEventListener("click", e => { const b = e.target.closest("button[aria-pressed]"); if (b && !b.closest("[data-nodirty]")) sheetDirty = true; }, true);
+  }
+  const w = document.createElement("div"); w.className = "sheetxw"; w.innerHTML = '<button type="button" class="sheetx" aria-label="Close">✕</button>';
+  sh.prepend(w); w.firstChild.onclick = sheetLeave;
+}
+function sheetLeave(){
+  const sh = document.getElementById("sheet"); if (!sh) return;
+  const btns = [...sh.querySelectorAll(".foot button, .foot a.btn")];
+  const txt = b => b.textContent.trim();
+  const primary = btns.filter(b => b.classList.contains("primary")).pop();
+  const cancel = btns.find(b => /^(cancel|close|not now|later|remind me later|don.t add|don.t save)$/i.test(txt(b))) || btns.find(b => /^back$/i.test(txt(b)));
+  const saves = primary && !/^(close|ok)$/i.test(txt(primary));
+  if (sheetDirty && saves){
+    const label = /^done$/i.test(txt(primary)) ? "Save" : txt(primary);
+    const o = document.createElement("div"); o.className = "sheetask";
+    o.innerHTML = `<div role="alertdialog" aria-label="Save your changes?"><p style="margin:0 0 6px"><b>Save your changes?</b></p><p class="sub" style="margin:0 0 14px">You changed something on this screen.</p>
+      <div class="foot" style="flex-wrap:wrap"><button class="btn" data-a="keep">Keep editing</button><button class="btn" data-a="drop">Don't save</button><button class="btn primary" data-a="save"></button></div></div>`;
+    o.querySelector('[data-a="save"]').textContent = label;
+    document.body.appendChild(o);
+    o.onclick = e => { const a = e.target.closest("[data-a]"); if (!a && e.target !== o) return; o.remove();
+      if (!a || a.dataset.a === "keep") return;
+      if (a.dataset.a === "save") primary.click(); else if (cancel) cancel.click(); else closeSheet(); };
+    return;
+  }
+  if (cancel) cancel.click(); else if (primary && /^(close|done|ok)$/i.test(txt(primary))) primary.click(); else closeSheet();
 }
 
 /*__GEO_END__*/
@@ -1095,7 +1139,7 @@ function parseCallPlanText(text){
     if (ident.length < 2) continue;
     // Target name is followed by its Last Name column: find the repeat
     let name=null, city="";
-    // the Last Name column can be misread by a letter ("FARRAHI FARRAH") or glued ("BASORA ROVIRA BASORAROVIRA")
+    // the Last Name column can be misread by a letter ("MORALES MORALE") or glued ("DE LEON DELEON")
     const near = (x, y) => { if (x === y) return true; if (Math.min(x.length, y.length) < 4 || Math.abs(x.length - y.length) > 1) return false;
       let i = 0; while (i < x.length && x[i] === y[i]) i++; const a2 = x.slice(i), b2 = y.slice(i);
       return a2.slice(1) === b2.slice(1) || a2.slice(1) === b2 || a2 === b2.slice(1); };
@@ -1456,7 +1500,7 @@ if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.co
 
 render();
 geoLoad(applyGeo);
-// "Add Matthys" from Plan my week's build check
+// "Add Doe" from Plan my week's build check
 try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); o.cal = true; openAddProvider(null, o); } } catch(e){}
 </script>
 </body>
