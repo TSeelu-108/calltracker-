@@ -123,7 +123,12 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .daynav{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-bottom:6px;background:var(--bg)}
 .daynav button{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:inherit;font-weight:700;font-size:14px;color:var(--ink);cursor:pointer;min-width:64px}
 .daynav button span{font-size:11px;font-weight:600;color:var(--muted)}
-.daynav button.today{border-color:var(--accent);background:var(--accent-soft)}
+.daynav button.today{border:2px solid var(--accent)}
+.daynav button.sel{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.daynav button.sel span{color:var(--accent-ink);opacity:.9}
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.14s}
+
 .daynav button.past{opacity:.6}
 .day.past .dayhead{border-bottom:0}
 .day{scroll-margin-top:76px}
@@ -627,7 +632,9 @@ var sheetDirty = false;
   st.textContent = `.sheetxw{position:sticky;top:-20px;height:0;display:flex;justify-content:flex-end;z-index:6;margin-top:-6px}
   .sheetx{width:40px;height:40px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
   .sheet h2{padding-right:48px}
-  .sheetask{position:fixed;inset:0;z-index:40;background:rgba(10,15,20,.35);display:flex;align-items:center;justify-content:center;padding:20px}
+  /* iPhone and iPad zoom into any box with text smaller than 16px when you tap it; 16px keeps the screen as it is */
+  input,select,textarea{font-size:16px !important}
+  .sheetask{position:fixed;inset:0;z-index:40;background:rgba(10,15,20,.35);display:flex;align-items:flex-start;justify-content:center;padding:calc(70px + env(safe-area-inset-top,0px)) 20px 20px}
   .sheetask > div{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 16px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.25)}`;
   document.head.appendChild(st); })();
 function sheetX(fresh){
@@ -648,6 +655,8 @@ function sheetLeave(){
   const primary = btns.filter(b => b.classList.contains("primary")).pop();
   const cancel = btns.find(b => /^(cancel|close|not now|later|remind me later|don.t add|don.t save)$/i.test(txt(b))) || btns.find(b => /^back$/i.test(txt(b)));
   const saves = primary && !/^(close|ok)$/i.test(txt(primary));
+  // the keyboard would hide the question (and the screen behind it), so put it away first
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   if (sheetDirty && saves){
     const label = /^done$/i.test(txt(primary)) ? "Save" : txt(primary);
     const o = document.createElement("div"); o.className = "sheetask";
@@ -663,6 +672,13 @@ function sheetLeave(){
   if (cancel) cancel.click(); else if (primary && /^(close|done|ok)$/i.test(txt(primary))) primary.click(); else closeSheet();
 }
 
+// a message like "That isn't a town the app knows" is shown where you can see it, not off the bottom of the screen
+function sheetShowError(){
+  const er = document.querySelector("#sheet .errmsg"); if (!er) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  requestAnimationFrame(() => er.scrollIntoView({block:"center", behavior:"smooth"}));
+}
+
 /*__GEO_END__*/
 /* ---------- derived inputs ---------- */
 let D = {};
@@ -670,6 +686,10 @@ function derive(){
   D = {};
   if (S.docs && S.docs.src === "tracker"){ const t = readTracker(); if (t){ try { S.docs.list = L.docsFromTrackerFile(t); } catch(e){} } }
   const qEnd = (() => { const t = readTrackerRaw(); return t && t.planEnd || null; })();
+  { const gone = new Set(((readTrackerRaw() || {}).removedDocs || []).map(d => d.id)); let ch = false;
+    if (gone.size) for (const w in S.weeks) for (const iso in S.weeks[w].plan.days){ if (iso < todayISO()) continue; const day = S.weeks[w].plan.days[iso], n = day.stops.length;
+      day.stops = day.stops.filter(s => s.done || !gone.has(s.id)); if (day.stops.length !== n) ch = true; }
+    if (ch) save(); }
   const po = {goal: (+S.settings.goal || 100) / 100, workDays: S.settings.workDays, isOff: myOff, perDay: +S.settings.perDay || 6};
   D.docs = S.docs ? L.scoreDoctors(S.docs.list.map(d => ({...d})), weekMon, qEnd, po) : [];
   D.pace = S.docs ? L.paceSummary(D.docs, L.addDays(weekMon, 4) < todayISO() ? L.addDays(weekMon, 4) : (weekMon > todayISO() ? weekMon : todayISO()), qEnd, po) : null;
@@ -926,7 +946,7 @@ function openBlitz(idx){
         <div class="actions"><input type="search" id="bzQ" placeholder="Search a doctor or city" value="${esc(q)}" style="flex:1;min-width:0">
           <select id="bzCity" aria-label="Add a whole city"><option value="">Add a city…</option>${cities.map(c => `<option>${esc(c)}</option>`).join("")}</select></div></div>
       <div class="cands" id="bzList" style="max-height:340px;overflow:auto">${list.map(d => `<label class="cand" style="grid-template-columns:auto minmax(0,1fr)" data-bn="${esc((d.name + " " + d.city).toLowerCase())}"><input type="checkbox" data-bd="${esc(d.id)}" ${sel.has(d.id) ? "checked" : ""} style="width:22px;height:22px"><div><div class="n">${esc(title(d.name))}</div><div class="sub">${[title(d.city), d.lastCall ? "last call " + fmtShort(d.lastCall) : "no call logged yet"].filter(Boolean).map(esc).join(" · ")}</div></div></label>`).join("")}</div>
-      ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
+      ${err ? `<p class="errmsg" role="alert" style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
       <div class="foot">${orig ? `<button class="btn ghost" id="bzDel">Delete</button>${orig.stopped || (orig.end && orig.end < todayISO()) ? "" : `<button class="btn ghost" id="bzStop">End blitz</button>`}` : ""}<button class="btn" id="bzCancel">Cancel</button><button class="btn primary" id="bzSave">Save</button></div>`);
     const keep = () => { b.name = cleanBlitzName($("bzName").value); b.start = $("bzStart").value || b.start; b.end = $("bzEnd").value || ""; };
     const filt = () => { q = $("bzQ").value.trim().toLowerCase(); $("bzList").querySelectorAll("[data-bn]").forEach(el => el.hidden = !!q && !el.dataset.bn.includes(q)); };
@@ -978,11 +998,19 @@ function contextInput(){
   return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away};
 }
 let STAFF = {};
-const openPast = new Set(); let jumpedToday = false, inputsOpen = false;
+const openPast = new Set(); let jumpedToday = false, inputsOpen = false, viewDay = null, spyHold = 0, geoReady = false;
+// the day you're looking at is highlighted in the day buttons: the one you tapped, or the one scrolled to the top
+function markDay(iso){ viewDay = iso; document.querySelectorAll(".daynav [data-jump]").forEach(b => b.classList.toggle("sel", b.dataset.jump === iso)); }
+let spyTick = false;
+window.addEventListener("scroll", () => { if (spyTick || Date.now() < spyHold) return; spyTick = true; requestAnimationFrame(() => { spyTick = false;
+  const nav = document.querySelector(".daynav"); if (!nav) return; const line = nav.getBoundingClientRect().bottom + 24; let cur = null;
+  document.querySelectorAll("section.day[id^='day-']").forEach(s => { if (s.getBoundingClientRect().top <= line) cur = s.id.slice(4); });
+  if (!cur){ const f = document.querySelector("section.day[id^='day-']"); cur = f ? f.id.slice(4) : null; }
+  if (cur && cur !== viewDay) markDay(cur); }); }, {passive:true});
 function renderRoute(){
   const W = currentPlan();
   $("stale").hidden = !(W && W.stamp !== stamp());
-  $("stateNag").hidden = geoLoaded.size > 0;
+  $("stateNag").hidden = !geoReady || geoLoaded.size > 0;
   if (!W){
     $("summary").innerHTML = zonePill();
     $("buildLbl").textContent = "Build my week";
@@ -1062,7 +1090,8 @@ function renderRoute(){
   const uns = (plan.unscheduled || []).slice(0, 25);
   if (uns.length) html += `<details class="uns"><summary>Not this week (${plan.unscheduled.length})</summary><p class="sub">Most behind first, with the reason they weren't planned.</p><ul class="ulist">${uns.map(u => `<li><span>${esc(docName(u.id))}</span><span>${esc(u.why)}</span></li>`).join("")}</ul></details>`;
   $("routeArea").innerHTML = html;
-  $("routeArea").querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { const el = $("day-" + b.dataset.jump); if (el) el.scrollIntoView({behavior:"smooth", block:"start"}); });
+  $("routeArea").querySelectorAll("[data-jump]").forEach(b => b.onclick = () => { const el = $("day-" + b.dataset.jump); markDay(b.dataset.jump); spyHold = Date.now() + 900; if (el) el.scrollIntoView({behavior:"smooth", block:"start"}); });
+  markDay(viewDay && isos.includes(viewDay) ? viewDay : (isos.includes(tday) ? tday : isos[0]));
   $("routeArea").querySelectorAll("[data-openpast]").forEach(b => b.onclick = () => { openPast.add(b.dataset.openpast); render(); const el = $("day-" + b.dataset.openpast); if (el) el.scrollIntoView({block:"start"}); });
   // land on today straight away (before the page is drawn, so there's no visible jump)
   if (!jumpedToday && isos.includes(tday) && isos[0] !== tday){ jumpedToday = true; const el = $("day-" + tday); if (el){ if ("scrollRestoration" in history) history.scrollRestoration = "manual"; el.scrollIntoView({block:"start", behavior:"instant"}); } }
@@ -1100,7 +1129,7 @@ const digits = s => String(s).replace(/\D/g,"");
 function linkPhones(text){ return esc(text).replace(PHONE, m => `<a href="tel:${digits(m)}">${m}</a>`); }
 /* ---------- actions ---------- */
 let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function openSheet(h){ const fresh = $("scrim").hidden; $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); }
+function openSheet(h){ const fresh = $("scrim").hidden; $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); sheetShowError(); }
 /* a clear (×) button for every search box */
 function addClears(root){
   root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
@@ -1598,7 +1627,7 @@ function openDocInfo(id, back){
       </div>`).join("")}
       <datalist id="cityList">${cityNames.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
       ${locs.length < 8 ? `<button class="btn small ghost" id="lAdd" style="margin-top:10px">+ Add another office</button>` : ""}
-      ${errMsg ? `<p style="color:var(--red-ink)"><b>${esc(errMsg)}</b></p>` : ""}
+      ${errMsg ? `<p class="errmsg" role="alert" style="color:var(--red-ink)"><b>${esc(errMsg)}</b></p>` : ""}
       <p class="sub">No days ticked means the app treats them as in any day.</p>
       <div class="foot">${info && sheetOffs.length ? `<button class="btn ghost" id="lSheet">Use spreadsheet instead</button>` : ""}<button class="btn" id="lCancel">Cancel</button><button class="btn primary" id="lSave">Save</button></div>`);
     $("sheet").querySelectorAll("[data-city]").forEach(i => cityAhead(i, () => cityNames, () => D.offices.map(o => o.city)));
@@ -1624,6 +1653,8 @@ function openDocInfo(id, back){
     $("sheet").querySelectorAll("[data-dall]").forEach(b => b.onclick = () => { const [i,k] = b.dataset.dall.split("|"); const dd = locs[+i].days = locs[+i].days || {}; const x = dd[k] || {}; const on = !(x.am && x.pm); dd[k] = {am:on, pm:on}; $("sheet").querySelectorAll(`[data-g^="${i}|${k}|"]`).forEach(g => g.setAttribute("aria-pressed", String(on))); });
     $("lSave").onclick = () => {
       sync();
+      // an extra office left completely blank is just dropped
+      for (let k = locs.length - 1; k >= 0; k--) if (locs.length > 1 && !locs[k].city && !String(locs[k].address || "").trim() && !locs[k].zip) locs.splice(k, 1);
       const bad = locs.find(l => !l.city);
       if (bad){ errMsg = "Every office needs a city."; draw(); return; }
       const badZip = locs.find(l => l.zip && (l.zip.length !== 5 || !stateOfZip(l.zip)));
@@ -2023,11 +2054,12 @@ function openWho(){
   if (!who.iso || !D.days.includes(who.iso)) who.iso = D.days.includes(todayISO()) ? todayISO() : D.days[0];
   const iso = who.iso, areas = whoAreas(), byId = Object.fromEntries(areas.map(a => [a.id, a]));
   const areaOfCity = {}; areas.forEach(a => a.cities.forEach(c => areaOfCity[c.k] = a.id));
-  if (!who.sel){ const pr = S.whoPrefs || {}; who.sel = (pr.sel || []).filter(id => byId[id]); who.all = !!pr.all; who.off = pr.off || []; }
-  if (!who.sel.length){   // start on the area of that day's first stop
+  if (!who.sel){ const pr = S.whoPrefs || {}; who.sel = (pr.sel || []).filter(id => byId[id]); who.all = !!pr.all; who.off = pr.off || []; if (pr.sel) who.started = true; }
+  if (!who.sel.length && !who.started){   // first time only: start on the area of that day's first stop
     const p = W && W.plan.days[iso] && W.plan.days[iso].stops.find(s => s.office != null);
     const k = p ? L.cityKey((officeOf(p) || {}).city) : ""; if (areaOfCity[k]) who.sel = [areaOfCity[k]];
   }
+  who.started = true;
   const keepPrefs = () => { S.whoPrefs = {sel: who.sel, all: who.all, off: who.off}; save(); };
   const planned = {}; if (W) for (const k in W.plan.days) W.plan.days[k].stops.forEach(s => planned[s.id] = k);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
@@ -2381,13 +2413,14 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 });
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
-geoLoad(L.loadGeo).then(() => { render(); afterStart(); });
+render();
+geoLoad(L.loadGeo).then(() => { geoReady = true; render(); afterStart(); });
 function afterStart(){
 placePendingLunch();
 // opened from a doctor in the Call Tracker: Office and days, or anchor them to a day this week
 const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getItem("pending.routerOpen")); localStorage.removeItem("pending.routerOpen"); } catch(e){}
   if (!p || !p.id) return false; derive();
-  if (p.act === "info") openDocInfo(p.id, () => { closeSheet(); setTimeout(() => { location.href = "../"; }, 700); });
+  if (p.act === "info") openDocInfo(p.id, () => { closeSheet(); setTimeout(() => { location.href = "../"; }, 250); });
   else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That doctor isn't in your list here yet"); return true; } openAnchorAdd(closeSheet, p.id); }
   return true;
 })();
