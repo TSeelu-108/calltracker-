@@ -619,6 +619,50 @@ function cityAhead(inp, getList, getMine){
   inp.addEventListener("input", show); inp.addEventListener("focus", show);
 }
 
+/* ---------- the ✕ in the corner of every sheet ----------
+   Closes right away when nothing was changed. After a change on a screen with a save button, it asks first:
+   save (that screen's own button), don't save (its Cancel, so Settings goes back to how it was), or keep editing. */
+var sheetDirty = false;
+(function sheetXStyle(){ const st = document.createElement("style");
+  st.textContent = `.sheetxw{position:sticky;top:-20px;height:0;display:flex;justify-content:flex-end;z-index:6;margin-top:-6px}
+  .sheetx{width:40px;height:40px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;line-height:1;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .sheet h2{padding-right:48px}
+  .sheetask{position:fixed;inset:0;z-index:40;background:rgba(10,15,20,.35);display:flex;align-items:center;justify-content:center;padding:20px}
+  .sheetask > div{background:var(--surface);color:var(--ink);border-radius:14px;padding:18px 16px;max-width:420px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.25)}`;
+  document.head.appendChild(st); })();
+function sheetX(fresh){
+  const sh = document.getElementById("sheet"); if (!sh) return;
+  if (fresh) sheetDirty = false;
+  if (!sh.dataset.watch){ sh.dataset.watch = "1";
+    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty]")) sheetDirty = true; };
+    sh.addEventListener("input", mark); sh.addEventListener("change", mark);
+    sh.addEventListener("click", e => { const b = e.target.closest("button[aria-pressed]"); if (b && !b.closest("[data-nodirty]")) sheetDirty = true; }, true);
+  }
+  const w = document.createElement("div"); w.className = "sheetxw"; w.innerHTML = '<button type="button" class="sheetx" aria-label="Close">✕</button>';
+  sh.prepend(w); w.firstChild.onclick = sheetLeave;
+}
+function sheetLeave(){
+  const sh = document.getElementById("sheet"); if (!sh) return;
+  const btns = [...sh.querySelectorAll(".foot button, .foot a.btn")];
+  const txt = b => b.textContent.trim();
+  const primary = btns.filter(b => b.classList.contains("primary")).pop();
+  const cancel = btns.find(b => /^(cancel|close|not now|later|remind me later|don.t add|don.t save)$/i.test(txt(b))) || btns.find(b => /^back$/i.test(txt(b)));
+  const saves = primary && !/^(close|ok)$/i.test(txt(primary));
+  if (sheetDirty && saves){
+    const label = /^done$/i.test(txt(primary)) ? "Save" : txt(primary);
+    const o = document.createElement("div"); o.className = "sheetask";
+    o.innerHTML = `<div role="alertdialog" aria-label="Save your changes?"><p style="margin:0 0 6px"><b>Save your changes?</b></p><p class="sub" style="margin:0 0 14px">You changed something on this screen.</p>
+      <div class="foot" style="flex-wrap:wrap"><button class="btn" data-a="keep">Keep editing</button><button class="btn" data-a="drop">Don't save</button><button class="btn primary" data-a="save"></button></div></div>`;
+    o.querySelector('[data-a="save"]').textContent = label;
+    document.body.appendChild(o);
+    o.onclick = e => { const a = e.target.closest("[data-a]"); if (!a && e.target !== o) return; o.remove();
+      if (!a || a.dataset.a === "keep") return;
+      if (a.dataset.a === "save") primary.click(); else if (cancel) cancel.click(); else closeSheet(); };
+    return;
+  }
+  if (cancel) cancel.click(); else if (primary && /^(close|done|ok)$/i.test(txt(primary))) primary.click(); else closeSheet();
+}
+
 /*__GEO_END__*/
 /* ---------- derived inputs ---------- */
 let D = {};
@@ -1056,7 +1100,7 @@ const digits = s => String(s).replace(/\D/g,"");
 function linkPhones(text){ return esc(text).replace(PHONE, m => `<a href="tel:${digits(m)}">${m}</a>`); }
 /* ---------- actions ---------- */
 let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function openSheet(h){ $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); }
+function openSheet(h){ const fresh = $("scrim").hidden; $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); }
 /* a clear (×) button for every search box */
 function addClears(root){
   root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
@@ -1073,7 +1117,7 @@ function addClears(root){
 
 let busy = false, ocrCtl = null;
 function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
-$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy){ checkPending = false; closeSheet(); } });
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy){ checkPending = false; sheetLeave(); } });
 $("prevW").onclick = () => { weekMon = L.addDays(weekMon, -7); S.lastWeek = weekMon; save(); render(); };
 $("nextW").onclick = () => { weekMon = L.addDays(weekMon, 7); S.lastWeek = weekMon; save(); render(); };
 
@@ -1172,7 +1216,7 @@ $("summary").addEventListener("click", e => {
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-z]").forEach(b => b.onclick = () => { S.zoneOverride[weekMon] = +b.dataset.z; save(); closeSheet(); render(); toast(Z[+b.dataset.z].name + " this week. Tap Rebuild week to plan it."); });
 });
-// the name left in "Matthys Lunch - Torre" once the meal word and your own name are taken out
+// the name left in "Doe Lunch - Sam" once the meal word and your own name are taken out
 // counterparts' visits to this doctor this week, one per person per day
 function cpWeekOf(id){ const seen = new Set(); return (D.cp || []).filter(v => v.id === id && !seen.has(v.date + v.who) && seen.add(v.date + v.who)).sort((a,b) => a.date.localeCompare(b.date)); }
 // a quiet tag when your visit makes three (or more) this week, and a red one if it makes three days in a row
@@ -1946,61 +1990,104 @@ function addWithConfirm(iso, c, slot, back){
   $("yesAdd").onclick = doAdd;
 }
 
-/* ---------- who's in: a day + a city ---------- */
-let who = {iso:null, city:"", near:false, pin:false};
+/* ---------- who's in: a day + one or more areas ----------
+   Areas are worked out from where your own offices are (towns within about 15 miles of each other; small towns join the
+   nearest area), so every rep gets areas that fit their territory with nothing to set up. Pick several and the list shows
+   them in the order you picked, like the drive. "Everyone in" adds doctors whose calls are done, marked as such. */
+let who = {iso:null, sel:null, off:[], all:false, fold:[], pin:false};
+function whoAreas(){
+  const byCity = {};
+  D.offices.forEach(o => { const k = L.cityKey(o.city); if (!k) return; const p = o.coords || L.cityCoords(o.city); if (!p) return;
+    const c = byCity[k] = byCity[k] || {k, name: title(o.city), n:0, lat:0, lon:0}; c.n++; c.lat += p[0]; c.lon += p[1]; });
+  const cs = Object.values(byCity).map(c => ({...c, p:[c.lat / c.n, c.lon / c.n]}));
+  let g = cs.map(c => [c]);
+  const far = (A, B) => Math.max(...A.flatMap(a => B.map(b => L.km(a.p, b.p))));
+  for (;;){ let best = null;
+    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++){ const d = far(g[i], g[j]); if (d <= 25 && (!best || d < best.d)) best = {i, j, d}; }
+    if (!best) break; g[best.i] = g[best.i].concat(g[best.j]); g.splice(best.j, 1); }
+  // a small town on its own joins the nearest area within about 22 miles
+  for (let i = g.length - 1; i >= 0; i--){
+    if (g.length < 2 || g[i].length > 1 || g[i][0].n > 3) continue;
+    let bj = -1, bd = 36; g.forEach((h, j) => { if (j === i) return; const d = Math.min(...h.map(c => L.km(c.p, g[i][0].p))); if (d < bd){ bd = d; bj = j; } });
+    if (bj >= 0){ g[bj] = g[bj].concat(g[i]); g.splice(i, 1); }
+  }
+  return g.map(cities => { cities.sort((a,b) => b.n - a.n || a.name.localeCompare(b.name));
+    return {id: cities[0].k, name: cities.length > 1 ? cities[0].name + " area" : cities[0].name, cities}; })
+    .sort((a,b) => b.cities.reduce((t,c) => t + c.n, 0) - a.cities.reduce((t,c) => t + c.n, 0));
+}
 $("whoBtn").onclick = () => openWho();
 function openWho(){
   derive();
   if (!D.docs.length){ toast("Pull in your remaining calls first"); return; }
   const W = currentPlan(); if (W) C = L.buildContext(contextInput());
   if (!who.iso || !D.days.includes(who.iso)) who.iso = D.days.includes(todayISO()) ? todayISO() : D.days[0];
-  const cities = [...new Set(D.offices.map(o => o.city).filter(Boolean))].sort((a,b) => a.localeCompare(b));
-  if (!who.city){ const p = W && W.plan.days[who.iso] && W.plan.days[who.iso].stops.find(s => s.office != null); who.city = p ? (officeOf(p) || {}).city || cities[0] : cities[0]; }
-  const iso = who.iso, cityC = L.cityCoords(who.city);
+  const iso = who.iso, areas = whoAreas(), byId = Object.fromEntries(areas.map(a => [a.id, a]));
+  const areaOfCity = {}; areas.forEach(a => a.cities.forEach(c => areaOfCity[c.k] = a.id));
+  if (!who.sel){ const pr = S.whoPrefs || {}; who.sel = (pr.sel || []).filter(id => byId[id]); who.all = !!pr.all; who.off = pr.off || []; }
+  if (!who.sel.length){   // start on the area of that day's first stop
+    const p = W && W.plan.days[iso] && W.plan.days[iso].stops.find(s => s.office != null);
+    const k = p ? L.cityKey((officeOf(p) || {}).city) : ""; if (areaOfCity[k]) who.sel = [areaOfCity[k]];
+  }
+  const keepPrefs = () => { S.whoPrefs = {sel: who.sel, all: who.all, off: who.off}; save(); };
   const planned = {}; if (W) for (const k in W.plan.days) W.plan.days[k].stops.forEach(s => planned[s.id] = k);
-  const rows = [];
+  const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  // everyone in that day, by area (shown or not), so each chip can show its count
+  const finished = d => !d.added && d.remaining <= 0;
+  const rows = {};   // area id -> [candidate]
   for (const d of D.docs){
-    if (d.noAuto) continue;
+    if (!who.all && (finished(d) || d.noAuto)) continue;
     let best = null;
     for (const i of (D.match.byDoc[d.id] || [])){
       const o = D.offices[i]; const a = L.availableOn(o, iso); if (!a) continue;
-      const inCity = L.cityKey(o.city) === L.cityKey(who.city);
-      const dist = cityC && o.coords ? L.km(cityC, o.coords) : (inCity ? 0 : 999);
-      if (!inCity && !(who.near && dist <= 16)) continue;
-      if (!best || dist < best.dist) best = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am:a.am, pm:a.pm, inToday:true, dist, doc:d,
+      const ck = L.cityKey(o.city), aid = areaOfCity[ck]; if (!aid) continue;
+      const rank = who.sel.includes(aid) && !who.off.includes(ck) ? who.sel.indexOf(aid) : 99;
+      if (best && best.rank <= rank) continue;
+      best = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am:a.am, pm:a.pm, inToday:true, doc:d, aid, ck, rank,
         elsewhere: planned[d.id] && planned[d.id] !== iso ? planned[d.id] : null, onRoute: planned[d.id] === iso,
         counterpart: D.cp.some(v => v.date === iso && v.id === d.id), seen: (C && C.seen && C.seen[d.id]) || (d.lastCall && d.lastCall >= weekMon && d.lastCall <= L.addDays(weekMon, 6) ? d.lastCall : null)};
     }
-    if (best) rows.push(best);
+    if (best) (rows[best.aid] = rows[best.aid] || []).push(best);
   }
-  rows.sort((a,b) => (a.onRoute - b.onRoute) || (b.doc.score - a.doc.score));
+  const count = aid => (rows[aid] || []).filter(c => !who.off.includes(c.ck)).length;
   const canAdd = W && W.plan.days[iso];
-  const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
+  const quota = d => { if (d.added || !d.assigned) return ""; const done = d.completed != null ? +d.completed : d.assigned - d.remaining, cap = Math.max(2, Math.round(d.assigned / 3));
+    return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">Quota met</span>` : ""; };
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : "", c.streak ? "Three of you on three days in a row" : ""].filter(Boolean);
-    return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""}</div>
-      <div class="sub">${esc(addrOf(o))}${who.near && c.dist >= 1 ? " · about " + Math.round(L.miles(c.dist)) + " mi" : ""}</div>
-      <div class="sub">${when} · ${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
+    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""} ${quota(c.doc)}</div>
+      <div class="sub">${esc(addrOf(o))}</div>
+      <div class="sub">${when} · ${c.doc.added ? "added by you" : c.doc.remaining > 0 ? c.doc.remaining + " of " + c.doc.assigned + " left" : "calls done"} · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
       ${flags.length ? `<div class="sub" style="color:var(--red-ink)">${esc(flags.join(" · "))}</div>` : ""}</div>
       ${canAdd && !c.onRoute ? `<div class="actions">${c.am ? `<button class="btn small primary" data-wadd="${c.id}|am">Morning</button>` : ""}${c.pm ? `<button class="btn small primary" data-wadd="${c.id}|pm">Afternoon</button>` : ""}</div>` : ""}</div>`; };
+  const section = aid => { const a = byId[aid], list = (rows[aid] || []).filter(c => !who.off.includes(c.ck));
+    list.sort((x,y) => (x.onRoute - y.onRoute) || (finished(x.doc) - finished(y.doc)) || (y.doc.score - x.doc.score));
+    const per = a.cities.map(c => [c.name, list.filter(x => x.ck === c.k).length]).filter(x => x[1]);
+    const folded = who.fold.includes(aid);
+    return `<div class="whosec" style="margin-top:14px">
+      <button class="whohead" data-wfold="${aid}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:var(--t-blue-bg, #e3eff7);color:#0f5f8c;border:0;border-radius:10px;padding:10px 12px;font-weight:700;min-height:44px">
+        <span>${esc(a.name)} · ${list.length} in on ${dayName}${per.length > 1 ? `<span style="font-weight:400"> (${esc(per.map(x => x[0] + " " + x[1]).join(", "))})</span>` : ""}</span><span aria-hidden="true">${folded ? "▸" : "▾"}</span></button>
+      ${a.cities.length > 1 ? `<div class="chips" style="margin-top:8px">${a.cities.map(c => `<button class="chip" data-wcity="${c.k}" aria-pressed="${!who.off.includes(c.k)}" style="min-height:36px">${esc(c.name)}</button>`).join("")}</div>` : ""}
+      ${folded ? "" : `<div class="cands">${list.map(row).join("") || `<p class="sub">No one ${who.all ? "" : "with calls left "}is in there on ${dayName}.</p>`}</div>`}</div>`; };
   openSheet(`<h2>Who's in</h2>
     <div class="seg" role="group" aria-label="Day" style="margin-top:8px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div>
-    <div class="actions" style="margin-top:10px;align-items:center">
-      <select id="wCity" aria-label="City" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:44px">${cities.map(c => `<option${c===who.city?" selected":""}>${esc(c)}</option>`).join("")}</select>
-      <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wNear" ${who.near?"checked":""}> Include nearby cities</label>
-      <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wPin" ${who.pin?"checked":""}> 📌 Anchor who I add</label>
-    </div>
-    <p style="margin-top:12px"><b>${rows.length} doctor${rows.length===1?"":"s"} with calls left in on ${dayName}</b></p>
-    ${!canAdd && rows.length ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add doctors to a day."}</p>` : ""}
-    <div class="cands">${rows.map(row).join("") || `<p class="sub">No one on your list is in there that day.</p>`}</div>
+    <div class="seg" role="group" aria-label="Which doctors" style="margin-top:8px"><button data-wall="0" aria-pressed="${!who.all}">Calls left only</button><button data-wall="1" aria-pressed="${who.all}">Everyone in</button></div>
+    <p class="sub" style="margin-top:10px">Tap the areas you'll be in, in the order you'll drive them. Tap again to take one off.</p>
+    <div class="chips" style="margin-top:6px">${areas.map(a => { const n = (rows[a.id] || []).length, on = who.sel.includes(a.id);
+      return `<button class="chip" data-warea="${a.id}" aria-pressed="${on}" style="min-height:40px;${n || on ? "" : "opacity:.5"}">${on ? (who.sel.indexOf(a.id) + 1) + ". " : ""}${esc(a.name)} · ${n}</button>`; }).join("")}</div>
+    <label class="sub" style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="wPin" ${who.pin?"checked":""}> 📌 Anchor who I add</label>
+    ${!canAdd ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add doctors to a day."}</p>` : ""}
+    ${who.sel.map(section).join("") || `<p class="sub" style="margin-top:14px">Pick an area above to see who's in.</p>`}
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
-  $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { who.iso = b.dataset.wday; openWho(); });
-  $("wCity").onchange = e => { who.city = e.target.value; openWho(); };
-  $("wNear").onchange = e => { who.near = e.target.checked; openWho(); };
+  $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); who.iso = b.dataset.wday; openWho(); });
+  $("sheet").querySelectorAll("[data-wall]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); who.all = b.dataset.wall === "1"; keepPrefs(); openWho(); });
+  $("sheet").querySelectorAll("[data-warea]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const id = b.dataset.warea; who.sel = who.sel.includes(id) ? who.sel.filter(x => x !== id) : who.sel.concat(id); keepPrefs(); openWho(); });
+  $("sheet").querySelectorAll("[data-wcity]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const k = b.dataset.wcity; who.off = who.off.includes(k) ? who.off.filter(x => x !== k) : who.off.concat(k); keepPrefs(); openWho(); });
+  $("sheet").querySelectorAll("[data-wfold]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const id = b.dataset.wfold; who.fold = who.fold.includes(id) ? who.fold.filter(x => x !== id) : who.fold.concat(id); openWho(); });
   $("wPin").onchange = e => { who.pin = e.target.checked; };
-  $("sheet").querySelectorAll("[data-wadd]").forEach(b => b.onclick = () => { const [id, slot] = b.dataset.wadd.split("|"); addWithConfirm(iso, rows.find(r => r.id === id), slot, openWho); });
+  const all = Object.values(rows).flat();
+  $("sheet").querySelectorAll("[data-wadd]").forEach(b => b.onclick = () => { const [id, slot] = b.dataset.wadd.split("|"); addWithConfirm(iso, all.find(r => r.id === id), slot, openWho); });
 }
 
 /* ---------- office staff (title, name, phone only) ---------- */

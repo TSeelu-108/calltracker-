@@ -262,7 +262,7 @@ function buildNameIndex(planDocs, offices, match){
   const byLast = {}; idx.forEach(e => { (byLast[e.last] = byLast[e.last] || []).push(e); });
   return {idx, byLast};
 }
-// common short names, so "Mike Balduzzi" means Michael and not Jeffrey
+// common short names, so "Mike Rivera" means Michael and not Jeffrey
 const NICK = {MIKE:["MICHAEL"],MICK:["MICHAEL"],JEFF:["JEFFREY","JEFFERY"],BOB:["ROBERT"],BOBBY:["ROBERT"],ROB:["ROBERT","ROBIN"],BILL:["WILLIAM"],WILL:["WILLIAM"],LIAM:["WILLIAM"],
   JIM:["JAMES"],JIMMY:["JAMES"],JAMIE:["JAMES"],TOM:["THOMAS"],DAVE:["DAVID"],STEVE:["STEVEN","STEPHEN"],CHRIS:["CHRISTOPHER","CHRISTINE","CHRISTINA"],JOE:["JOSEPH"],
   DAN:["DANIEL"],DANNY:["DANIEL"],MATT:["MATTHEW"],NICK:["NICHOLAS"],TONY:["ANTHONY","ANTONIO"],RICK:["RICHARD","RICARDO"],RICH:["RICHARD"],DICK:["RICHARD"],
@@ -397,7 +397,7 @@ function isPerson(text, person){
   return w.length > 1 && (t.includes(w[0] + "." + w[w.length-1]) || t.includes(w[0] + w[w.length-1]) || t.includes(w[0][0] + w[w.length-1] + "@"));
 }
 const TIME_OFF = /\b(pto|vacation|holiday|out of (the )?office|ooo|day off|off today|sick|leave|personal day|jury|bereavement|conference|convention|national (sales )?meeting|nsm|poa|plan of action|offsite|off-site|training|travel)\b/i;
-// "Lien/Yunji Lunch": a first name in a lunch or coffee title, when only one doctor has it
+// "Lee/Mei Lunch": a first name in a lunch or coffee title, when only one doctor has it
 function firstNameHits(text, nameIndex, skip){
   if (!nameIndex.byFirst){ const m = {}; nameIndex.idx.forEach(e => { if (e.first && e.first.length >= 3) (m[e.first] = m[e.first] || new Set()).add(e.id); }); nameIndex.byFirst = m; }
   const out = [];
@@ -424,7 +424,7 @@ function classifyEvent(ev, counterparts, nameIndex, myName){
   else if (who.length) kind = "ignore";
   else if (docs.length) kind = "mine";
   else kind = ev.transp === "TRANSPARENT" || (ev.allDay && !TIME_OFF.test(own)) ? "ignore" : "busy";
-  // your own lunch or coffee with someone who isn't on your list ("Matthys Lunch - Torre")
+  // your own lunch or coffee with someone who isn't on your list ("Doe Lunch - Sam")
   const first = String(myName || "").trim().split(/\s+/)[0] || "";
   const myMeal = kind === "busy" && !ev.allDay && MEAL.test(ev.summary || "") && (mine || (first.length > 1 && wordIn(ev.summary || "", first)));
   return {kind, who, docs, mine, myMeal};
@@ -914,7 +914,7 @@ function placeFixed(C, plan, iso){
   plan.unscheduled = explainUnscheduled(C, plan);
   return added;
 }
-// A doctor can be left out only because their area landed on a day they aren't in (Patel in Turlock is in Mon/Tue/Thu,
+// A doctor can be left out only because their area landed on a day they aren't in (a doctor in a far town is in Mon/Tue/Thu,
 // but the valley day came out as Friday).
 function rescueStranded(C, plan){
   const auto = s => !s.fixed && !s.done && !s.manual;
