@@ -255,7 +255,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
     <div class="titlebar">
       <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><div><h1>Plan my week</h1>
         <div class="weeknav"><button class="icon" id="prevW" aria-label="Previous week">‹</button><span class="wk-lbl" id="weekLbl"></span><button class="icon" id="nextW" aria-label="Next week">›</button></div></div></div>
-      <button class="iconbtn" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></button>
+      <button class="iconbtn" id="settingsBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
     <nav class="tiles" aria-label="Plan">
       <button class="tile primary" id="buildBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span><span id="buildLbl">Build my week</span></button>
@@ -287,6 +287,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
         <input type="file" id="f2" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
         <button class="btn small" id="docsBtn">Doctors</button>
         <button class="btn small" id="colsBtn" hidden>Columns</button>
+        <button class="btn small" id="xlBtn" style="background:#1d6f42;border-color:#1d6f42;color:#fff;font-weight:700"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9.5 9v11.5"/></svg>Save best times as Excel</button>
       </div>
     </div>
     <div class="card">
@@ -311,6 +312,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
     </div>
   </section>
 
+  <div id="stateNag" class="banner" hidden><span>Choose your state so the planner can place offices and measure drives.</span><button class="btn small" id="stateNagBtn">Choose state</button></div>
   <div id="stale" class="banner" hidden><span>Something changed since this week was built.</span><button class="btn small" id="rebuild2">Rebuild week</button></div>
   <div id="routeArea"></div>
 </div>
@@ -910,6 +912,7 @@ const openPast = new Set(); let jumpedToday = false, inputsOpen = false;
 function renderRoute(){
   const W = currentPlan();
   $("stale").hidden = !(W && W.stamp !== stamp());
+  $("stateNag").hidden = geoLoaded.size > 0;
   if (!W){
     $("summary").innerHTML = zonePill();
     $("buildLbl").textContent = "Build my week";
@@ -922,7 +925,7 @@ function renderRoute(){
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
   $("buildLbl").textContent = "Rebuild week";
-  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${D.pace ? `<span class="pill" title="${D.pace.done} calls done toward a goal of ${D.pace.target} (${D.pace.goal}% of ${D.pace.assigned} assigned). ${D.pace.pct}% of your field days are behind you.">Goal ${D.pace.goal}% · <b>${D.pace.done}</b> of ${D.pace.target} · ${D.pace.ahead > 0 ? `<b>${D.pace.ahead}</b> ahead` : D.pace.ahead < 0 ? `<b>${-D.pace.ahead}</b> behind` : "on pace"}${D.pace.fits ? "" : ` · on pace for about ${D.pace.reach}%`}</span>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
+  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${D.pace.ahead > 0 ? `<b>${D.pace.ahead}</b> call${D.pace.ahead === 1 ? "" : "s"} ahead of schedule` : D.pace.ahead < 0 ? `<b>${-D.pace.ahead}</b> call${D.pace.ahead === -1 ? "" : "s"} behind schedule` : "right on schedule"} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   const isos = Object.keys(plan.days).sort(), tday = todayISO();
   let html = `<nav class="daynav" aria-label="Jump to a day">${isos.map(iso => { const d = plan.days[iso], dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
@@ -995,6 +998,7 @@ function renderRoute(){
   if (!jumpedToday && isos.includes(tday) && isos[0] !== tday){ jumpedToday = true; const el = $("day-" + tday); if (el){ if ("scrollRestoration" in history) history.scrollRestoration = "manual"; el.scrollIntoView({block:"start", behavior:"instant"}); } }
   $("routeArea").querySelectorAll("[data-hidepast]").forEach(b => b.onclick = () => { openPast.delete(b.dataset.hidepast); render(); const el = $("day-" + b.dataset.hidepast); if (el) el.scrollIntoView({block:"nearest", behavior:"instant"}); });
   if ($("shareBtn")) $("shareBtn").onclick = shareWeek;
+  if ($("paceBtn")) $("paceBtn").onclick = openPace;
   $("summary").querySelectorAll("[data-bprog]").forEach(b => b.onclick = () => {
     const p = blitzProgress(plan)[+b.dataset.bprog]; const why = Object.fromEntries((plan.unscheduled || []).map(u => [u.id, u.why]));
     const inPlan = {}; for (const iso in plan.days) plan.days[iso].stops.forEach(s => inPlan[s.id] = iso);
@@ -1267,6 +1271,7 @@ function openSubstitute(iso, i){
 
 /* ---------- remaining calls ---------- */
 function readTracker(){ try { const s = JSON.parse(localStorage.getItem(TRACKER_KEY)); return s && Array.isArray(s.doctors) && s.doctors.length ? s : null; } catch(e){ return null; } }
+$("xlBtn").onclick = () => openBestTimes();
 $("useTracker").onclick = () => {
   const t = readTracker(); if (!t) return;
   S.docs = {list: L.docsFromTrackerFile(t), label:"your Call Tracker", src:"tracker", at:new Date().toISOString()}; save(); render(); toast(`Loaded ${S.docs.list.length} doctors with calls left`);
@@ -1347,11 +1352,12 @@ function openStatePick(){
   const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e){ return ""; } })();
   const guess = {"America/Los_Angeles":"CA","America/Denver":"CO","America/Phoenix":"AZ","America/Chicago":"IL","America/New_York":"NY","America/Detroit":"MI","America/Anchorage":"AK","Pacific/Honolulu":"HI","America/Boise":"ID","America/Indiana/Indianapolis":"IN"}[tz] || "";
   openSheet(`<h2>Which state do you work in?</h2>
-    <p>Plan my week uses your state's towns and ZIP codes to place offices and plan routes. It's a one-time download of public place data; nothing of yours is sent. You only do this once on this iPad.</p>
+    <p>Plan my week needs this to work out where your offices are and how far apart they are. Without it, offices you add can't be placed and the routes can't be measured.</p>
+    <p class="sub">It's a one-time download of public town and ZIP code data for that state. Nothing of yours is sent.</p>
     <select id="spSel" style="margin-top:8px"><option value="">Choose your state…</option>${Object.entries(US_STATES).map(([k,v]) => `<option value="${k}"${k === guess ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>
     <p class="small" id="spMsg" style="color:var(--red-ink)"></p>
-    <div class="foot"><button class="btn" id="spLater">Later</button><button class="btn primary" id="spOk">Download</button></div>`);
-  $("spLater").onclick = closeSheet;
+    <div class="foot"><button class="btn" id="spLater">Remind me later</button><button class="btn primary" id="spOk">Download</button></div>`);
+  $("spLater").onclick = () => { S.statePromptDay = todayISO(); save(); closeSheet(); render(); };
   $("spOk").onclick = async () => {
     const v = $("spSel").value; if (!v){ $("spMsg").textContent = "Choose a state first."; return; }
     $("spOk").disabled = true; $("spOk").textContent = "Downloading…";
@@ -2048,6 +2054,85 @@ function weekText(){
   }
   return lines.join("\n");
 }
+// what "ahead of schedule" means, in plain words
+function openPace(){
+  const p = D.pace; if (!p) return;
+  const should = Math.max(0, p.done - p.ahead);
+  openSheet(`<h2>Your quarter so far</h2>
+    <p><b style="color:var(--ink)">${p.done} of ${p.target} calls done.</b> ${p.goal < 100 ? `Your goal is ${p.goal}% of your ${p.assigned} assigned calls.` : `That's your full ${p.assigned} assigned calls.`}</p>
+    <p><b style="color:var(--ink)">${p.ahead > 0 ? `${p.ahead} call${p.ahead === 1 ? "" : "s"} ahead of schedule.` : p.ahead < 0 ? `${-p.ahead} call${p.ahead === -1 ? "" : "s"} behind schedule.` : "Right on schedule."}</b> ${p.pct}% of your field days this quarter are behind you, so an even pace would have you at about ${should} calls by now. You've made ${p.done}.</p>
+    <p>${p.fits ? `At your doctors per day, the rest fits in the ${p.fieldLeft} field days left.` : `At your doctors per day, the ${p.fieldLeft} field days left get you to about ${p.reach}% of your assigned calls. The planner won't cram weeks to catch up; you can lower your goal in Settings.`}</p>
+    <p class="sub">Field days skip weekends, holidays and the time off you add in Settings. Calls you plan this week count once they're marked Done.</p>
+    <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+}
+/* ---------- best times as an Excel file ----------
+   Saved to Files on this iPad (no share sheet). Office information only, in the same columns as a best-times spreadsheet,
+   so a new rep can load it with Load spreadsheet: the spreadsheet's rows, with the offices and days you changed or added
+   in the app in place of the old ones. No call numbers, lunches, counterpart schedules or office staff contacts. */
+function bestTimesRows(){
+  derive();
+  const rows = [["Name","Specialty","Address","City","ZIP","Availability","Notes","Organization"]];
+  const sheetOff = S.sheet ? S.sheet.offices : [];
+  const viaApp = Object.keys(S.docInfo || {}).filter(id => S.docInfo[id] && S.docInfo[id].locs && S.docInfo[id].locs.length);
+  const skip = new Set(); viaApp.forEach(id => (D.sheetByDoc[id] || []).forEach(i => skip.add(i)));
+  sheetOff.forEach((o, i) => { if (!skip.has(i)) rows.push([o.rawName || "", o.specialty || "", o.address || "", o.city || "", o.zip || "", o.availText || "", o.notes || "", o.org || ""]); });
+  viaApp.forEach(id => {
+    const d = D.docs.find(x => x.id === id) || {name:id};
+    const w = title(d.name).split(" "), nm = w.length > 1 ? w[w.length-1] + ", " + w.slice(0,-1).join(" ") : w[0];
+    const so = (D.sheetByDoc[id] || []).map(i => sheetOff[i]).find(Boolean) || {};
+    S.docInfo[id].locs.forEach(loc => rows.push([nm, so.specialty || "", loc.address || "", loc.city || "", loc.zip || "", L.availText(dayAvail(loc)), d.added ? "Added in the app (not on the call plan)" : (so.notes || ""), so.org || ""]));
+  });
+  return rows;
+}
+// a small .xlsx writer (stored zip, one sheet, bold frozen header row)
+function xlsxBlob(rows, sheetName){
+  const x = v => String(v ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col = i => { let s = ""; i++; while (i){ const m = (i-1) % 26; s = String.fromCharCode(65+m) + s; i = Math.floor((i-1)/26); } return s; };
+  const widths = [28,12,34,16,8,34,44,24];
+  const ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', rns = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const H = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const files = {
+    "[Content_Types].xml": H + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+    "_rels/.rels": H + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    "xl/workbook.xml": H + `<workbook ${ns} ${rns}><sheets><sheet name="${x(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": H + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    "xl/styles.xml": H + `<styleSheet ${ns}><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+    "xl/worksheets/sheet1.xml": H + `<worksheet ${ns} ${rns}><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${widths.map((w,i) => `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${rows.map((r,ri) => `<row r="${ri+1}">${r.map((v,ci) => `<c r="${col(ci)}${ri+1}" t="inlineStr"${ri === 0 ? ' s="1"' : ""}><is><t xml:space="preserve">${x(v)}</t></is></c>`).join("")}</row>`).join("")}</sheetData></worksheet>`
+  };
+  const enc = new TextEncoder(), T = new Uint32Array(256);
+  for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; T[n] = c >>> 0; }
+  const crc = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], cen = []; let off = 0;
+  for (const [name, text] of Object.entries(files)){
+    const nb = enc.encode(name), data = enc.encode(text), c = crc(data);
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(8, 0, true); lh.setUint32(14, c, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nb.length, true);
+    parts.push(new Uint8Array(lh.buffer), nb, data);
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint32(16, c, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, off, true);
+    cen.push(new Uint8Array(ch.buffer), nb); off += 30 + nb.length + data.length;
+  }
+  const csz = cen.reduce((t,b) => t + b.length, 0), n = Object.keys(files).length;
+  const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, n, true); end.setUint16(10, n, true); end.setUint32(12, csz, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(end.buffer)], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function openBestTimes(back){
+  const rows = bestTimesRows(), n = rows.length - 1;
+  if (!n){ toast("Load your best-times spreadsheet or set offices in the app first"); return; }
+  const changed = Object.keys(S.docInfo || {}).filter(id => S.docInfo[id] && S.docInfo[id].locs && S.docInfo[id].locs.length).length;
+  const fname = "Office best times - " + new Date().toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"}).replace(/,/g, "") + ".xlsx";
+  openSheet(`<h2>Save best times as Excel</h2>
+    <p>${n} office${n === 1 ? "" : "s"}${changed ? `, including the offices and days you set in the app for ${changed} doctor${changed === 1 ? "" : "s"}` : ""}. Same columns as a best-times spreadsheet, so a new rep can load it with <b>Load spreadsheet</b>.</p>
+    <p class="sub"><b>Included:</b> name, specialty, address, city, ZIP, best days and times, appointment only, the spreadsheet's notes, organization.<br><b>Left out:</b> call numbers and progress, lunches and calendar items, counterpart schedules, office staff you saved in the app.</p>
+    <p class="sub">It's saved to the Downloads folder in Files on this iPad. To keep it off iCloud, set Settings → Apps → Safari → Downloads to <b>On My iPad</b>. Once it's in Files, it's an ordinary Excel file: share it only the way your company allows.</p>
+    <div class="foot"><button class="btn" id="xlBack">${back ? "Back" : "Cancel"}</button><button class="btn primary" id="xlGo" style="background:#1d6f42;border-color:#1d6f42">Save to Files</button></div>`);
+  $("xlBack").onclick = () => back ? back() : closeSheet();
+  $("xlGo").onclick = () => {
+    const url = URL.createObjectURL(xlsxBlob(rows, "Best times"));
+    const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    closeSheet(); toast("Saved “" + fname + "” to Downloads in Files");
+  };
+}
 async function shareWeek(){
   const text = weekText(); if (!text) return;
   try { if (navigator.share){ await navigator.share({text}); return; } } catch(e){ if (e && e.name === "AbortError") return; }
@@ -2060,6 +2145,7 @@ async function shareWeek(){
 
 /* ---------- settings ---------- */
 $("settingsBtn").onclick = () => openSettings();
+function homeFromBox(cur){ const el = $("sHome"); if (!el) return cur; const k = L.cityKey(el.value); if (!k) return cur; return L.CITIES[k] || k === cur ? k : cur; }
 function openSettings(){
   const h0 = S.settings.home, cities = Object.keys(L.CITIES).concat(h0 && !L.CITIES[h0] ? [h0] : []).sort();
   const sheetCities = [...new Set((S.sheet ? S.sheet.offices : []).map(o => L.cityKey(o.city)).filter(Boolean))].sort();
@@ -2074,7 +2160,7 @@ function openSettings(){
     <div class="field">Your states<span class="sub">Towns and ZIP codes for these states are on this iPad for planning. Offices with a ZIP in another state ask before adding it.</span>
       <div class="chips" style="margin-top:6px">${[...geoLoaded].map(x => `<span class="chip">${esc(US_STATES[x])}</span>`).join("") || `<span class="sub">None yet. Pick the state you work in.</span>`}
       <select id="sState" style="max-width:220px"><option value="">Add a state…</option>${Object.entries(US_STATES).filter(([k]) => !geoLoaded.has(k)).map(([k,v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div><p class="small" id="sStateMsg"></p><p class="small" style="opacity:.7">Place data: US Cities Database (MIT) and GeoNames ZIP codes (CC BY 3.0).</p></div>
-    <label class="field" for="sHome">Start and end each day in<select id="sHome"><option value=""${st.home ? "" : " selected"}>Choose your city…</option>${cities.map(c => `<option value="${c}"${c===st.home?" selected":""}>${esc(title(c))}</option>`).join("")}</select></label>
+    <label class="field" for="sHome">Start and end each day in<span class="sub">Type your town and pick it from the list.</span><input id="sHome" list="homeList" value="${esc(st.home ? title(st.home) : "")}" placeholder="e.g. Concord" autocomplete="off" autocapitalize="words" spellcheck="false"><datalist id="homeList">${cities.map(c => `<option value="${esc(title(c))}">`).join("")}</datalist><span class="small" id="sHomeMsg" style="color:var(--red-ink)"></span></label>
     <label class="field" for="sPer">Doctors per day<input id="sPer" type="number" inputmode="numeric" min="1" max="9" value="${st.perDay}"></label>
     <label class="field" for="sGoal">Your goal this quarter<span class="sub">The share of your assigned calls you're aiming for. Below 100%, every doctor still gets at least one call, and the calls left out come mostly from doctors with the fewest assigned, so your high-call doctors stay close to their full quota.</span>
       <span style="display:flex;align-items:center;gap:8px"><input id="sGoal" type="number" inputmode="numeric" min="50" max="100" step="5" value="${st.goal || 100}" style="width:96px"> %</span></label>
@@ -2086,8 +2172,8 @@ function openSettings(){
     <div class="field">Doctors who share an office<div class="seg" role="group" aria-label="Same office rule"><button data-ar="week" aria-pressed="${st.addrRule!=="day"}">One visit per office a week</button><button data-ar="day" aria-pressed="${st.addrRule==="day"}">One per office a day</button></div></div>
     <label class="field" for="sMe">Your name<span class="sub">First and last, as it appears in your Outlook calendar. Events you set up are then always counted as yours, even when a counterpart is invited.</span><input id="sMe" placeholder="e.g. Jordan Smith" value="${esc(st.myName||"")}" autocomplete="off" autocapitalize="words"></label>
     <label class="field" for="sCp">Counterparts in your territory<span class="sub">First names, separated by commas. Used to read their schedule screenshots and calendar events.</span><input id="sCp" placeholder="e.g. Sam, Alex" value="${esc(st.counterparts.join(", "))}"></label>
-    <div class="field">Your data<span class="sub">Everything stays in this app on this iPad. Nothing is uploaded, and there's no export.</span>
-      <div class="actions"><label class="btn small ghost" for="bLoad">Restore from an older backup file</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
+    <div class="field">Your data<span class="sub">Everything stays in this app on this iPad. Nothing is uploaded. The Excel button saves your offices and best times (no call numbers) to Files on this iPad, for a new rep in your territory.</span>
+      <div class="actions"><button class="btn small" id="sXl" style="background:#1d6f42;border-color:#1d6f42;color:#fff;font-weight:700"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:6px"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9.5 9v11.5"/></svg>Save best times as Excel</button><label class="btn small ghost" for="bLoad">Restore from an older backup file</label><input type="file" id="bLoad" accept=".json,application/json" hidden></div></div>
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
   const sheet = $("sheet");
   const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
@@ -2148,15 +2234,17 @@ function openSettings(){
   drawZones();
 
   $("bLoad").onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const s = JSON.parse(await f.text()); if (!s.settings) throw 0; if (s.staff) staffMerge(s.staff); delete s.staff; delete s.sharedNotes; delete s.notes; localStorage.setItem(KEY, JSON.stringify(s)); location.reload(); } catch(_){ toast("That file isn't a Week Router backup."); } };
-  $("sState").onchange = async e => { const v = e.target.value; if (!v) return; keepInputs(); st.home = $("sHome").value || st.home; save(); $("sStateMsg").textContent = "Downloading " + US_STATES[v] + "…";
+  $("sState").onchange = async e => { const v = e.target.value; if (!v) return; keepInputs(); st.home = homeFromBox(st.home); save(); $("sStateMsg").textContent = "Downloading " + US_STATES[v] + "…";
     await geoEnsure([v], L.loadGeo); if (!geoLoaded.has(v)){ $("sStateMsg").textContent = navigator.onLine ? US_STATES[v] + " isn't available yet." : "This needs an internet connection."; return; } render(); openSettings(); };
   const keepGoal = () => { st.goal = Math.max(50, Math.min(100, Math.round(+$("sGoal").value || 100))); st.holidays = $("sHol").checked; };
   $("toAdd").onclick = () => { const f = $("toFrom").value, t = $("toTo").value || f; if (!f) { $("toFrom").focus(); return; }
-    keepInputs(); keepGoal(); st.home = $("sHome").value || st.home; st.timeOff = (st.timeOff || []).concat({from: f <= t ? f : t, to: f <= t ? t : f}); save(); openSettings(); };
-  sheet.querySelectorAll("[data-torm]").forEach(b => b.onclick = () => { const [f, t] = b.dataset.torm.split("|"); keepInputs(); keepGoal(); st.home = $("sHome").value || st.home; st.timeOff = (st.timeOff || []).filter(r => !(r.from === f && (r.to || "") === t)); save(); openSettings(); });
+    keepInputs(); keepGoal(); st.home = homeFromBox(st.home); st.timeOff = (st.timeOff || []).concat({from: f <= t ? f : t, to: f <= t ? t : f}); save(); openSettings(); };
+  sheet.querySelectorAll("[data-torm]").forEach(b => b.onclick = () => { const [f, t] = b.dataset.torm.split("|"); keepInputs(); keepGoal(); st.home = homeFromBox(st.home); st.timeOff = (st.timeOff || []).filter(r => !(r.from === f && (r.to || "") === t)); save(); openSettings(); });
+  $("sXl").onclick = () => { keepInputs(); keepGoal(); st.home = homeFromBox(st.home); save(); openBestTimes(openSettings); };
   $("closeS").onclick = () => {
     keepInputs(); keepGoal();
-    st.home = $("sHome").value || st.home; st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
+    { const k = L.cityKey($("sHome").value); if (k && !L.CITIES[k] && k !== st.home){ $("sHomeMsg").textContent = `“${$("sHome").value}” isn't a town the app knows. Pick one from the list as you type.`; $("sHome").focus(); return; } }
+    st.home = homeFromBox(st.home); st.perDay = Math.max(1, Math.min(9, +$("sPer").value || 6));
     st.myName = staffName($("sMe").value).trim();
     st.counterparts = $("sCp").value.split(",").map(s => s.trim()).filter(Boolean).slice(0,6);
     if ($("zNow")){ const want = +$("zNow").value; if (want !== zoneIndexForWeek(weekMon)){ delete S.zoneOverride[weekMon]; st.zoneAnchor = {mon:weekMon, idx:want}; } else if (!st.zoneAnchor) st.zoneAnchor = {mon:weekMon, idx:want}; }
@@ -2186,7 +2274,8 @@ const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getIt
   return true;
 })();
 if (/[?&]settings\b/.test(location.search)) { history.replaceState(null, "", location.pathname); openSettings(); }
-else if (!handedOff && !geoStates().length) openStatePick();
+else if (!handedOff && !geoStates().length && S.statePromptDay !== todayISO()) openStatePick();
+$("stateNagBtn").onclick = () => openStatePick();
 }
 </script>
 </body>
