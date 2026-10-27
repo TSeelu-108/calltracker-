@@ -2040,7 +2040,7 @@ function openWho(){
     for (const i of (D.match.byDoc[d.id] || [])){
       const o = D.offices[i]; const a = L.availableOn(o, iso); if (!a) continue;
       const ck = L.cityKey(o.city), aid = areaOfCity[ck]; if (!aid) continue;
-      const rank = who.sel.includes(aid) && !who.off.includes(ck) ? who.sel.indexOf(aid) : 99;
+      const rank = who.sel.includes(aid) && !who.off.includes(ck) ? 0 : 99;
       if (best && best.rank <= rank) continue;
       best = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am:a.am, pm:a.pm, inToday:true, doc:d, aid, ck, rank,
         elsewhere: planned[d.id] && planned[d.id] !== iso ? planned[d.id] : null, onRoute: planned[d.id] === iso,
@@ -2067,17 +2067,17 @@ function openWho(){
     return `<div class="whosec" style="margin-top:14px">
       <button class="whohead" data-wfold="${aid}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:var(--t-blue-bg, #e3eff7);color:#0f5f8c;border:0;border-radius:10px;padding:10px 12px;font-weight:700;min-height:44px">
         <span>${esc(a.name)} · ${list.length} in on ${dayName}${per.length > 1 ? `<span style="font-weight:400"> (${esc(per.map(x => x[0] + " " + x[1]).join(", "))})</span>` : ""}</span><span aria-hidden="true">${folded ? "▸" : "▾"}</span></button>
-      ${a.cities.length > 1 ? `<div class="chips" style="margin-top:8px">${a.cities.map(c => `<button class="chip" data-wcity="${c.k}" aria-pressed="${!who.off.includes(c.k)}" style="min-height:36px">${esc(c.name)}</button>`).join("")}</div>` : ""}
+      ${a.cities.length > 1 ? `<div class="chips" style="margin-top:8px">${a.cities.map(c => `<button class="chip" data-wcity="${c.k}" aria-pressed="${!who.off.includes(c.k)}" style="min-height:36px;${who.off.includes(c.k) ? "opacity:.6" : "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px"}">${who.off.includes(c.k) ? "" : "✓ "}${esc(c.name)}</button>`).join("")}</div>` : ""}
       ${folded ? "" : `<div class="cands">${list.map(row).join("") || `<p class="sub">No one ${who.all ? "" : "with calls left "}is in there on ${dayName}.</p>`}</div>`}</div>`; };
   openSheet(`<h2>Who's in</h2>
     <div class="seg" role="group" aria-label="Day" style="margin-top:8px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div>
     <div class="seg" role="group" aria-label="Which doctors" style="margin-top:8px"><button data-wall="0" aria-pressed="${!who.all}">Calls left only</button><button data-wall="1" aria-pressed="${who.all}">Everyone in</button></div>
-    <p class="sub" style="margin-top:10px">Tap the areas you'll be in, in the order you'll drive them. Tap again to take one off.</p>
+    <p class="sub" style="margin-top:10px">Tap the areas you'll be in. Tap again to take one off.</p>
     <div class="chips" style="margin-top:6px">${areas.map(a => { const n = (rows[a.id] || []).length, on = who.sel.includes(a.id);
-      return `<button class="chip" data-warea="${a.id}" aria-pressed="${on}" style="min-height:40px;${n || on ? "" : "opacity:.5"}">${on ? (who.sel.indexOf(a.id) + 1) + ". " : ""}${esc(a.name)} · ${n}</button>`; }).join("")}</div>
+      return `<button class="chip" data-warea="${a.id}" aria-pressed="${on}" style="min-height:40px;${on ? "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px" : n ? "" : "opacity:.5"}">${on ? "✓ " : ""}${esc(a.name)} · ${n}</button>`; }).join("")}</div>
     <label class="sub" style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="wPin" ${who.pin?"checked":""}> 📌 Anchor who I add</label>
     ${!canAdd ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add doctors to a day."}</p>` : ""}
-    ${who.sel.map(section).join("") || `<p class="sub" style="margin-top:14px">Pick an area above to see who's in.</p>`}
+    ${areas.filter(a => who.sel.includes(a.id)).map(a => section(a.id)).join("") || `<p class="sub" style="margin-top:14px">Pick an area above to see who's in.</p>`}
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); who.iso = b.dataset.wday; openWho(); });
