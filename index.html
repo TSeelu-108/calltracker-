@@ -1,0 +1,1463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+/* For iPad only. Phones see a short message and nothing else loads.
+   A device that already had this app's data before this check was added keeps working,
+   and a device can be let in with a private key (only its fingerprint is here). */
+(function(){
+  var ALLOW = "device.allow.v1", FP = "2dff1c1cfc1e4f49f476a28c1fbcfbe3e54ec98d468c590ec2f246fe41227c79";
+  function sha256(s){
+    function r(n,x){return (x>>>n)|(x<<(32-n));}
+    var K=[],H=[],p=2,i,j;
+    for(i=0;i<64;p++){var pr=1;for(j=2;j*j<=p;j++)if(p%j===0){pr=0;break;}if(pr){if(i<8)H[i]=(Math.pow(p,1/2)*4294967296)|0;K[i++]=(Math.pow(p,1/3)*4294967296)|0;}}
+    s=unescape(encodeURIComponent(s));var l=s.length*8,w=[];
+    for(i=0;i<s.length;i++)w[i>>2]|=s.charCodeAt(i)<<((3-i%4)*8);
+    w[l>>5]|=0x80<<(24-l%32);w[((l+64>>9)<<4)+15]=l;
+    for(i=0;i<w.length;i+=16){var a=H.slice(0),W=[];
+      for(j=0;j<64;j++){if(j<16)W[j]=w[i+j]|0;else{var s0=r(7,W[j-15])^r(18,W[j-15])^(W[j-15]>>>3),s1=r(17,W[j-2])^r(19,W[j-2])^(W[j-2]>>>10);W[j]=(W[j-16]+s0+W[j-7]+s1)|0;}
+        var t1=(a[7]+(r(6,a[4])^r(11,a[4])^r(25,a[4]))+((a[4]&a[5])^(~a[4]&a[6]))+K[j]+W[j])|0,t2=((r(2,a[0])^r(13,a[0])^r(22,a[0]))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2])))|0;
+        a=[(t1+t2)|0].concat(a);a[4]=(a[4]+t1)|0;a.pop();}
+      for(j=0;j<8;j++)H[j]=(H[j]+a[j])|0;}
+    return H.map(function(x){return ("00000000"+(x>>>0).toString(16)).slice(-8);}).join("");
+  }
+  function get(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function set(){try{localStorage.setItem(ALLOW,"1");}catch(e){}}
+  window.__gateKey = function(k){ if (k && sha256("calltracker:" + String(k).trim()) === FP){ set(); return true; } return false; };
+  var ua = navigator.userAgent, tp = navigator.maxTouchPoints || 0, side = Math.min(screen.width, screen.height);
+  var phone = /iPhone|iPod/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) || (tp > 0 && side < 600);
+  var ipad = !phone && side >= 700 && (/iPad/.test(ua) || (/Macintosh/.test(ua) && tp > 0));
+  var m = location.search.match(/[?&]k=([^&]+)/); if (m) window.__gateKey(decodeURIComponent(m[1]));
+  var ok = ipad || get(ALLOW) === "1";
+  if (!ok && (get("callplan.tracker.v1") || get("weekrouter.v1"))){ set(); ok = true; }   // already in use before this check
+  if (ok) return;
+  document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;background:#f3f5f7;color:#17202b;font:600 20px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}@media (prefers-color-scheme:dark){html,body{background:#0f141a;color:#e7edf3}}.g{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;text-align:center}.g input{font-size:16px;font-weight:400;padding:10px;border-radius:8px;border:1px solid #9aa8b6;width:min(320px,90%);background:transparent;color:inherit}<\/style>'
+    + '<div class="g"><div id="gm">For iPad only.<\/div><input id="gk" hidden autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Key"><\/div>'
+    + '<script>(function(){var n=0,t;document.getElementById("gm").addEventListener("click",function(){clearTimeout(t);t=setTimeout(function(){n=0;},2000);if(++n>=5){var i=document.getElementById("gk");i.hidden=false;i.focus();}});'
+    + 'document.getElementById("gk").addEventListener("input",function(e){if(window.__gateKey(e.target.value))location.replace(location.pathname);});})();<\/script>'
+    + '<plaintext style="display:none">');
+})();
+</script>
+
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Call Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f3f5f7">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Call Tracker</title>
+<style>
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#17202b; --muted:#5d6b7a; --line:#dde3ea;
+  --accent:#0f5f8c; --accent-ink:#ffffff; --accent-soft:#e3eff7;
+  --red-fill:#fde3e1; --red-edge:#e7a29c; --red-ink:#8f2a22;
+  --yel-fill:#fff3c4; --yel-edge:#e3c45a; --yel-ink:#7a5a00;
+  --grn-fill:#d9f2de; --grn-edge:#88c997; --grn-ink:#1d6a33;
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  --f-disp:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f141a; --surface:#18202a; --ink:#e7edf3; --muted:#9aa8b6; --line:#2a3542;
+  --accent:#5fb3e6; --accent-ink:#06121c; --accent-soft:#1a3244;
+  --red-fill:#4a2321; --red-edge:#8a3e38; --red-ink:#ffc9c3;
+  --yel-fill:#463b14; --yel-edge:#8c7426; --yel-ink:#ffe69a;
+  --grn-fill:#1d3d27; --grn-edge:#3f7d50; --grn-ink:#b8ecc5; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-left,0px));padding-block:0 48px}
+
+header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:10px;border-bottom:1px solid var(--line)}
+.row1{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px}
+.today .lbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.today .date{font-family:var(--f-disp);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.01em}
+.today .sub{font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px;display:inline-flex;align-items:center;justify-content:center;color:inherit;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5}
+.staffrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 40px;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.staffrow select{grid-column:1 / 3}
+.staffrow select,.staffrow input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;min-height:42px;min-width:0;width:100%;font:inherit;color:inherit}
+.staffx{grid-row:1;grid-column:3;border:1px solid var(--line);background:transparent;border-radius:8px;min-height:42px;font-size:20px;color:var(--muted)}
+.staffline{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;font-size:14px;padding:4px 0}
+.staffline a{color:var(--accent);font-weight:600}
+.btn.small{min-height:36px;padding:6px 10px;font-size:14px}
+.wk{display:grid;grid-template-columns:52px 1fr 1fr;gap:6px;align-items:center;margin-top:6px}
+.wk button{border:1px solid var(--line);background:var(--bg);border-radius:8px;min-height:40px;font-size:14px;font-weight:600;color:var(--muted)}
+.wk button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.wk .dl{border:0;background:transparent;text-align:left;padding:0;color:var(--ink);font-weight:700}
+.fld{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-weight:600;font-size:14px}
+.fld input,.fld select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px;font:inherit;font-weight:400;color:inherit;width:100%}
+.s-add{--f:var(--surface);--k:var(--accent);--t:var(--accent)}
+.addtag{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:12px;color:var(--muted);font-weight:600;line-height:1.3}
+.addtag b{font-family:var(--f-disp);font-size:22px;color:var(--ink)}
+.days14{max-height:300px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;padding:4px 8px;margin-top:6px}
+.days14 button{display:flex;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;padding:10px 4px;font-size:15px;color:var(--ink);text-align:left}
+.days14 button:last-child{border-bottom:0}
+.days14 button[aria-current=true]{background:var(--accent-soft);border-radius:8px}
+.days14 .zero{color:var(--muted)}
+.dd svg{width:20px;height:20px;flex:none}
+
+.titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .mark{width:42px;height:42px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.brand .mark svg{width:24px;height:24px}
+.brand h1{font-family:var(--f-disp);font-size:26px;line-height:1.1;margin:0;letter-spacing:-.01em}
+.brand .bsub{font-size:14px;color:var(--muted);margin-top:2px}
+.iconbtn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none;text-decoration:none}
+.iconbtn svg{width:22px;height:22px}
+.backlink{display:inline-flex;align-items:center;gap:2px;color:var(--accent);font-weight:600;font-size:15px;text-decoration:none;min-height:36px;margin-left:-4px}
+.backlink svg{width:20px;height:20px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;margin-top:12px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-decoration:none;font:inherit;font-weight:700;font-size:15px;line-height:1.2;min-height:84px;text-align:left;cursor:pointer;box-shadow:0 1px 2px rgba(15,25,35,.05)}
+.tile .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--tb);color:var(--tf)}
+.tile .ic svg{width:21px;height:21px}
+.tile:disabled{opacity:.5}
+.tile.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tile.primary .ic{background:rgba(255,255,255,.2);color:var(--accent-ink)}
+.t-blue{--tb:#e3eff7;--tf:#0f5f8c}.t-green{--tb:#dcf1e2;--tf:#1d6a33}.t-amber{--tb:#fdf0c8;--tf:#7a5a00}.t-plum{--tb:#ece5f5;--tf:#5b3f8c}.t-slate{--tb:#e8edf2;--tf:#3a4757}.t-teal{--tb:#d6f1ec;--tf:#0b6b5e}.tile.t-teal{border-color:#9fd9cd}
+.sechd{display:block;margin:18px 0 8px;padding:7px 12px;border-radius:9px;background:#e3eff7;color:#0f5f8c;font-weight:700;letter-spacing:.01em}
+@media (prefers-color-scheme:dark){.sechd{background:#1a3244;color:#8fcaf0}}
+@media (prefers-color-scheme:dark){.t-blue{--tb:#1a3244;--tf:#8fcaf0}.t-green{--tb:#1d3d27;--tf:#b8ecc5}.t-amber{--tb:#463b14;--tf:#ffe69a}.t-plum{--tb:#33284a;--tf:#d6c6f2}.t-slate{--tb:#26303b;--tf:#c9d3dd}.t-teal{--tb:#17393a;--tf:#9fe3d6}.tile.t-teal{border-color:#2f6b62}}
+.tile.dd{border-color:#c9b8e3}
+
+.bz{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.bz span{font-size:11px;font-weight:700;border:1px solid var(--yel-edge);background:var(--yel-fill);color:var(--yel-ink);border-radius:6px;padding:1px 6px}
+.bz span.away{border-color:var(--line);background:var(--surface);color:var(--muted)}
+.qwrap{position:relative;display:flex;min-width:0}
+.qwrap>input{flex:1;min-width:0;width:100%;padding-right:42px!important}
+.qx{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:0;background:var(--line);color:var(--ink);font-size:19px;line-height:1;display:grid;place-items:center;cursor:pointer}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;background:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.logday select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px;font:inherit;color:inherit}
+.offbox{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}
+
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.stat b{display:block;font-family:var(--f-disp);font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:10px;display:flex}
+.bar i{display:block;height:100%}
+.logday{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:14px;color:var(--muted)}
+.logday input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-height:40px}
+.logday .warn{color:var(--red-ink);font-weight:600}
+
+.install{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--line);font-size:15px}
+.install b{display:block;margin-bottom:2px}
+
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-block:14px 10px}
+.tools input[type=search]{flex:1 1 220px;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;min-height:44px;-webkit-appearance:none}
+.tools select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;min-height:44px;max-width:100%}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:8px 12px;min-height:44px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent-soft);color:var(--ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:10px}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--k);background:var(--f)}
+
+.colhead{display:grid;grid-template-columns:minmax(0,1fr) 150px 132px;gap:10px;padding:0 10px 6px;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.colhead .car{display:grid;grid-template-columns:repeat(3,1fr);text-align:center}
+.list{display:flex;flex-direction:column;gap:6px}
+.doc{display:grid;grid-template-columns:minmax(0,1fr) 150px 132px;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.name{border:1px solid var(--k);background:var(--f);border-radius:9px;padding:8px 10px;text-align:left;min-width:0;width:100%;color:var(--ink)}
+.name .n{font-family:var(--f-disp);font-weight:700;font-size:18px;line-height:1.15;overflow-wrap:anywhere}
+.name .c{font-size:13px;color:var(--muted)}
+.name .last{font-size:12px;color:var(--t);font-weight:600}
+.s-red{--f:var(--red-fill);--k:var(--red-edge);--t:var(--red-ink)}
+.s-yel{--f:var(--yel-fill);--k:var(--yel-edge);--t:var(--yel-ink)}
+.s-grn{--f:var(--grn-fill);--k:var(--grn-edge);--t:var(--grn-ink)}
+.car{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;font-variant-numeric:tabular-nums}
+.car div{font-family:var(--f-disp);font-size:22px;font-weight:600;line-height:1.1}
+.car small{display:block;font-size:11px;color:var(--muted);font-family:var(--f-ui);letter-spacing:.06em;font-weight:600}
+.car .r{font-weight:800}
+.act{display:flex;gap:6px;justify-content:flex-end}
+.call{flex:1;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;min-height:52px;font-size:16px;padding:0 10px;transition:transform .08s}
+.call:active{transform:scale(.96)}
+.undo{border:1px solid var(--line);background:transparent;border-radius:10px;min-width:44px;min-height:52px;font-size:20px;color:var(--muted)}
+.undo:disabled{opacity:.3}
+.empty{padding:28px 20px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.empty h2{margin:0;color:var(--ink);font-family:var(--f-disp)}
+.empty p{margin:0;max-width:52ch}
+.flash{animation:fl .6s ease-out}
+@keyframes fl{from{box-shadow:0 0 0 4px var(--accent)}to{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.call{transition:none}}
+
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .colhead{display:none}
+  .doc{grid-template-columns:minmax(0,1fr) 112px;grid-template-areas:"n n" "c a"}
+  .doc .name{grid-area:n}.doc .car{grid-area:c}.doc .act{grid-area:a}
+  .today .date{font-size:22px}
+}
+
+.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+
+.scrim{position:fixed;inset:0;background:rgba(10,15,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+.sheet{background:var(--surface);color:var(--ink);width:100%;max-width:760px;max-height:100%;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:16px 16px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-family:var(--f-disp);font-size:24px;margin:0 0 4px}
+.sheet p{margin:6px 0;color:var(--muted);max-width:62ch}
+.sheet .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:16px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;margin-top:12px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.thumb{width:86px;border:2px solid var(--line);border-radius:8px;overflow:hidden;font-size:11px;text-align:center;background:var(--bg)}
+.thumb img{display:block;width:100%;height:64px;object-fit:cover}
+.thumb div{padding:3px}
+.thumb.ok{border-color:var(--grn-edge)} .thumb.bad{border-color:var(--red-edge)} .thumb.busy{border-color:var(--accent)}
+.status{margin-top:12px;font-weight:600}
+.prog{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.rtable{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:10px;-webkit-overflow-scrolling:touch}
+.rtable table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.rtable th,.rtable td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.rtable th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);position:sticky;top:0;background:var(--surface)}
+.rtable td.num input{width:52px;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--bg);text-align:center;font-size:16px}
+.rtable tr.check td{background:var(--yel-fill)}
+.rtable .x{border:0;background:transparent;color:var(--muted);font-size:20px;min-width:40px;min-height:40px}
+.summary{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:10px;font-weight:600}
+.summary .bad{color:var(--red-ink)} .summary .good{color:var(--grn-ink)}
+.hist{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:6px}
+.hist li{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.hist button{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 10px;min-height:40px;color:var(--red-ink)}
+.confirm{margin-top:12px;padding:12px;border-radius:10px;background:var(--red-fill);border:1px solid var(--red-edge);color:var(--ink)}
+.small{font-size:13px;color:var(--muted)}
+.okline{color:var(--grn-ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="titlebar">
+      <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8 12.3l2.6 2.6L16 9.5"/></svg></span><div><h1>Call Tracker</h1><div class="bsub" id="todayLbl"></div></div></div>
+      <button class="iconbtn" id="moreBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+    <div class="sub" id="planLbl" style="margin-top:6px"></div>
+    <nav class="tiles" aria-label="Main">
+      <button class="tile primary" id="importBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>Load screenshots</button>
+      <button class="tile t-green" id="dayBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg></span>Today's calls</button>
+      <a class="tile t-blue" href="route/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span>Plan my week</a>
+      <button class="tile t-amber" id="evBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5.5 13.5H11L10 21.5l8.5-12H13z"/></svg></span>Chargers</button>
+      <button class="tile t-teal" id="mapBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6z"/><path d="M9 4v14M15 6v14"/></svg></span><span>Maps<span class="small" id="mapNext" style="display:block;font-weight:700;margin-top:2px;color:var(--tf)"></span></span></button>
+      <button class="tile t-plum dd" id="ddBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>DoorDash</button>
+    </nav>
+    <div class="stats">
+      <div class="stat"><b id="sToday">0</b><span>Calls today</span></div>
+      <div class="stat"><b id="sC">0%</b><span id="sCl">Completed</span></div>
+      <div class="stat"><b id="sR">0</b><span>Remaining</span></div>
+      <div class="stat"><b id="sDone">0</b><span>Doctors done</span></div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="barG" style="background:var(--grn-edge)"></i><i id="barY" style="background:var(--yel-edge)"></i><i id="barR" style="background:var(--red-edge)"></i></div>
+    <div class="logday">
+      <label for="logDate">Calls today are logged on</label>
+      <input type="date" id="logDate">
+      <span id="logWarn" class="warn" hidden>Not today</span>
+      <button class="btn ghost" id="backToday" hidden style="min-height:40px;padding:6px 10px">Back to today</button>
+    </div>
+  </header>
+
+  <div class="install" id="installTip" hidden>
+    <b>Put this on your Home Screen</b>
+    Tap Share, then <b style="display:inline">Add to Home Screen</b>, and open it from that icon from now on.
+  </div>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="Find a doctor or city" aria-label="Find a doctor or city">
+    <select id="city" aria-label="City"></select>
+    <div style="display:flex;flex-direction:column;gap:4px"><span class="small" style="font-weight:600">Call completion status</span>
+    <div class="seg" role="group" aria-label="Call completion status">
+      <button data-f="all" aria-pressed="true">All</button>
+      <button data-f="todo" aria-pressed="false">Still to do</button>
+      <button data-f="done" aria-pressed="false">Done</button>
+    </div></div>
+    <select id="sort" aria-label="Sort">
+      <option value="lastAZ">Last name A–Z</option>
+      <option value="lastZA">Last name Z–A</option>
+      <option value="rem">Most remaining</option>
+      <option value="city">By city</option>
+      <option value="stale">Longest since call</option>
+    </select>
+  </div>
+  <div class="legend">
+    <span style="--f:var(--red-fill);--k:var(--red-edge)">More than half left</span>
+    <span style="--f:var(--yel-fill);--k:var(--yel-edge)">Half or less left</span>
+    <span style="--f:var(--grn-fill);--k:var(--grn-edge)">All calls done</span>
+  </div>
+  <div class="colhead" id="colhead"><div>Doctor · tap name for call dates</div><div class="car"><div>C</div><div>A</div><div>R</div></div><div style="text-align:right">Log</div></div>
+  <div class="list" id="list"></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+"use strict";
+const KEY = "callplan.tracker.v1";
+const TJS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+const CORE = "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/";
+const LANG = "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int";
+const VCACHE = "calltracker-vendor-v1";
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2,"0");
+const isoDay = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayISO = () => isoDay(new Date());
+const fromISO = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const longDate = s => fromISO(s).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+const shortDate = s => fromISO(s).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+const daysAgo = s => Math.round((fromISO(todayISO()) - fromISO(s))/864e5);
+
+/* ---------- state (saved only on this device) ---------- */
+const norm = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+/* A misread name ("OROTHY YIP", "HI GREGORY BENSCH", "ASID MAJID") is matched to the doctor already on your list,
+   when exactly one is that close. A misread city ("LOPI") to the nearest known city. */
+function editDist(a, b){ const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9; let prev = Array.from({length:n+1}, (_,j) => j);
+  for (let i = 1; i <= m; i++){ const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; } return prev[n]; }
+function snapName(raw){
+  const id = norm(raw); const known = state.doctors.map(d => ({id:d.id, name:d.name})).concat((state.dropped || []).map(d => ({id:d.id, name:d.name})));
+  if (!known.length || known.some(k => k.id === id)) return raw;
+  const lastOf = x => x.split(" ").pop(), flat = x => x.replace(/ /g, "");
+  const hits = known.filter(k => {
+    if (id.endsWith(" " + k.id) && id.slice(0, -k.id.length).trim().split(" ").every(t => t.length <= 3)) return true;   // junk in front
+    if (flat(id) === flat(k.id)) return true;                                                                            // "KALING" / "KA LING"
+    return k.id.length >= 7 && editDist(id, k.id) <= 2 && editDist(lastOf(id), lastOf(k.id)) <= 1;                     // a letter or two off
+  });
+  const uniq = [...new Map(hits.map(h => [h.id, h])).values()];
+  return uniq.length === 1 ? uniq[0].name : raw;
+}
+function snapCity(raw){
+  const c = String(raw || "").trim().toLowerCase(); if (!c || CITY_NAMES.includes(c)) return raw;
+  const hits = CITY_NAMES.filter(x => x.length >= 4 && Math.abs(x.length - c.length) <= 1 && editDist(c, x) <= 1);
+  return hits.length === 1 ? hits[0].toUpperCase() : raw;
+}
+function makeDoc(name, city, c, a, r, last){
+  a = Math.max(0, +a||0); c = Math.max(0, +c||0);
+  r = (r===""||r==null||isNaN(+r)) ? Math.max(0,a-c) : Math.max(0,+r);
+  const lastRpt = /^\d{4}-\d{2}-\d{2}$/.test(last||"") && last <= todayISO() ? last : null;
+  return {id:norm(name), name:String(name).trim().toUpperCase(), city:String(city||"").trim().toUpperCase(), c0:c, a, r0:r, lastRpt, log:[]};
+}
+/* ---------- office staff contacts (shared by the Call Tracker and Plan my week) ----------
+   Only a title from a fixed list, a name (letters only) and a phone number (digits only)
+   can be saved. There is no free-text note anywhere. */
+const STAFF_KEY = "office.staff.v1", DOCOFF_KEY = "doctor.offices.v1";
+const STAFF_TITLES = ["Office manager","Medical assistant","Scribe","Front desk","Nurse","Practice administrator"];
+try { localStorage.removeItem("doctor.notes.v1"); } catch(e){}
+function staffClean(c){
+  const n = staffName(c && c.n).trim(), p = staffPhone(c && c.p);
+  const t = STAFF_TITLES.includes(c && c.t) ? c.t : "Front desk";
+  return n || p ? {t, n, p} : null;
+}
+function staffName(s){
+  s = String(s || "").normalize("NFC").replace(/[^\p{L}\s'\-]/gu, "").replace(/\s+/g, " ").replace(/^[\s'\-]+/, "").slice(0, 30);
+  return s.replace(/(^|[\s\-'])(\p{Ll})/gu, (m, a, b) => a + b.toUpperCase());
+}
+function staffPhone(s){ let d = String(s || "").replace(/\D/g, ""); if (d.length === 11 && d[0] === "1") d = d.slice(1); return d.slice(0, 10); }
+function staffFmtPhone(d){ d = staffPhone(d); return d.length === 10 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : d.length > 6 ? d.slice(0,3) + "-" + d.slice(3,6) + "-" + d.slice(6) : d.length > 3 ? d.slice(0,3) + "-" + d.slice(3) : d; }
+function staffAll(){ try { const o = JSON.parse(localStorage.getItem(STAFF_KEY)) || {}; const out = {}; for (const k in o) if (Array.isArray(o[k])){ const l = o[k].map(staffClean).filter(Boolean); if (l.length) out[k] = l; } return out; } catch(e){ return {}; } }
+function staffFor(k){ return staffAll()[k] || []; }
+function staffSet(k, list){ const all = staffAll(); const l = (list || []).map(staffClean).filter(Boolean).slice(0, 8); if (l.length) all[k] = l; else delete all[k]; try { localStorage.setItem(STAFF_KEY, JSON.stringify(all)); } catch(e){} }
+function staffMerge(obj){ if (!obj || typeof obj !== "object") return; for (const k in obj){ if (!Array.isArray(obj[k])) continue; const cur = staffFor(k); obj[k].forEach(c => { const x = staffClean(c); if (x && !cur.some(y => y.n === x.n && y.p === x.p)) cur.push(x); }); staffSet(k, cur); } }
+function staffOfficesFor(docId){ try { return (JSON.parse(localStorage.getItem(DOCOFF_KEY)) || {})[docId] || []; } catch(e){ return []; } }
+function staffLineHtml(c){
+  const p = c.p ? staffFmtPhone(c.p) : "";
+  return `<div class="staffline"><span><b>${staffEsc(c.n || "No name")}</b> · ${staffEsc(c.t)}</span>${c.p && c.p.length >= 7 ? `<span><a href="tel:${c.p}">${p}</a> · <a href="sms:${c.p}">Text</a></span>` : (p ? `<span>${p}</span>` : "")}</div>`;
+}
+const staffEsc = s => String(s ?? "").replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+function staffRowHtml(c, i){
+  return `<div class="staffrow" data-srow="${i}">
+    <select data-st aria-label="Title">${STAFF_TITLES.map(t => `<option${t === c.t ? " selected" : ""}>${t}</option>`).join("")}</select>
+    <input data-sn value="${staffEsc(c.n)}" placeholder="Name" aria-label="Name" autocomplete="off" autocapitalize="words" spellcheck="false" maxlength="30">
+    <input data-sp value="${staffEsc(staffFmtPhone(c.p))}" placeholder="Phone" aria-label="Phone" type="tel" inputmode="tel" autocomplete="off">
+    <button type="button" class="staffx" data-sx aria-label="Remove this contact">×</button>
+  </div>`;
+}
+/* A block that edits the contacts for one office. Call staffWire(box) after inserting it and staffRead(box) to get the list. */
+function staffEditorHtml(list){
+  const l = list.length ? list : [{t:"Front desk", n:"", p:""}];
+  return `<div class="staffed">${l.map(staffRowHtml).join("")}</div><button type="button" class="btn small ghost" data-sadd>+ Add a staff contact</button>`;
+}
+function staffWire(box){
+  const ed = box.querySelector(".staffed");
+  const hook = row => {
+    const n = row.querySelector("[data-sn]"), p = row.querySelector("[data-sp]");
+    n.oninput = () => { const v = staffName(n.value); if (v !== n.value) n.value = v; };
+    p.oninput = () => { const v = staffFmtPhone(p.value.replace(/\D/g, "")); if (v !== p.value) p.value = v; };
+    row.querySelector("[data-sx]").onclick = () => { row.remove(); if (!ed.children.length) add(); };
+  };
+  const add = () => { const t = document.createElement("div"); t.innerHTML = staffRowHtml({t:"Front desk", n:"", p:""}, ed.children.length); const row = t.firstElementChild; ed.appendChild(row); hook(row); return row; };
+  ed.querySelectorAll(".staffrow").forEach(hook);
+  box.querySelector("[data-sadd]").onclick = () => { if (ed.children.length < 8) add().querySelector("[data-sn]").focus(); };
+}
+function staffRead(box){
+  return [...box.querySelectorAll(".staffrow")].map(r => staffClean({t: r.querySelector("[data-st]").value, n: r.querySelector("[data-sn]").value.trim(), p: r.querySelector("[data-sp]").value})).filter(Boolean);
+}
+
+/*__BOOK_START__*/
+/* ---------- book lunches, coffees, breakfasts and snacks (shared by the Call Tracker and Plan my week) ----------
+   Builds one calendar file (.ics) with every date you pick. Opened in Outlook, "Add all" puts them on your
+   calendar and sends the invites. Nothing is sent from this app; the file goes wherever you share it. */
+const INV_KEY = "invitees.v1", BOOK_KEY = "bookings.v1";
+const BOOK_KINDS = [["Lunch","12:00"],["Coffee","09:00"],["Breakfast","08:00"],["Snacks","14:00"]];
+const bEsc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const bTitle = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
+const bEmail = s => { s = String(s||"").trim().toLowerCase(); return /^[^\s@<>,;]+@[^\s@<>,;]+\.[a-z]{2,}$/.test(s) ? s : ""; };
+function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || {}; return {me: bEmail(v.me) || "", people: (v.people || []).map(p => ({name: staffName(p.name).trim(), email: bEmail(p.email), cp: !!p.cp})).filter(p => p.email)}; } catch(e){ return {me:"", people:[]}; } }
+function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
+function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
+function bTracker(){ try { return JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; } catch(e){ return {}; } }
+function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
+function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
+function bookingsAll(){ try { return JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){ return []; } }
+function bookingsDrop(i){ const all = bookingsAll(); all.splice(i, 1); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
+function bookingsAdd(list){ const cut = new Date(Date.now() - 14*864e5).toISOString().slice(0,10); const all = bookingsAll().filter(b => b.date >= cut).concat(list); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
+const bDocName = id => { const d = (bTracker().doctors || []).find(x => x.id === id); return d ? d.name : id; };
+const bLast = id => bTitle(bDocName(id).split(" ").pop());
+const bIso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+
+/* People I invite (kept on this device only) */
+function openInvitees(back){
+  const v = invAll();
+  const row = (p, i) => `<div class="staffrow" data-ivrow="${i}" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) 40px">
+      <input data-ivn value="${bEsc(p.name)}" placeholder="Their name" autocomplete="off" autocapitalize="words" style="grid-column:auto">
+      <input data-ive value="${bEsc(p.email)}" placeholder="Their email" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button type="button" class="staffx" data-ivx style="grid-row:auto;grid-column:auto" aria-label="Remove">×</button>
+      <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;justify-content:flex-start;text-align:left;font-weight:400;margin:2px 0 6px"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Invite to lunches and coffees automatically</span></label></div>`;
+  openSheet(`<h2>People I invite</h2>
+    <p>Saved on this iPad only. Tick the ones (like your counterparts) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
+    <label class="fld" style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-weight:600">Your work email<span class="small" style="font-weight:400">You're the organizer of the invites.</span><input id="ivMe" value="${bEsc(v.me)}" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>
+    <p style="margin-top:22px"><b style="color:var(--ink)">Invitees</b><br><span class="small">The people you invite, like your counterparts and your manager. Not you.</span></p>
+    <div id="ivList" style="margin-top:6px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
+    <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add an invitee</button>
+    <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="ivX">Cancel</button><button class="btn primary" id="ivOk">Save</button></div>`);
+  const wire = el => { el.querySelector("[data-ivx]").onclick = () => el.remove(); const n = el.querySelector("[data-ivn]"); n.oninput = () => { const s = staffName(n.value); if (s !== n.value) n.value = s; }; };
+  $("ivList").querySelectorAll("[data-ivrow]").forEach(wire);
+  $("ivAdd").onclick = () => { const t = document.createElement("div"); t.innerHTML = row({name:"", email:"", cp:false}, Date.now()); const el = t.firstElementChild; $("ivList").appendChild(el); wire(el); el.querySelector("[data-ivn]").focus(); };
+  $("ivX").onclick = () => back ? back() : closeSheet();
+  $("ivOk").onclick = () => {
+    const me = bEmail($("ivMe").value); if ($("ivMe").value.trim() && !me){ $("ivErr").textContent = "Your email doesn't look right."; return; }
+    const people = []; let bad = "";
+    $("ivList").querySelectorAll("[data-ivrow]").forEach(r => { const name = staffName(r.querySelector("[data-ivn]").value).trim(), raw = r.querySelector("[data-ive]").value.trim(), email = bEmail(raw);
+      if (!name && !raw) return; if (!email){ bad = (name || raw) + "'s email doesn't look right."; return; } people.push({name: name || email.split("@")[0], email, cp: r.querySelector("[data-ivc]").checked}); });
+    if (bad){ $("ivErr").textContent = bad; return; }
+    invSave({me, people}); toast("Saved"); back ? back() : closeSheet();
+  };
+}
+
+/* the booking sheet. docId: the doctor you're with. Other doctors at the same office can be added. */
+function openBook(docId, back){
+  const offs = bOffices(docId), office = offs[0] || null;
+  const all = bAllOffices(), here = office ? Object.keys(all).filter(id => (all[id] || []).some(o => o.k === office.k)) : [docId];
+  if (!here.includes(docId)) here.unshift(docId);
+  const v = invAll(); let me = (bRouter().settings || {}).myName || ""; const askName = !me;
+  const st = {kind:"Lunch", docs:[docId], rows:[{date:"", time:"12:00", mins:60}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
+  const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return bIso(d); };
+  st.rows[0].date = tomorrow();
+  const draw = (msg) => {
+    const titleFor = () => `${st.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}`;
+    openSheet(`<h2>Book a ${st.kind.toLowerCase()}</h2>
+      <p>${office ? bEsc(office.a) : "Office address not known yet. Open Plan my week once to set it."}</p>
+      <div class="seg" role="group" aria-label="Kind" style="margin-top:6px;flex-wrap:wrap">${BOOK_KINDS.map(([k]) => `<button type="button" data-bk="${k}" aria-pressed="${st.kind===k}">${k}</button>`).join("")}</div>
+      ${here.length > 1 ? `<p style="margin-top:12px"><b style="color:var(--ink)">With</b></p><div class="chips">${here.map(id => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bd="${bEsc(id)}" ${st.docs.includes(id) ? "checked" : ""}> ${bEsc(bTitle(bDocName(id)))}</label>`).join("")}</div>` : ""}
+      <p style="margin-top:12px"><b style="color:var(--ink)">When</b> <span class="small">· add as many dates as you like</span></p>
+      ${st.rows.map((r,i) => `<div class="logday" style="margin-top:6px;flex-wrap:wrap;gap:6px" data-br="${i}">
+        <input type="date" data-bdate value="${r.date}"><input type="time" data-btime value="${r.time}" step="900">
+        <select data-bmins>${[30,45,60,75,90,120].map(m => `<option value="${m}"${m===r.mins?" selected":""}>${m < 60 ? m + " min" : (m/60) + (m===60 ? " hour" : " hours")}</option>`).join("")}</select>
+        ${st.rows.length > 1 ? `<button type="button" class="btn small ghost" data-brm="${i}" aria-label="Remove this date">×</button>` : ""}</div>`).join("")}
+      <button type="button" class="btn small ghost" id="bAddDate" style="margin-top:6px">+ Add another date</button>
+      <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
+      ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
+      ${askName ? `<label class="small" style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><span><b style="color:var(--ink)">Your name</b> · finishes the title. Saved for next time.</span><input id="bMe" value="${bEsc(me)}" placeholder="First and last name" autocomplete="off" autocapitalize="words" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>` : ""}
+      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b id="bTitleP">${bEsc(titleFor())}</b></div>
+      ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
+      <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
+      ${(() => { const today = bIso(new Date()), mine = bookingsAll().map((b,i) => [b,i]).filter(([b]) => b.date >= today && (b.docs || []).includes(docId));
+        return mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Already booked</b> <span class="small">· removing one here only takes it out of Plan my week. Cancel it in Outlook too.</span></p>${mine.map(([b,i]) => `<div class="logday" style="margin-top:4px;gap:8px"><span>${bEsc(new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(b.time)} · ${bEsc(b.title)}</span><button type="button" class="btn small ghost" data-bdrop="${i}">Remove</button></div>`).join("")}` : ""; })()}
+      <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
+    const sync = () => {
+      $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60; });
+      st.docs = here.length > 1 ? [...$("sheet").querySelectorAll("[data-bd]:checked")].map(c => c.dataset.bd) : st.docs;
+      st.who = [...$("sheet").querySelectorAll("[data-bw]:checked")].map(c => c.dataset.bw);
+      st.remind = $("bRem").value;
+    };
+    $("sheet").querySelectorAll("[data-bk]").forEach(b => b.onclick = () => { sync(); const old = (BOOK_KINDS.find(k => k[0] === st.kind) || [])[1]; st.kind = b.dataset.bk; const nt = BOOK_KINDS.find(k => k[0] === st.kind)[1]; st.rows.forEach(r => { if (r.time === old) r.time = nt; }); draw(); });
+    $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins}); draw(); };
+    $("sheet").querySelectorAll("[data-brm]").forEach(b => b.onclick = () => { sync(); st.rows.splice(+b.dataset.brm, 1); draw(); });
+    $("bPeople").onclick = () => { sync(); openInvitees(() => { const nv = invAll(); v.people = nv.people; v.me = nv.me; st.who = st.who.filter(e => nv.people.some(p => p.email === e)).concat(nv.people.filter(p => p.cp && !st.who.includes(p.email)).map(p => p.email)); draw(); }); };
+    if ($("bMe")) $("bMe").oninput = () => { const n = staffName($("bMe").value); if (n !== $("bMe").value) $("bMe").value = n; me = n.trim(); $("bTitleP").textContent = titleFor();
+      try { const r = bRouter(); r.settings = Object.assign(r.settings || {}, {myName: me}); localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
+      try { if (typeof S === "object" && S && S.settings) S.settings.myName = me; } catch(e){} };
+    $("sheet").querySelectorAll("[data-bdrop]").forEach(b => b.onclick = () => { sync(); bookingsDrop(+b.dataset.bdrop); toast("Removed from Plan my week"); draw(); });
+    $("bX").onclick = () => back ? back() : closeSheet();
+    $("bGo").onclick = () => {
+      sync();
+      if (!me) return draw("Add your name so the title reads the right way.");
+      if (!st.docs.length) return draw("Pick at least one doctor.");
+      if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
+      const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
+      const title = titleFor(), loc = office ? office.a : "";
+      const ics = bookingICS(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins})), title, loc, ppl, nv.me, me, st.remind);
+      bookingsAdd(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:st.kind, docs:st.docs.slice(), title})));
+      bShare(ics, (st.kind + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
+    };
+  };
+  draw();
+}
+function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
+  const e = s => String(s || "").replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
+  const fold = l => { const out = []; while (l.length > 74){ out.push(l.slice(0, 74)); l = " " + l.slice(74); } out.push(l); return out.join("\r\n"); };
+  const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Call Tracker//Book//EN","METHOD:REQUEST","CALSCALE:GREGORIAN"];
+  rows.forEach((r, i) => {
+    const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
+    const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
+    const z = dt => dt.toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+    L.push("BEGIN:VEVENT", "UID:" + Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2,8) + "@calltracker", "DTSTAMP:" + stamp,
+      "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(title));
+    if (loc) L.push("LOCATION:" + e(loc));
+    if (myEmail) L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
+    ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email));
+    L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
+    if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(title),"TRIGGER:-" + remind,"END:VALARM");
+    L.push("END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  return L.map(fold).join("\r\n");
+}
+async function bShare(ics, name, n){
+  const f = new File([ics], name, {type:"text/calendar"});
+  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); closeSheet(); toast(n > 1 ? `${n} invites ready. In Outlook, tap Add all.` : "Invite ready. In Outlook, tap Add all."); return; } }
+  catch(err){ if (err && err.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  closeSheet(); toast("Saved the file. Open it in Outlook and tap Add all.");
+}
+
+/*__BOOK_END__*/
+function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
+let logDay = todayISO();
+let ui = {q:"", city:"", f:"all", sort:"lastAZ", flash:null};
+function save(){ state.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ toast("Couldn't save on this iPad. Free up storage space."); } }
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+/* ---------- derived ---------- */
+const done = d => d.c0 + d.log.length;
+const rem = d => Math.max(0, d.r0 - d.log.length);
+function status(d){
+  if (d.added) return "add";
+  const r = rem(d);
+  if (r === 0) return "grn";
+  if (d.a > 0 && r / d.a > 0.5) return "red";
+  return "yel";
+}
+const allDates = d => d.log.concat(d.hist || []);
+// most recent call: from calls logged here, or the "My Last Call Date" in the report screenshots
+const lastCall = d => { const ad = allDates(d); const l = ad.length ? ad.slice().sort()[ad.length-1] : null; return [l, d.lastRpt].filter(Boolean).sort().pop() || null; };
+
+/* ---------- render ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderHeader(){
+  const t = todayISO();
+  $("ddBtn").hidden = !!state.hideDD;
+  $("todayLbl").textContent = longDate(t);
+  $("planLbl").textContent = state.doctors.length ? state.doctors.length + " doctors · " + (state.source || "loaded from screenshots") : "No call plan loaded yet";
+  $("logDate").value = logDay; $("logDate").max = t;
+  const off = logDay !== t;
+  $("logWarn").hidden = !off; $("backToday").hidden = !off;
+  let C=0,A=0,R=0,g=0,y=0,r=0,today=0;
+  const plan = state.doctors.filter(d => !d.added);
+  for (const d of state.doctors){
+    today += allDates(d).filter(x => x === t).length;
+    if (d.added) continue;
+    C += done(d); A += d.a; R += rem(d);
+    const s = status(d); if (s==="grn") g++; else if (s==="yel") y++; else r++;
+  }
+  $("sToday").textContent = today;
+  $("sC").textContent = (A ? Math.round(C / A * 100) : 0) + "%";
+  $("sCl").textContent = `Completed · ${C} of ${A}`;
+  $("sR").textContent = R;
+  $("sDone").textContent = g + " / " + plan.length;
+  const n = plan.length || 1;
+  $("barG").style.width = (g/n*100)+"%"; $("barY").style.width = (y/n*100)+"%"; $("barR").style.width = (r/n*100)+"%";
+  const cities = [...new Set(state.doctors.map(d => d.city).filter(Boolean))].sort();
+  const bzs = blitzesNow(); if (ui.city.startsWith("blitz:") && !bzs.some(b => "blitz:" + b.id === ui.city)) ui.city = "";
+  $("city").innerHTML = '<option value="">All cities</option>' + bzs.map(b => `<option value="blitz:${esc(b.id)}"${"blitz:" + b.id === ui.city ? " selected" : ""}>${esc(b.name)}</option>`).join("") + cities.map(c => `<option${c===ui.city?" selected":""}>${esc(c)}</option>`).join("");
+  $("colhead").hidden = !state.doctors.length;
+}
+
+/* blitzes are set up in Plan my week; the tracker shows them and lets you take a doctor off one */
+function routerRaw(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
+function blitzesNow(){ const t = todayISO(); return (routerRaw().blitzes || []).filter(b => !b.stopped && b.start <= isoDay(new Date(Date.now() + 6*864e5)) && (!b.end || b.end >= t)); }
+function blitzOf(id){ return blitzesNow().filter(b => b.docs.includes(id)); }
+function blitzRemove(bid, id){ const r = routerRaw(); const b = (r.blitzes || []).find(x => x.id === bid); if (!b) return; b.docs = b.docs.filter(x => x !== id); try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} }
+/* out of office (shared with Plan my week) */
+function awayOf(id){ return ((routerRaw().away || {})[id] || []).filter(r => r.to >= todayISO()).sort((a,b) => a.from.localeCompare(b.from)); }
+function awaySet(id, list){ const r = routerRaw(); r.away = r.away || {}; if (list.length) r.away[id] = list; else delete r.away[id]; try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} }
+const awayLbl = r => r.from === r.to ? shortDate(r.from) : shortDate(r.from) + " – " + shortDate(r.to);
+function renderList(){
+  if (!state.doctors.length){
+    $("list").innerHTML = `<div class="empty">
+      <button class="btn primary" id="emptyImport">Load screenshots</button>
+      <button class="btn ghost" id="emptyRestore">Restore a backup file</button></div>`;
+    $("emptyImport").onclick = () => $("importBtn").click();
+    $("emptyRestore").onclick = () => $("moreBtn").click();
+    return;
+  }
+  const q = norm(ui.q);
+  const AW = routerRaw().away || {};
+  const BZ = {}, BZN = {}; blitzesNow().forEach(b => { BZ[b.id] = b.docs; b.docs.forEach(id => (BZN[id] = BZN[id] || []).push(b.name)); });
+  let rows = state.doctors.filter(d =>
+    (!q || d.id.includes(q) || norm(d.city).includes(q)) &&
+    (!ui.city || (ui.city.startsWith("blitz:") ? (BZ[ui.city.slice(6)] || []).includes(d.id) : d.city === ui.city)) &&
+    (ui.f === "all" || (ui.f === "done" ? (!d.added && rem(d) === 0) : (d.added || rem(d) > 0))));
+  const lastN = d => { const w = d.name.split(" "); return w[w.length-1] + " " + w.slice(0,-1).join(" "); };
+  const byName = (a,b) => lastN(a).localeCompare(lastN(b));
+  if (ui.sort === "rem") rows.sort((a,b) => rem(b)-rem(a) || byName(a,b));
+  else if (ui.sort === "city") rows.sort((a,b) => (a.city||"~").localeCompare(b.city||"~") || byName(a,b));
+  else if (ui.sort === "stale") rows.sort((a,b) => (lastCall(a)||"0").localeCompare(lastCall(b)||"0") || byName(a,b));
+  else if (ui.sort === "lastZA") rows.sort((a,b) => byName(b,a));
+  else rows.sort(byName);
+  if (!rows.length){
+    const filtered = !!ui.city || ui.f !== "all";
+    const elsewhere = q && filtered && state.doctors.some(d => d.id.includes(q) || norm(d.city).includes(q));
+    const words = String(ui.q || "").trim().split(/\s+/).map(w => w.replace(/[^\p{L}'\-.]/gu, "")).filter(Boolean);
+    const looksName = q && words.length && words.length <= 3 && !CITY_NAMES.includes(String(ui.q).trim().toLowerCase());
+    const who = words.map(titleCase).join(" ");
+    $("list").innerHTML = `<div class="empty">
+      <p>${elsewhere ? `“${esc(ui.q.trim())}” is on your list, but hidden by the filters above.` : q ? `No one called “${esc(ui.q.trim())}” on your list.` : "No doctors match these filters."}</p>
+      <div class="actions" style="justify-content:center;flex-wrap:wrap;margin-top:10px">
+        ${elsewhere || (!q && filtered) ? `<button class="btn primary" id="emShowAll">Show everyone</button>` : ""}
+        ${looksName && !elsewhere ? `<button class="btn primary" id="emAdd">+ Add ${esc(who)} as a provider</button>` : ""}
+        ${q ? `<button class="btn" id="emClear">Clear search</button>` : ""}
+      </div></div>`;
+    if ($("emShowAll")) $("emShowAll").onclick = () => { ui.city = ""; ui.f = "all"; $("city").value = ""; document.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.f === "all"))); render(); };
+    if ($("emClear")) $("emClear").onclick = () => { ui.q = ""; $("q").value = ""; renderList(); };
+    if ($("emAdd")) $("emAdd").onclick = () => openAddProvider(null, words.length > 1 ? {first: words.slice(0,-1).join(" "), last: words[words.length-1]} : {last: words[0]});
+    return;
+  }
+  $("list").innerHTML = rows.map(d => {
+    const lc = lastCall(d), s = status(d);
+    const lastTxt = lc ? (lc === todayISO() ? "Called today" : "Last call " + shortDate(lc) + " · " + daysAgo(lc) + "d ago") : "";
+    return `<div class="doc${ui.flash===d.id?" flash":""}">
+      <button class="name s-${s}" data-h="${esc(d.id)}" aria-label="${esc(d.name)}, show call dates">
+        <div class="n">${esc(d.name)}</div>
+        <div class="c">${esc(d.city || "No city listed")}${d.added ? " · " + esc(KIND_LBL[d.kind] || "Added") : ""}</div>
+        ${lastTxt ? `<div class="last">${lastTxt}</div>` : ""}
+        ${(() => { const a = AW[d.id] && AW[d.id].find(r => r.to >= todayISO()); return a ? `<div class="bz"><span class="away">${a.from <= todayISO() ? "Out until " + shortDate(a.to) : "Out " + awayLbl(a)}</span></div>` : ""; })()}
+        ${BZN[d.id] ? `<div class="bz">${BZN[d.id].map(n => `<span>${esc(n)}</span>`).join("")}</div>` : ""}
+      </button>
+      ${d.added ? `<div class="addtag"><b>${d.log.length + (d.hist||[]).length}</b>calls · added by you</div>` : `<div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>`}
+      <div class="act">
+        <button class="undo" data-u="${esc(d.id)}" ${d.log.length ? "" : "disabled"} aria-label="Undo last call for ${esc(d.name)}">↶</button>
+        <button class="call" data-c="${esc(d.id)}">+ Call</button>
+      </div>
+    </div>`;
+  }).join("");
+  ui.flash = null;
+}
+function render(){ renderHeader(); renderList(); try { mapsTile(); } catch(e){} }
+
+/* ---------- actions ---------- */
+let toastT;
+function toast(msg, act){ const t=$("toast"); t.textContent=msg; if (act){ const a=document.createElement("a"); a.href=act.href; if (/^https?:/.test(act.href)){ a.target="_blank"; a.rel="noopener"; } a.textContent=act.label; a.style.cssText="display:block;margin-top:6px;color:inherit;text-decoration:underline"; t.appendChild(a); } t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, act ? 6000 : 2400); }
+const find = id => state.doctors.find(d => d.id === id);
+
+$("list").addEventListener("click", e => {
+  const c = e.target.closest("[data-c]"), u = e.target.closest("[data-u]"), h = e.target.closest("[data-h]");
+  if (c){ const d = find(c.dataset.c);
+    // a call already logged for this doctor on this day: ask before adding a second one
+    if (allDates(d).includes(logDay)){ confirmSecondCall(d); return; }
+    d.log.push(logDay); ui.flash = d.id; save(); render();
+    const nx = logDay === todayISO() ? stopsToday().find(x => !x.done) : null;
+    toast(`Logged call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`) + (logDay!==todayISO() ? ` (${shortDate(logDay)})` : ""), nx && nx.addr ? {label: `Directions to next: ${titleCase(nx.name)}`, href: dirUrl(nx.addr)} : null); }
+  else if (u){ const d = find(u.dataset.u); if (!d.log.length) return;
+    const i = d.log.lastIndexOf(logDay); const removed = d.log.splice(i>=0?i:d.log.length-1,1)[0];
+    save(); render(); toast(`Removed ${shortDate(removed)} call · ${d.name}`); }
+  else if (h){ openHistory(h.dataset.h); }
+});
+$("q").addEventListener("input", e => { ui.q = e.target.value; renderList(); });
+addClears(document.querySelector(".tools"));
+document.querySelector(".tools .qwrap").style.flex = "1 1 220px";
+$("city").addEventListener("change", e => { ui.city = e.target.value; renderList(); });
+$("sort").addEventListener("change", e => { ui.sort = e.target.value; renderList(); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  ui.f = b.dataset.f; document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x===b))); renderList();
+}));
+$("logDate").addEventListener("change", e => { const v = e.target.value; if (v && v <= todayISO()) logDay = v; renderHeader(); });
+$("backToday").addEventListener("click", () => { logDay = todayISO(); renderHeader(); });
+
+let lastSeenDay = todayISO();
+function dayCheck(){ const t = todayISO(); if (t !== lastSeenDay){ if (logDay === lastSeenDay) logDay = t; lastSeenDay = t; render(); } }
+setInterval(dayCheck, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) dayCheck(); });
+
+function confirmSecondCall(d){
+  const n = allDates(d).filter(x => x === logDay).length;
+  openSheet(`<h2>Log another call?</h2>
+    <p><b style="color:var(--ink)">${esc(d.name)}</b> already has ${n === 1 ? "a call" : n + " calls"} logged on ${longDate(logDay)}. It may have been logged from Plan my week when the visit was marked Done.</p>
+    <p>Only log another if you really made a second call that day.</p>
+    <div class="foot"><button class="btn primary" id="scNo">Don't add</button><button class="btn" id="scYes">Log another call</button></div>`);
+  $("scNo").onclick = closeSheet;
+  $("scYes").onclick = () => { d.log.push(logDay); ui.flash = d.id; save(); closeSheet(); render(); toast(`Logged a second call · ${d.name}` + (d.added ? "" : ` · ${rem(d)} left`)); };
+}
+/* ---------- sheets ---------- */
+let busy = false, importCtl = null;
+function openSheet(html){ $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); }
+/* a clear (×) button for every search box */
+function addClears(root){
+  root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
+    inp.setAttribute("data-x", "1");
+    const w = document.createElement("span"); w.className = "qwrap"; if (inp.style.width) { w.style.width = inp.style.width; } w.style.flex = getComputedStyle(inp).flex;
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement("button"); b.type = "button"; b.className = "qx"; b.setAttribute("aria-label", "Clear search"); b.textContent = "×";
+    w.appendChild(b);
+    const sync = () => { b.hidden = !inp.value; };
+    inp.addEventListener("input", sync); sync();
+    b.onclick = () => { inp.value = ""; inp.dispatchEvent(new Event("input", {bubbles:true})); sync(); inp.focus(); };
+  });
+}
+
+function closeSheet(){ if (importCtl) importCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) closeSheet(); });
+
+function openHistory(id){
+  const d = find(id); const days = d.log.slice().sort().reverse();
+  openSheet(`<h2>${esc(d.name)}</h2>
+    <p>${esc(d.city||"No city listed")} · ${d.added ? `${esc(KIND_LBL[d.kind] || "Provider")} you added · not on your call plan` : `${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining`}</p>
+    ${d.added ? `<div class="foot" style="justify-content:flex-start;margin-top:4px"><button class="btn small" id="hEdit">Edit office and days</button><button class="btn small ghost" id="hDel">Remove from my list</button></div>` : ""}
+    ${blitzOf(d.id).length ? `<p style="margin-top:12px"><b style="color:var(--ink)">Blitzes</b></p>${blitzOf(d.id).map(b => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${esc(b.name)} <span class="small">· ${b.freq === 14 ? "every other week" : "weekly"}</span></span><button class="btn small ghost" data-bzrm="${esc(b.id)}">Remove</button></div>`).join("")}` : ""}
+    <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
+    ${awayOf(d.id).map((r,k) => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${awayLbl(r)}</span><button class="btn small ghost" data-awrm="${k}">Remove</button></div>`).join("")}
+    <div class="logday" style="margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="awF" value="${todayISO()}"></label><label class="small">Through <input type="date" id="awT"></label><button class="btn small" id="awAdd">Add</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:10px;flex-wrap:wrap"><button class="btn" id="hInfo">Office and days${d.added && (routerInfo(d.id) || {locs:[]}).locs.length > 1 ? " (" + routerInfo(d.id).locs.length + " offices)" : ""}</button><button class="btn" id="hPin">📌 Plan on a day</button><button class="btn" id="hBook">🍽 Book lunch / coffee</button></div>
+    <div id="staffArea"></div>
+    ${d.added ? "" : `<p class="small">${d.c0} call${d.c0===1?" was":"s were"} already completed in the report when it was loaded${d.lastRpt ? `, the last one on ${longDate(d.lastRpt)}` : ""}.</p>`}
+    ${days.length ? `<ul class="hist">${days.map(x=>`<li><span><b>${longDate(x)}</b></span><button data-del="${x}">Remove</button></li>`).join("")}</ul>` : `<p>No calls logged here since the report was loaded.</p>`}
+    ${(d.hist||[]).length ? `<p class="small" style="margin-top:12px">Logged before your latest report (already counted in its numbers): ${d.hist.slice().sort().reverse().map(shortDate).join(", ")}</p>` : ""}
+    <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
+  renderStaff(d);
+  $("closeS").onclick = () => { closeSheet(); renderList(); };
+  $("hBook").onclick = () => openBook(d.id, () => openHistory(d.id));
+  // these live in Plan my week: hand the doctor over on this iPad (never in the web address) and open it there
+  const toRouter = act => { try { localStorage.setItem("pending.routerOpen", JSON.stringify({act, id: d.id})); } catch(e){} location.href = "route/"; };
+  if ($("hInfo")) $("hInfo").onclick = () => toRouter("info");
+  $("hPin").onclick = () => toRouter("anchor");
+  $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const l = awayOf(d.id); l.splice(+b.dataset.awrm, 1); awaySet(d.id, l); render(); openHistory(d.id); });
+  $("awAdd").onclick = () => { let f = $("awF").value, to = $("awT").value || f; if (!f){ toast("Pick a start date"); return; } if (to < f) [f, to] = [to, f]; awaySet(d.id, awayOf(d.id).concat({from:f, to})); render(); openHistory(d.id); toast(`${d.name} out ${awayLbl({from:f, to})}`); };
+  $("sheet").querySelectorAll("[data-bzrm]").forEach(b => b.onclick = () => { blitzRemove(b.dataset.bzrm, d.id); render(); openHistory(d.id); toast("Removed from the blitz"); });
+  if ($("hEdit")) $("hEdit").onclick = () => openAddProvider(d.id);
+  if ($("hDel")) $("hDel").onclick = () => { if (!confirmTap($("hDel"), "Tap again to remove")) return; state.doctors = state.doctors.filter(x => x.id !== d.id); routerInfo(d.id, null); save(); render(); closeSheet(); toast("Removed " + d.name); };
+  $("sheet").querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    const i = d.log.indexOf(b.dataset.del); if (i>=0) d.log.splice(i,1); save(); render(); openHistory(id);
+  });
+}
+
+/* office staff for a doctor: shown by office, edited one office at a time */
+function renderStaff(d){
+  const box = $("staffArea"); if (!box) return;
+  let offs = staffOfficesFor(d.id);
+  // office not known yet: keep them with the doctor; Plan my week moves them to the office once it knows it
+  if (!offs.length) offs = [{k:"doc|" + d.id, a:(d.city ? titleCase(d.city) + " office" : "Office")}];
+  box.innerHTML = `<p style="margin-top:12px"><b style="color:var(--ink)">Office staff</b></p>` + offs.map((o, i) => {
+    const l = staffFor(o.k);
+    return `<div class="offbox"><div class="small">${esc(o.a)}</div>${l.map(staffLineHtml).join("") || `<p class="small" style="margin:4px 0">No contacts yet.</p>`}<button class="btn small ghost" data-sedit="${i}">${l.length ? "Edit contacts" : "+ Add a staff contact"}</button></div>`;
+  }).join("");
+  box.querySelectorAll("[data-sedit]").forEach(b => b.onclick = () => {
+    const o = offs[+b.dataset.sedit], wrap = b.parentElement;
+    wrap.innerHTML = `<div class="small">${esc(o.a)}</div>${staffEditorHtml(staffFor(o.k))}<p class="small">Title, name and phone number only. Shared by every doctor at this office.</p><div class="foot" style="margin-top:8px"><button class="btn small" data-scancel>Cancel</button><button class="btn small primary" data-ssave>Save</button></div>`;
+    staffWire(wrap);
+    wrap.querySelector("[data-scancel]").onclick = () => renderStaff(d);
+    wrap.querySelector("[data-ssave]").onclick = () => { staffSet(o.k, staffRead(wrap)); renderStaff(d); toast("Saved"); };
+  });
+}
+
+$("dayBtn").onclick = () => openDay(logDay);
+function openDay(t){
+  const grouped = {}; let total = 0;
+  state.doctors.forEach(d => { const n = allDates(d).filter(x => x===t).length; if (n){ grouped[d.id]=n; total+=n; } });
+  const count = {}; state.doctors.forEach(d => allDates(d).forEach(x => count[x]=(count[x]||0)+1));
+  const days = []; for (let i = 0; i < 15; i++){ const d = new Date(); d.setDate(d.getDate() - i); const iso = isoDay(d); const wd = d.getDay(); if (wd === 0 || wd === 6){ if (!count[iso]) continue; } days.push(iso); }
+  const lbl = t === todayISO() ? "today" : shortDate(t);
+  openSheet(`<h2>Calls ${t === todayISO() ? "today" : "on " + shortDate(t)}</h2>
+    <p>${total} call${total===1?"":"s"} logged on ${longDate(t)}.</p>
+    ${total ? `<ul class="hist">${Object.entries(grouped).map(([id,n])=>{const d=find(id);return `<li><span><b>${esc(d.name)}</b> <span class="small">${esc(d.city)}</span></span><span>${n>1?n+" calls":"1 call"}${d.added ? "" : " · " + rem(d) + " left"}</span></li>`}).join("")}</ul>` : ""}
+    <p style="margin-top:16px"><b style="color:var(--ink)">Last two weeks</b> <span class="small">· tap a day to see its calls</span></p>
+    <div class="days14">${days.map(x => `<button data-day="${x}" aria-current="${x===t}"><span>${x === todayISO() ? "Today" : fromISO(x).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"})}</span><b class="${count[x] ? "" : "zero"}">${count[x] ? count[x] + " call" + (count[x]===1?"":"s") : "none"}</b></button>`).join("")}</div>
+    <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-day]").forEach(b => b.onclick = () => openDay(b.dataset.day));
+}
+
+/* ---------- providers you add yourself (not on the call plan) ---------- */
+// towns and ZIP codes of your states, loaded from the app's own geo files (see places below)
+let CITY_NAMES = []; const GEO_ZIPS = {};
+function applyGeo(d){ if (!d) return; const have = new Set(CITY_NAMES); for (const k in (d.c || {})) if (!have.has(k)) CITY_NAMES.push(k); Object.assign(GEO_ZIPS, d.z || {}); }
+/*__GEO_START__*/
+/* ---------- places (shared by the Call Tracker and Plan my week) ----------
+   City and ZIP locations come from one file per state in the app's own geo/ folder (public reference data, nothing of
+   yours is sent). The states you use are downloaded once and kept in their own offline cache, separate from the app's
+   files, so app updates never remove them. A ZIP from a state not loaded yet downloads that state in the background. */
+const GEO_KEY = "geo.states.v1", GEO_CACHE = "geo-places-v1";
+const GEO_ZIP3 = [[5,5,"NY"],[10,27,"MA"],[28,29,"RI"],[30,38,"NH"],[39,49,"ME"],[50,54,"VT"],[55,55,"MA"],[56,59,"VT"],[60,69,"CT"],[70,89,"NJ"],[100,149,"NY"],[150,196,"PA"],[197,199,"DE"],[200,200,"DC"],[201,201,"VA"],[202,205,"DC"],[206,212,"MD"],[214,219,"MD"],[220,246,"VA"],[247,268,"WV"],[270,289,"NC"],[290,299,"SC"],[300,319,"GA"],[320,339,"FL"],[341,342,"FL"],[344,344,"FL"],[346,347,"FL"],[349,349,"FL"],[350,352,"AL"],[354,369,"AL"],[370,385,"TN"],[386,397,"MS"],[398,399,"GA"],[400,418,"KY"],[420,427,"KY"],[430,459,"OH"],[460,479,"IN"],[480,499,"MI"],[500,516,"IA"],[520,528,"IA"],[530,532,"WI"],[534,535,"WI"],[537,549,"WI"],[550,551,"MN"],[553,567,"MN"],[569,569,"DC"],[570,577,"SD"],[580,588,"ND"],[590,599,"MT"],[600,620,"IL"],[622,629,"IL"],[630,631,"MO"],[633,641,"MO"],[644,658,"MO"],[660,662,"KS"],[664,679,"KS"],[680,681,"NE"],[683,693,"NE"],[700,701,"LA"],[703,708,"LA"],[710,714,"LA"],[716,729,"AR"],[730,731,"OK"],[733,733,"TX"],[734,741,"OK"],[743,749,"OK"],[750,770,"TX"],[772,799,"TX"],[800,816,"CO"],[820,831,"WY"],[832,838,"ID"],[840,847,"UT"],[850,853,"AZ"],[855,857,"AZ"],[859,860,"AZ"],[863,865,"AZ"],[870,875,"NM"],[877,884,"NM"],[885,885,"TX"],[889,891,"NV"],[893,895,"NV"],[897,898,"NV"],[900,908,"CA"],[910,928,"CA"],[930,961,"CA"],[967,968,"HI"],[970,979,"OR"],[980,986,"WA"],[988,994,"WA"],[995,999,"AK"]];
+const US_STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",PR:"Puerto Rico",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+function stateOfZip(zip){ const m = String(zip || "").match(/\b(\d{5})(?:-\d{4})?\b/); if (!m) return null; const n = +m[1].slice(0, 3); const r = GEO_ZIP3.find(x => n >= x[0] && n <= x[1]); return r ? r[2] : null; }
+function zipIn(s){ const m = String(s || "").match(/\b(\d{5})(?:-\d{4})?\s*$/); return m ? m[1] : ""; }
+function geoStates(){ try { const l = JSON.parse(localStorage.getItem(GEO_KEY)); return Array.isArray(l) ? l.filter(s => US_STATES[s]) : []; } catch(e){ return []; } }
+function geoSetStates(l){ try { localStorage.setItem(GEO_KEY, JSON.stringify([...new Set(l)].filter(s => US_STATES[s]))); } catch(e){} }
+const geoLoaded = new Set(), geoTried = new Set();
+const geoUrl = st => new URL((location.pathname.includes("/route/") ? "../geo/" : "geo/") + st + ".json", location.href).href;
+async function geoFetch(st){
+  const url = geoUrl(st); let c = null; try { c = await caches.open(GEO_CACHE); } catch(e){}
+  let res = c ? await c.match(url) : null;
+  if (!res){ res = await fetch(url, {cache:"no-cache"}); if (!res.ok) throw new Error("no file for " + st); if (c) await c.put(url, res.clone()); }
+  return res.json();
+}
+// load the states chosen in Settings (remembered on this iPad)
+async function geoLoad(apply){
+  const sts = geoStates();
+  for (const st of sts){ if (geoLoaded.has(st)) continue; try { apply(await geoFetch(st)); geoLoaded.add(st); } catch(e){} }
+}
+// make sure these states are loaded; resolves true when something new arrived
+async function geoEnsure(states, apply){
+  const need = [...new Set(states)].filter(s => s && US_STATES[s] && !geoLoaded.has(s) && !geoTried.has(s)); if (!need.length) return false;
+  let got = false;
+  for (const st of need){ geoTried.add(st); try { apply(await geoFetch(st)); geoLoaded.add(st); geoSetStates(geoStates().concat(st)); got = true; } catch(e){ geoTried.delete(st); } }
+  return got;
+}
+// Type-ahead for a town: suggestions appear right under the box as you type (start of the name first, then a word in it,
+// then close spellings like "Concrd"). Tapping one fills the box. Works the same on every iPad, unlike a datalist.
+function cityAhead(inp, getList, getMine){
+  if (!inp || inp.dataset.ahead) return; inp.dataset.ahead = "1"; inp.removeAttribute("list");
+  const box = document.createElement("div"); box.className = "cityahead";
+  box.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px";
+  inp.insertAdjacentElement("afterend", box);
+  const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const near = (a, b) => { if (Math.abs(a.length - b.length) > 2) return 9; const d = []; for (let i = 0; i <= a.length; i++){ d[i] = [i]; for (let j = 1; j <= b.length; j++) d[i][j] = i ? Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)) : j; } return d[a.length][b.length]; };
+  const show = () => {
+    const q = norm(inp.value); if (!q){ box.innerHTML = ""; return; }
+    const list = [...new Set(getList())];
+    if (list.some(c => norm(c) === q)){ box.innerHTML = ""; return; }
+    const rank = c => { const n = norm(c); if (n.startsWith(q)) return 0; if (n.split(" ").some(w => w.startsWith(q))) return 1; if (q.length >= 3 && n.includes(q)) return 2;
+      if (q.length >= 4){ const e = Math.min(near(q, n), near(q, n.slice(0, q.length))); if (e <= (q.length >= 7 ? 2 : 1)) return 3 + e; } return 99; };
+    // your own towns (where your doctors are) first; close spellings only when nothing starts that way
+    const mine = new Set((getMine ? getMine() : []).map(norm));
+    let hits = list.map(c => [c, rank(c)]).filter(x => x[1] < 99).map(x => [x[0], x[1] - (mine.has(norm(x[0])) ? 0.5 : 0)]);
+    if (hits.some(x => x[1] < 3)) hits = hits.filter(x => x[1] < 3);
+    hits = hits.sort((a,b) => a[1] - b[1] || a[0].localeCompare(b[0])).slice(0, 6);
+    box.innerHTML = hits.length ? (hits[0][1] >= 3 ? `<span style="font-size:13px;opacity:.75;align-self:center">Did you mean</span>` : "") + hits.map(([c]) => `<button type="button" class="chip" data-ca="${String(c).replace(/"/g, "&quot;")}" style="min-height:36px">${String(c).replace(/</g, "&lt;")}</button>`).join("")
+      : `<span style="font-size:13px;opacity:.75">No town by that name${list.length ? "" : " yet. Choose your state first"}.</span>`;
+    box.querySelectorAll("[data-ca]").forEach(b => b.onclick = () => { inp.value = b.dataset.ca; box.innerHTML = ""; inp.dispatchEvent(new Event("change", {bubbles:true})); });
+  };
+  inp.addEventListener("input", show); inp.addEventListener("focus", show);
+}
+
+/*__GEO_END__*/
+const KIND_LBL = {md:"Physician", np:"Nurse practitioner", pa:"Physician assistant"};
+const titleCase = s => String(s||"").toLowerCase().replace(/(^|[\s\-'])([a-z])/g, (m,a,b) => a + b.toUpperCase());
+function confirmTap(btn, msg){ if (btn.dataset.armed) return true; btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = msg; setTimeout(() => { if (btn.isConnected){ btn.textContent = old; delete btn.dataset.armed; } }, 3000); return false; }
+// the office and days live with Plan my week's data on this device
+function routerInfo(id, info){
+  let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
+  if (info === undefined) return (r.docInfo || {})[id] || null;
+  r.docInfo = r.docInfo || {}; if (info) r.docInfo[id] = info; else delete r.docInfo[id];
+  try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
+}
+const cleanPerson = s => String(s||"").replace(/[^\p{L}\s'\-.]/gu,"").replace(/\s+/g," ").trim().slice(0,30);
+// every office the planner knows, with the doctors at it (from Plan my week, on this iPad)
+function knownOffices(){
+  let all = {}; try { all = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  const by = {};
+  for (const id in all) for (const o of (all[id] || [])){
+    if (!o || !o.a || /not set yet/.test(o.a)) continue;
+    const cut = o.a.lastIndexOf(", "); if (cut < 0) continue;
+    const street = o.a.slice(0, cut), city = o.a.slice(cut + 2);
+    const x = by[o.k] = by[o.k] || {street, city, names: []};
+    const d = find(id); const nm = d ? titleCase(d.name.split(" ").pop()) : titleCase(String(id).split(" ").pop());
+    if (!x.names.includes(nm)) x.names.push(nm);
+    x.full = (x.full || "") + " " + (d ? d.name : id);
+  }
+  return Object.values(by).map(x => ({...x, hay: (x.street + " " + x.city + " " + x.full).toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ")}));
+}
+// a ZIP in a state whose places aren't on this iPad yet: add that state, or go back and fix the ZIP
+function askState(st, where, onAdd, onTypo){
+  const first = !geoLoaded.size, name = US_STATES[st];
+  openSheet(`<h2>${first ? "This office is in " + esc(name) : esc(where) + " is in " + esc(name)}</h2>
+    <p>${first ? `The app needs ${esc(name)}'s towns and ZIP codes to plan routes. It's a one-time download of public place data; nothing of yours is sent.` : `Your map has ${esc([...geoLoaded].map(x => US_STATES[x]).join(", "))} so far. Add ${esc(name)} if you work there too. If not, the ZIP code is probably mistyped.`}</p>
+    <p class="small" id="gsMsg" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="gsTypo">${first ? "Back" : "It's a typo: I'll fix the ZIP"}</button><button class="btn primary" id="gsAdd">Add ${esc(name)}</button></div>`);
+  $("gsTypo").onclick = onTypo;
+  $("gsAdd").onclick = async () => {
+    $("gsAdd").disabled = true; $("gsAdd").textContent = "Downloading…";
+    await geoEnsure([st], applyGeo);
+    if (!geoLoaded.has(st)){ $("gsAdd").disabled = false; $("gsAdd").textContent = "Add " + name; $("gsMsg").textContent = navigator.onLine ? name + " isn't available yet." : "This needs an internet connection. Connect and try again."; return; }
+    onAdd();
+  };
+}
+function openAddProvider(editId, pre){
+  const ed = editId ? find(editId) : null; const info = editId ? routerInfo(editId) : null;
+  const parts = ed ? ed.name.split(" ") : [];
+  const v = {first: ed ? titleCase(parts.slice(0,-1).join(" ")) : "", last: ed ? titleCase(parts[parts.length-1]) : "", kind: ed ? ed.kind || "md" : "md",
+    street: info && info.locs[0] ? info.locs[0].address : "", zip: info && info.locs[0] ? info.locs[0].zip || "" : "", city: info && info.locs[0] ? info.locs[0].city : (ed ? titleCase(ed.city) : ""),
+    days: info && info.locs[0] ? JSON.parse(JSON.stringify(info.locs[0].days || {})) : {}, appt: !!(info && info.locs[0] && info.locs[0].appt)};
+  if (pre && pre.last) v.last = titleCase(pre.last);
+  if (pre && pre.first) v.first = titleCase(pre.first);
+  const note = pre && pre.last && pre.cal ? `${titleCase(pre.last)} is on your calendar but not your call plan. Add the first name and the office.${pre.iso ? " You'll go straight back to Plan my week, with the lunch in your route." : " Then rebuild in Plan my week."}` : "";
+  let err = "", wantMore = false;
+  const WD = ["","Mon","Tue","Wed","Thu","Fri"];
+  const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.zip = String($("apZ").value).replace(/\D/g, "").slice(0, 5); v.appt = $("apA").checked; };
+  const draw = () => {
+    openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add a provider"}</h2>
+      <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the doctors on your plan.</p>
+      ${note ? `<p class="offbox" style="margin-top:8px">${esc(note)}</p>` : ""}
+      <div class="fld">Provider type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
+      <label class="fld">First name<input id="apF" value="${esc(v.first)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
+      <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
+      <label class="fld">Office street address<span class="small" style="font-weight:400">Type the street or another doctor's name to reuse an office you already have.</span><input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
+      <div id="apSug" class="chips" style="margin-top:-4px"></div>
+      <div style="display:flex;gap:10px"><label class="fld" style="flex:1">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label><label class="fld" style="width:110px">ZIP<input id="apZ" value="${esc(v.zip)}" inputmode="numeric" maxlength="5" autocomplete="off"></label></div>
+      <datalist id="apCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
+      <div class="fld">When they're in<span class="small" style="font-weight:400">Tap morning and afternoon for each day. None ticked means any day.</span>
+        ${[1,2,3,4,5].map(k => { const x = v.days[k] || {}; return `<div class="wk"><button type="button" class="dl" data-dall="${k}">${WD[k]}</button><button type="button" data-g="${k}|am" aria-pressed="${!!x.am}">Morning</button><button type="button" data-g="${k}|pm" aria-pressed="${!!x.pm}">Afternoon</button></div>`; }).join("")}
+        <label class="small" style="display:flex;gap:8px;align-items:center;justify-content:flex-start;margin-top:8px;font-weight:400"><input type="checkbox" id="apA" ${v.appt ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Appointment only</span></label></div>
+      ${err ? `<p style="color:var(--red-ink)"><b>${esc(err)}</b></p>` : ""}
+      <div class="offbox" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span class="small">Works at more than one office?${info && info.locs && info.locs.length > 1 ? ` <b>${info.locs.length} offices saved.</b>` : ""}</span><button type="button" class="btn small" id="apMore">${info && info.locs && info.locs.length > 1 ? "See all offices" : "+ Add another office"}</button></div>
+      <div class="foot"><button class="btn" id="apX">Cancel</button><button class="btn primary" id="apOk">${ed ? "Save" : "Add to my list"}</button></div>`);
+    $("apMore").onclick = () => { wantMore = true; $("apOk").click(); wantMore = false; };
+    $("sheet").querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { sync(); v.kind = b.dataset.kind; draw(); });
+    // offices you already have: typing part of the street, or a doctor's name, offers them
+    const known = knownOffices();
+    const sug = () => {
+      const q = $("apS").value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+      const hits = q.length < 2 ? [] : known.filter(o => q.split(" ").every(w => o.hay.includes(w))).slice(0, 5);
+      $("apSug").innerHTML = hits.map((o,i) => `<button type="button" class="chip" data-sug="${i}" style="display:block;text-align:left;line-height:1.35;padding:8px 12px;border-radius:12px;height:auto">${esc(o.street)}, ${esc(o.city)}<br><span class="small">Same office as ${esc(o.names.slice(0,3).join(", "))}${o.names.length > 3 ? " +" + (o.names.length - 3) : ""}</span></button>`).join("");
+      $("apSug").querySelectorAll("[data-sug]").forEach(b => b.onclick = () => { const o = hits[+b.dataset.sug]; $("apS").value = o.street; $("apC").value = o.city; $("apSug").innerHTML = `<span class="small" style="color:var(--grn-ink, #1d6a33)">✓ Same office as ${esc(o.names.slice(0,3).join(", "))}. Office staff saved there will show for this provider too.</span>`; });
+    };
+    $("apS").addEventListener("input", sug);
+    cityAhead($("apC"), () => CITY_NAMES.map(titleCase), () => state.doctors.map(d => d.city));
+    $("sheet").querySelectorAll("[data-g]").forEach(b => b.onclick = () => { const [k,sl] = b.dataset.g.split("|"); const x = v.days[k] = v.days[k] || {am:false,pm:false}; x[sl] = !x[sl]; b.setAttribute("aria-pressed", String(x[sl])); });
+    $("sheet").querySelectorAll("[data-dall]").forEach(b => b.onclick = () => { const k = b.dataset.dall; const x = v.days[k] || {}; const on = !(x.am && x.pm); v.days[k] = {am:on, pm:on}; $("sheet").querySelectorAll(`[data-g^="${k}|"]`).forEach(g => g.setAttribute("aria-pressed", String(on))); });
+    $("apX").onclick = () => ed ? openHistory(ed.id) : closeSheet();
+    $("apOk").onclick = () => {
+      sync();
+      const name = (v.first + " " + v.last).trim().toUpperCase(), id = norm(name);
+      if (!ed && (!v.first || !v.last)){ err = "Add a first and last name."; return draw(); }
+      if (!ed && find(id)){ err = "That name is already on your list."; return draw(); }
+      if (!v.city){ err = "Add the city."; return draw(); }
+      if (v.zip && (v.zip.length !== 5 || !stateOfZip(v.zip))){ err = `“${v.zip}” isn't a US ZIP code.`; return draw(); }
+      const zst = stateOfZip(v.zip);
+      if (zst && !geoLoaded.has(zst)) return askState(zst, `${titleCase(v.city)} ${v.zip}`, () => { draw(); $("apOk").click(); }, () => { draw(); setTimeout(() => $("apZ") && $("apZ").focus(), 50); });
+      if (!GEO_ZIPS[v.zip] && !CITY_NAMES.includes(v.city.toLowerCase())){ err = geoLoaded.size ? `“${v.city}” isn't a town the app can find. Pick one from the list as you type, or add the ZIP code.` : "Add the office's ZIP code so the app can place it on your map."; return draw(); }
+      for (const k in v.days) if (!v.days[k].am && !v.days[k].pm) delete v.days[k];
+      if (ed){ ed.kind = v.kind; ed.city = v.city.toUpperCase(); }
+      else state.doctors.push({id, name, city:v.city.toUpperCase(), c0:0, a:0, r0:0, lastRpt:null, log:[], added:true, kind:v.kind});
+      const others = ed && info && info.locs ? info.locs.slice(1) : [];
+      routerInfo(id, {locs:[{...(ed && info && info.locs && info.locs[0] || {}), address:v.street, city:titleCase(v.city), zip:v.zip || undefined, days:v.days, appt:v.appt}].concat(others), at:new Date().toISOString()});
+      save(); ui.flash = id; render(); closeSheet(); toast(ed ? "Saved" : `Added ${titleCase(name)}`);
+      // added from a lunch on the calendar: put them into that day's route right away
+      // more offices are added in Plan my week's Office and days, which holds up to 8
+      if (wantMore){ try { localStorage.setItem("pending.routerOpen", JSON.stringify({act:"info", id: ed ? ed.id : id})); } catch(e){} location.href = "route/"; return; }
+      if (!ed && pre && pre.iso){ try { localStorage.setItem("pending.placeLunch", JSON.stringify({id, iso: pre.iso})); } catch(e){} location.href = "route/"; }
+    };
+  };
+  draw();
+}
+
+/* ---------- backup (stays on the device: Files, or AirDrop to your own iPhone) ---------- */
+$("moreBtn").onclick = async () => {
+  const ready = await ocrReady();
+  const end = state.planEnd && state.planEnd >= todayISO() ? state.planEnd : null;
+  const R = state.doctors.reduce((n,d)=>n+rem(d),0);
+  const wl = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO()))/864e5)+1)/7)) : null;
+  let me = ""; try { me = (JSON.parse(localStorage.getItem("weekrouter.v1")) || {}).settings?.myName || ""; } catch(e){}
+  openSheet(`<h2>Settings</h2>
+    <div class="logday" style="margin-top:4px">
+      <label for="planEnd"><b style="color:var(--ink)">Quarter end date</b></label>
+      <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
+    </div>
+    <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
+    <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
+    <p class="sechd">Providers</p>
+    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add a provider not on my call plan</button><button class="btn" id="findMiss">Find a missing doctor${missingCands().length ? " (" + missingCands().length + ")" : ""}</button></div>
+    <p class="sechd">Lunches and coffees</p>
+    <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
+    <p class="sechd">Plan my week</p>
+    <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
+    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
+    <p class="sechd">Your data</p>
+    <p>Everything you enter stays in this app on this iPad. Nothing is uploaded, and there's no export to Files or iCloud. Deleting the app's icon from the Home Screen deletes its data.</p>
+    <div class="foot" style="justify-content:flex-start">
+      <label class="btn small ghost" for="restoreF">Restore from an older backup file</label>
+      <input type="file" id="restoreF" accept=".json,application/json,text/plain,*/*" hidden>
+    </div>
+    <p class="small" id="bMsg"></p>
+    <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  const keepMe = () => { const n = staffName($("meName").value).trim(); let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
+    if ((r.settings && r.settings.myName || "") !== n){ r.settings = Object.assign(r.settings || {}, {myName:n}); try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} } };
+  $("meName").onchange = keepMe;
+  $("closeS").onclick = () => { keepMe(); closeSheet(); };
+  $("addProv").onclick = () => { keepMe(); openAddProvider(); };
+  $("findMiss").onclick = () => { keepMe(); openMissing(); };
+  $("invBtn").onclick = () => { keepMe(); openInvitees(() => $("moreBtn").click()); };
+  $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
+  $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
+  $("restoreF").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
+      if (s.staff) staffMerge(s.staff); delete s.staff; delete s.notes;
+      state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} doctors`); }
+    catch(_){ $("bMsg").textContent = "That file isn't a call plan backup."; }
+  };
+};
+
+/* ---------- saving files (share sheet → Save to Files / AirDrop; never uploaded) ---------- */
+async function saveFile(){ return null; } // no data exports: everything stays in this app
+
+/* ---------- export for routing ---------- */
+function weekStartISO(iso){ const d = fromISO(iso); const k = (d.getDay()+6)%7; d.setDate(d.getDate()-k); return isoDay(d); }
+function routingRows(){
+  const t = todayISO(), wk = weekStartISO(t);
+  const end = state.planEnd && state.planEnd >= t ? state.planEnd : null;
+  const weeksLeft = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(t))/864e5)+1)/7)) : null;
+  const rows = state.doctors.filter(d => rem(d) > 0).map(d => {
+    const lc = lastCall(d), r = rem(d);
+    return { name:d.name, city:d.city, completed:done(d), assigned:d.a, remaining:r,
+      lastCall: lc, daysSinceLastCall: lc ? daysAgo(lc) : null,
+      callsThisWeek: d.log.filter(x => x >= wk && x <= t).length,
+      callsPerWeekNeeded: weeksLeft ? Math.round(r/weeksLeft*100)/100 : null,
+      status: status(d)==="red" ? "More than half left" : "Half or less left",
+      _share: d.a ? r/d.a : 0 };
+  });
+  // Most behind first: calls/week needed (or share of plan left), then longest since last call
+  rows.sort((a,b) => ((b.callsPerWeekNeeded ?? b._share) - (a.callsPerWeekNeeded ?? a._share))
+    || ((b.daysSinceLastCall ?? 9999) - (a.daysSinceLastCall ?? 9999)) || a.name.localeCompare(b.name));
+  rows.forEach((r,i) => { r.priority = i+1; delete r._share; });
+  return {rows, weeksLeft, end};
+}
+const csvCell = v => { v = v==null ? "" : String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+function routingCSV(rows){
+  const head = ["Priority","Doctor","City","Completed","Assigned","Remaining","Last call","Days since last call","Calls this week","Calls per week needed","Status"];
+  const body = rows.map(r => [r.priority,r.name,r.city,r.completed,r.assigned,r.remaining,r.lastCall||"",r.daysSinceLastCall??"",r.callsThisWeek,r.callsPerWeekNeeded??"",r.status].map(csvCell).join(","));
+  return [head.join(","), ...body].join("\n");
+}
+
+/* ---------- on-device screenshot reading ---------- */
+function parseCallPlanText(text){
+  const JUNK_LEAD = /^([^A-Z]{1,3}|[A-Z]|O|Oo|0|\(\)|\[\]|©|@|®|&)$/;
+  const DATE = /^\d{1,2}\/\d{1,2}\/\d{2,4}[.,]?$/;
+  const PRODUCTISH = /(PRIMARY|SECONDARY|AIRSUPRA|BREZTRI|AEROSPHERE|[A-Za-z]{3,};|;[A-Za-z]{3,})/i;
+  const rows = []; let total = null;
+  for (let raw of text.split(/\n+/)){
+    const line = raw.replace(/[|‘’`“”"]/g," ").replace(/\s+/g," ").trim();
+    if (!line) continue;
+    const tm = line.match(/^tota[l1I]\W*\s*(\d+)\s+(.*)$/i);
+    if (tm){ const nums = (tm[2].match(/\d+/g)||[]).map(Number); if (nums.length>=3) total = {count:+tm[1], c:nums[0], a:nums[1], r:nums[2]}; continue; }
+    // the total row with a misread label ("ae 97 67 251 184"): four numbers where completed + remaining = assigned
+    const tm2 = line.match(/^\W*[A-Za-z]{0,6}\W*\s+(\d{1,3})\s+(\d{1,4})\s+(\d{1,4})\s+(\d{1,4})\W*$/);
+    if (tm2 && +tm2[2] + +tm2[4] === +tm2[3] && +tm2[3] >= +tm2[1]){ total = {count:+tm2[1], c:+tm2[2], a:+tm2[3], r:+tm2[4]}; continue; }
+    let tok = line.split(" ");
+    // find where product/sales text begins
+    let p = tok.findIndex(t => PRODUCTISH.test(t));
+    if (p < 2) continue;
+    const head = tok.slice(0,p), tail = tok.slice(p);
+    // SD1 A: first standalone number after the product text
+    const tailNums = tail.join(" ").replace(/^.*?(SECONDARY|PRIMARY)\S*/i,"").match(/\b\d{1,2}\b/g);
+    let sdA = tailNums ? +tailNums[0] : null;
+    if (sdA === 0) sdA = null;
+    // split head into identity part and the C/A/R cluster
+    let di = head.findIndex(t => DATE.test(t));
+    let ident, cluster;
+    let last = null;
+    if (di >= 0){ ident = head.slice(0,di); cluster = head.slice(di+1);
+      const dm = head[di].match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (dm){ const y = dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]; if (+dm[1] >= 1 && +dm[1] <= 12 && +dm[2] >= 1 && +dm[2] <= 31) last = y + "-" + String(dm[1]).padStart(2,"0") + "-" + String(dm[2]).padStart(2,"0"); } }
+    else {
+      // no date: cluster = trailing tokens that contain digits or look like OCR noise
+      let k = head.length;
+      while (k>0 && /\d|^[OoQ]\W*$|^\W+$/.test(head[k-1]) && head.length-k < 6) k--;
+      ident = head.slice(0,k); cluster = head.slice(k);
+    }
+    // identity: strip leading junk (checkbox), and non-word dashes
+    ident = ident.map(t => t.replace(/!$/,"I").replace(/^!/,"I")).map(t => t.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g,"")).filter(Boolean);
+    while (ident.length > 2 && (ident[0].length===1 || (ident[0].length===2 && /[OQ0]/i.test(ident[0])) || /^(IF|TI|II|IT|IO|OI|HI|LS|IE|IG|IL|EI|IS|SI|GI|FI|LL|II|EE)$/i.test(ident[0]))) ident.shift();
+    ident = ident.filter(t => /^[A-Za-z][A-Za-z'\-]*$/.test(t)).map(t=>t.toUpperCase());
+    if (ident.length < 2) continue;
+    // Target name is followed by its Last Name column: find the repeat
+    let name=null, city="";
+    // the Last Name column can be misread by a letter ("FARRAHI FARRAH") or glued ("BASORA ROVIRA BASORAROVIRA")
+    const near = (x, y) => { if (x === y) return true; if (Math.min(x.length, y.length) < 4 || Math.abs(x.length - y.length) > 1) return false;
+      let i = 0; while (i < x.length && x[i] === y[i]) i++; const a2 = x.slice(i), b2 = y.slice(i);
+      return a2.slice(1) === b2.slice(1) || a2.slice(1) === b2 || a2 === b2.slice(1); };
+    for (let s=ident.length-1; s>=1 && !name; s--){
+      for (let m=Math.min(3,s); m>=1; m--){
+        if (s+m <= ident.length && ident.slice(s,s+m).join(" ")===ident.slice(s-m,s).join(" ")){
+          name = ident.slice(0,s).join(" "); city = ident.slice(s+m).join(" "); break;
+        }
+      }
+      if (!name) for (let m=Math.min(3,s); m>=2; m--){
+        if (s-m >= 1 && ident[s] === ident.slice(s-m,s).join("")){ name = ident.slice(0,s).join(" "); city = ident.slice(s+1).join(" "); break; }
+      }
+      if (!name && s >= 2 && near(ident[s], ident[s-1])){ name = ident.slice(0,s).join(" "); city = ident.slice(s+1).join(" "); }
+      // OCR sometimes glues a short name together: "JOHNDOE DOE" -> "JOHN DOE"
+      if (!name && ident[s].length>=2 && ident[s-1].length>ident[s].length+1 && ident[s-1].endsWith(ident[s])){
+        const first = ident[s-1].slice(0, ident[s-1].length-ident[s].length);
+        name = [...ident.slice(0,s-1), first, ident[s]].join(" "); city = ident.slice(s+1).join(" ");
+      }
+    }
+    if (!name) continue;
+    // numbers
+    let digits = cluster.join(" ").replace(/[Oo]/g,"0").replace(/[^0-9]/g,"");
+    let c=null,a=null,r=null,sure=false;
+    if (digits.length===3){ const [x,y,z]=digits.split("").map(Number); if (x+z===y){ c=x;a=y;r=z;sure=true; } }
+    if (!sure && digits.length>=4 && sdA!=null){
+      // two-digit values possible (A>=10): try parses
+      const cands=[]; const d=digits;
+      for (let i=1;i<d.length;i++) for (let j=i+1;j<d.length;j++){
+        const x=+d.slice(0,i), y=+d.slice(i,j), z=+d.slice(j);
+        if (x+z===y && y===sdA && String(+d.slice(0,i))===d.slice(0,i)) cands.push([x,y,z]);
+      }
+      if (cands.length===1){ [c,a,r]=cands[0]; sure=true; }
+    }
+    if (!sure){
+      const d = digits.split("").map(Number);
+      if (sdA!=null){
+        a = sdA; const last = d.length ? d[d.length-1] : null;
+        if (last!=null && last<=a){ r=last; c=a-last; } else { c=0; r=a; }
+      } else if (d.length>=3){ c=d[0]; r=d[d.length-1]; a=c+r; }
+      else if (d.length===2){ a=d[0]; r=Math.min(d[1],a); c=a-r; }
+      else if (d.length===1){ a=d[0]; r=a; c=0; }
+    }
+    if (a==null) continue;
+    rows.push({name, city, c, a, r, last, guess: !sure && (sdA==null || digits.length <= 1)});
+  }
+  return {rows, total};
+}
+
+
+function simdSupported(){
+  try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; }
+}
+const CORE_FILE = simdSupported() ? "tesseract-core-simd-lstm.wasm.js" : "tesseract-core-lstm.wasm.js";
+async function vendorBlob(url){
+  // cache-first from this device's storage; network only the first time
+  let res = null;
+  try { const c = await caches.open(VCACHE); res = await c.match(url);
+        if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw new Error("download failed"); await c.put(url, net.clone()); res = net; } }
+  catch(e){ if (!res){ const net = await fetch(url, {mode:"cors"}); if (!net.ok) throw e; res = net; } }
+  return URL.createObjectURL(await res.blob());
+}
+async function ocrReady(){
+  try { const c = await caches.open(VCACHE);
+    return !!(await c.match(TJS+"tesseract.min.js")) && !!(await c.match(TJS+"worker.min.js")) && !!(await c.match(CORE+CORE_FILE)) && localStorage.getItem("calltracker.langReady")==="1";
+  } catch(e){ return false; }
+}
+let ocrWorker = null;
+async function getWorker(onProgress){
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract){
+    const src = await vendorBlob(TJS+"tesseract.min.js");
+    await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("engine")); document.head.appendChild(s); });
+  }
+  const workerPath = await vendorBlob(TJS+"worker.min.js");
+  const corePath = (await vendorBlob(CORE+CORE_FILE)) + "#core.js";
+  ocrWorker = await Tesseract.createWorker("eng", 1, {
+    workerPath, corePath, langPath: LANG, workerBlobURL: false, cacheMethod: "write",
+    logger: m => onProgress && onProgress(m)
+  });
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: "6", preserve_interword_spaces: "0" });
+  try { localStorage.setItem("calltracker.langReady","1"); } catch(e){}
+  return ocrWorker;
+}
+
+$("importBtn").onclick = () => {
+  openSheet(`<h2>Load screenshots</h2>
+    <p>Pick every page of your call plan, including the last one with the total row.</p>
+    <div class="drop">
+      <label class="btn primary" for="shotF">Choose screenshots</label>
+      <input type="file" id="shotF" accept="image/*" multiple hidden>
+    </div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="status" id="iStat" aria-live="polite"></div>
+    <div class="prog" id="iProg" hidden><i id="iBar"></i></div>
+    <div id="review"></div>
+    <div class="foot" id="iFoot"><button class="btn" id="closeS">Cancel</button></div>`);
+  $("closeS").onclick = closeSheet;
+  parsed = []; reportTotal = null;
+  $("shotF").onchange = e => runImport([...e.target.files]);
+};
+
+let parsed = [], reportTotal = null;
+async function runImport(files){
+  if (!files.length) return;
+  busy = true; importCtl = new AbortController(); const sig = importCtl.signal;
+  const shots = files.map(f => ({f, url:URL.createObjectURL(f), st:"wait", n:0}));
+  const drawThumbs = () => $("thumbs").innerHTML = shots.map(s=>`<div class="thumb ${s.st}"><img src="${s.url}" alt=""><div>${s.st==="ok"?s.n+" doctors":s.st==="bad"?"Couldn't read":s.st==="busy"?"Reading…":"Waiting"}</div></div>`).join("");
+  drawThumbs();
+  $("iFoot").innerHTML = `<button class="btn" id="stopI">Stop</button>`;
+  $("stopI").onclick = () => importCtl.abort();
+  $("iProg").hidden = false;
+  const setBar = p => $("iBar").style.width = Math.round(p*100)+"%";
+  const byId = new Map(parsed.map(r=>[r.id,r]));
+  let worker;
+  try {
+    $("iStat").textContent = "Getting the reader ready…";
+    worker = await getWorker(m => {
+      if (m.status && /loading|initializ/i.test(m.status)) { $("iStat").textContent = "Getting the reader ready… (first time needs internet)"; setBar(m.progress||0); }
+      else if (m.status === "recognizing text") setBar(m.progress||0);
+    });
+  } catch(e){
+    busy = false; $("iProg").hidden = true;
+    $("iStat").textContent = navigator.onLine ? "The reader couldn't start. Close the app fully and open it again." : "The first time you load screenshots, the iPad needs internet to set up the reader. Connect once, then it works offline.";
+    $("iFoot").innerHTML = `<button class="btn" id="closeS">Close</button>`; $("closeS").onclick = closeSheet; return;
+  }
+  for (let i=0;i<shots.length && !sig.aborted;i++){
+    const s = shots[i]; s.st="busy"; drawThumbs(); setBar(0);
+    $("iStat").textContent = `Reading screenshot ${i+1} of ${shots.length}…`;
+    try {
+      const { data } = await worker.recognize(s.f);
+      if (sig.aborted) break;
+      const out = parseCallPlanText(data.text || "");
+      let n = 0;
+      for (const r of out.rows){
+        const sn = snapName(r.name), sc = snapCity(r.city);
+        const d = makeDoc(sn, sc, r.c, r.a, r.r, r.last); d.guess = !!r.guess; if (norm(sn) !== norm(r.name)) d.readAs = r.name;
+        if (d.id && !byId.has(d.id)) { byId.set(d.id, d); n++; }
+      }
+      if (out.total) reportTotal = out.total;
+      s.st = out.rows.length ? "ok" : "bad"; s.n = n;
+    } catch(e){ s.st = "bad"; }
+    drawThumbs();
+  }
+  parsed = [...byId.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  busy = false; $("iProg").hidden = true;
+  const bad = shots.filter(s=>s.st==="bad").length;
+  $("iStat").textContent = parsed.length
+    ? `Found ${parsed.length} doctors.` + (bad ? ` ${bad} screenshot${bad>1?"s":""} couldn't be read. Retake ${bad>1?"them":"it"} with the iPad's screenshot buttons and add again.` : "")
+    : "No doctors found. Make sure the screenshots show the Call Plan Target table clearly.";
+  renderReview();
+}
+
+// compared with the list you have now: who isn't in these screenshots, who is new, and whose assigned number changed
+function whatChanged(){
+  const cur = state.doctors.filter(d => !d.added); if (!cur.length) return null;
+  const P = new Map(parsed.map(p => [p.id, p]));
+  const missing = cur.filter(d => !P.has(d.id));
+  const isNew = parsed.filter(p => !cur.some(d => d.id === p.id));
+  const changed = cur.filter(d => P.has(d.id) && P.get(d.id).a !== d.a).map(d => ({d, a: P.get(d.id).a}));
+  return {missing, isNew, changed};
+}
+function whatChangedHtml(){
+  const w = whatChanged(); if (!w) return "";
+  if (!w.missing.length && !w.isNew.length && !w.changed.length) return `<p class="small okline" style="margin-top:8px">✓ Same doctors and assigned calls as your current list.</p>`;
+  const nm = d => esc(titleCase(d.name)) + (d.city ? ` <span class="small">${esc(titleCase(d.city))}</span>` : "");
+  return `<div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">What changed</b> <span class="small">· compared with your current list</span>
+    ${w.missing.length ? `<p style="margin-top:6px;color:var(--red-ink)"><b>Not in these screenshots (${w.missing.length}):</b> ${w.missing.map(d => nm(d) + ` · ${d.a} assigned`).join("; ")}</p><p class="small">A screenshot may be missing a row. If they're really off your plan, that's fine. <b>Update my numbers</b> keeps them as they are, <b>Start a fresh plan</b> drops them (you can add them back from Settings).</p>` : ""}
+    ${w.isNew.length ? `<p style="margin-top:6px"><b>New (${w.isNew.length}):</b> ${w.isNew.map(d => nm(d) + ` · ${d.a} assigned`).join("; ")}</p>` : ""}
+    ${w.changed.length ? `<p style="margin-top:6px"><b>Assigned changed (${w.changed.length}):</b> ${w.changed.map(x => nm(x.d) + ` · ${x.d.a} → ${x.a}`).join("; ")}</p>` : ""}
+  </div>`;
+}
+function renderReview(){
+  if (!parsed.length){ $("iFoot").innerHTML = `<label class="btn" for="moreF">Try other screenshots</label><input type="file" id="moreF" accept="image/*" multiple hidden><button class="btn" id="closeS">Close</button>`;
+    $("closeS").onclick = closeSheet; $("moreF").onchange = e => runImport([...e.target.files]); return; }
+  const sum = parsed.reduce((t,d)=>({c:t.c+d.c0,a:t.a+d.a,r:t.r+d.r0}),{c:0,a:0,r:0});
+  const T = reportTotal;
+  const match = T && +T.a===sum.a && +T.c===sum.c && +T.r===sum.r && (!T.count || +T.count===parsed.length);
+  const flagged = parsed.filter(d => d.guess || d.c0 + d.r0 !== d.a).length;
+  $("review").innerHTML = `
+    <div class="summary">
+      <span>${parsed.length} doctors · C ${sum.c} · A ${sum.a} · R ${sum.r}</span>
+      ${T ? `<span class="${match?"good":"bad"}">${match ? "✓ Matches the report's total row" : `Report's total row: ${T.count?T.count+" doctors · ":""}C ${T.c} · A ${T.a} · R ${T.r}`}</span>` : `<span class="small">Add the last page (with the total row) to double-check the count.</span>`}
+    </div>
+    ${whatChangedHtml()}
+    ${T && !match ? `<p class="small">The numbers don't match yet. A page may be missing, or a number was misread. Check the highlighted rows against your report.</p>` : ""}
+    ${flagged ? `<p class="small">${flagged} highlighted row${flagged>1?"s":""}: the reader wasn't sure of the numbers. Compare with your report and tap a number to fix it.</p>` : ""}
+    <div class="rtable"><table><thead><tr><th>Doctor</th><th>City</th><th>C</th><th>A</th><th>R</th><th></th></tr></thead><tbody>
+    ${parsed.map((d,i)=>`<tr class="${(d.guess || d.c0+d.r0!==d.a)?"check":""}"><td>${esc(d.name)}${d.readAs ? `<br><span class="small">read as ${esc(d.readAs)}</span>` : ""}</td><td>${esc(d.city)}</td>
+      <td class="num"><input id="pc${i}" type="number" inputmode="numeric" min="0" value="${d.c0}" data-i="${i}" data-k="c0" aria-label="Completed"></td>
+      <td class="num"><input id="pa${i}" type="number" inputmode="numeric" min="0" value="${d.a}" data-i="${i}" data-k="a" aria-label="Assigned"></td>
+      <td class="num"><input id="pr${i}" type="number" inputmode="numeric" min="0" value="${d.r0}" data-i="${i}" data-k="r0" aria-label="Remaining"></td>
+      <td><button class="x" data-rm="${i}" aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")}
+    </tbody></table></div>
+    <div id="confirmBox"></div>`;
+  $("review").querySelectorAll("input[data-k]").forEach(inp => inp.onchange = () => { const d = parsed[+inp.dataset.i]; d[inp.dataset.k] = Math.max(0, +inp.value||0); d.guess = false; renderReview(); });
+  $("review").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { parsed.splice(+b.dataset.rm,1); renderReview(); });
+  const clean = d => ({id:d.id, name:d.name, city:d.city, c0:d.c0, a:d.a, r0:d.r0, lastRpt:d.lastRpt || null, log:[]});
+  $("iFoot").innerHTML = `
+    <label class="btn" for="moreF">Add more screenshots</label>
+    <input type="file" id="moreF" accept="image/*" multiple hidden>
+    ${state.doctors.length ? `<button class="btn" id="updI">Update my numbers</button>` : ""}
+    <button class="btn primary" id="replI">${state.doctors.length ? "Start a fresh plan with these" : `Use these ${parsed.length} doctors`}</button>`;
+  $("moreF").onchange = e => runImport([...e.target.files]);
+  if ($("updI")) $("updI").onclick = () => {
+    // Numbers come from the newer report; calls logged here are kept as dates (already counted in the report)
+    let upd = 0, add = 0;
+    for (const p of parsed){
+      const d = state.doctors.find(x => x.id === p.id);
+      if (d){ delete d.added; delete d.kind; d.c0 = p.c0; d.a = p.a; d.r0 = p.r0; d.lastRpt = [p.lastRpt, d.lastRpt].filter(Boolean).sort().pop() || null; d.hist = (d.hist || []).concat(d.log); d.log = []; d.city = p.city || d.city; upd++; }
+      else { state.doctors.push(clean(p)); add++; }
+    }
+    state.source = "updated " + shortDate(todayISO()); save(); render(); closeSheet();
+    toast(`Updated ${upd} doctor${upd===1?"":"s"}` + (add ? `, added ${add} new` : ""));
+  };
+  const replace = () => {
+    const keepAdded = state.doctors.filter(d => d.added && !parsed.some(p => p.id === d.id));
+    const dropped = state.doctors.filter(d => !d.added && !parsed.some(p => p.id === d.id)).map(d => ({id:d.id, name:d.name, city:d.city, a:d.a, c0:done(d)}));
+    state = {doctors: parsed.map(clean).concat(keepAdded), dropped, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
+  };
+  $("replI").onclick = () => {
+    if (!state.doctors.length) return replace();
+    const logged = state.doctors.reduce((n,d)=>n+d.log.length,0);
+    $("confirmBox").innerHTML = `<div class="confirm"><b>Replace your current list?</b><p style="color:inherit">This swaps in these ${parsed.length} doctors${logged ? ` and clears the ${logged} call${logged>1?"s":""} you've logged` : ""}. Save a backup first if you might want them.</p>
+      <div class="foot"><button class="btn" id="noR">Keep my list</button><button class="btn primary" id="yesR">Replace</button></div></div>`;
+    $("confirmBox").scrollIntoView({block:"nearest"});
+    $("noR").onclick = () => $("confirmBox").innerHTML = "";
+    $("yesR").onclick = replace;
+  };
+}
+
+/* Chargers: opens Maps with a charger search near you, or near a city you pick. Only the search goes to Maps. */
+function chargerUrl(where){
+  const q = (state.chType === "tesla" ? "Tesla Supercharger" : "EV fast charging") + (where ? " " + where : "");
+  return /Android/i.test(navigator.userAgent) ? "https://www.google.com/maps/search/" + encodeURIComponent(q) : "https://maps.apple.com/?q=" + encodeURIComponent(q);
+}
+function plannedCitiesToday(){
+  // cities on today's route in Plan my week, if a week is built
+  try { const r = routerRaw(), t = todayISO(), d = new Date(); const mon = isoDay(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)));
+    const day = r.weeks && r.weeks[mon] && r.weeks[mon].plan.days[t]; if (!day) return [];
+    return [...new Set(day.stops.map(s => titleCase(String(s.addrKey || "").split("|")[1] || "")).filter(Boolean))].slice(0, 6); } catch(e){ return []; }
+}
+$("evBtn").onclick = () => openChargers();
+function openChargers(){
+  const today = plannedCitiesToday();
+  openSheet(`<h2>Find a charger</h2>
+    <div class="seg" role="group" aria-label="Charger type" style="margin-top:8px"><button data-cht="all" aria-pressed="${state.chType !== "tesla"}">All fast chargers</button><button data-cht="tesla" aria-pressed="${state.chType === "tesla"}">Tesla Superchargers</button></div>
+    <div class="foot" style="justify-content:flex-start;margin-top:14px"><a class="btn primary" id="evNear" href="${chargerUrl("")}" target="_blank" rel="noopener">⚡ Near me now</a></div>
+    ${today.length ? `<p style="margin-top:16px"><b style="color:var(--ink)">Near today's stops</b></p><div class="foot" style="justify-content:flex-start">${today.map(c => `<a class="btn" data-evc="${esc(c)}" href="${chargerUrl(c)}" target="_blank" rel="noopener">${esc(c)}</a>`).join("")}</div>` : ""}
+    <p style="margin-top:16px"><b style="color:var(--ink)">Near another city</b></p>
+    <div class="logday" style="margin-top:6px;flex-wrap:wrap"><input id="evCity" list="evCities" placeholder="Type a city" autocomplete="off" style="flex:1;min-width:160px"><button class="btn" id="evGo">Search</button></div>
+    <datalist id="evCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
+    <p class="small" style="margin-top:12px">Opens ${/Android/i.test(navigator.userAgent) ? "Google" : "Apple"} Maps. Only the search is sent, never anything from your call plan.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-cht]").forEach(b => b.onclick = () => { state.chType = b.dataset.cht === "tesla" ? "tesla" : ""; save(); openChargers(); });
+  $("evGo").onclick = () => { const c = $("evCity").value.trim(); if (!c){ $("evCity").focus(); return; } window.open(chargerUrl(c), "_blank"); };
+  cityAhead($("evCity"), () => CITY_NAMES.map(titleCase), () => state.doctors.map(d => d.city));
+  $("evCity").onkeydown = e => { if (e.key === "Enter") $("evGo").click(); };
+}
+/* A call plan doctor who dropped off the list: from the last fresh load, or still remembered by Plan my week on this iPad */
+function missingCands(){
+  const have = new Set(state.doctors.map(d => d.id)), out = new Map();
+  (state.dropped || []).forEach(d => { if (!have.has(d.id)) out.set(d.id, {...d, from:"dropped"}); });
+  const r = routerRaw(), ids = new Map();
+  const note = (id, city) => { if (id && !have.has(id) && !out.has(id) && !(ids.get(id) || "")) ids.set(id, city || ids.get(id) || ""); };
+  for (const w in (r.weeks || {})) for (const iso in r.weeks[w].plan.days) r.weeks[w].plan.days[iso].stops.forEach(s => note(s.id, String(s.addrKey || "").split("|")[1]));
+  (r.cp || []).forEach(v => note(v.id)); Object.keys(r.away || {}).forEach(id => note(id));
+  for (const w in (r.anchors || {})) (r.anchors[w] || []).forEach(a => note(a.id));
+  (r.blitzes || []).forEach(b => (b.docs || []).forEach(id => note(id)));
+  let offs = {}; try { offs = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  for (const [id, city] of ids) if (!out.has(id)) out.set(id, {id, name:id, city: titleCase(city || ((offs[id] || [])[0] || {}).a?.split(", ").pop() || ""), from:"router"});
+  // only names that look like a person
+  return [...out.values()].filter(d => /^[A-Z][A-Z' .-]+ [A-Z][A-Z' .-]+$/.test(d.id));
+}
+function openMissing(){
+  const list = missingCands();
+  openSheet(`<h2>Find a missing doctor</h2>
+    <p>Doctors who were on your call plan before but aren't on your list now. They come from your last fresh load and from what Plan my week remembers on this iPad.</p>
+    ${list.length ? `<div class="cands" style="margin-top:8px">${list.map((d,i) => `<div class="cand" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>${esc(titleCase(d.name))}</b>${d.city ? ` <span class="small">· ${esc(titleCase(d.city))}</span>` : ""}${d.a ? `<br><span class="small">${d.a} assigned${d.c0 ? ", " + d.c0 + " completed" : ""} when it dropped off</span>` : ""}</span><button class="btn small" data-mb="${i}">Add back</button></div>`).join("")}</div>`
+      : `<p style="margin-top:8px"><b>No one found.</b> Compare the doctor count with your report, or load the call plan screenshots again with <b>Update my numbers</b>. It adds anyone missing without touching your logged calls.</p>`}
+    <p class="small" style="margin-top:10px">The easiest fix is often to load your call plan screenshots again and tap <b>Update my numbers</b>: the What changed box shows who was missing, and anyone missing is added back.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("sheet").querySelectorAll("[data-mb]").forEach(b => b.onclick = () => openAddBack(list[+b.dataset.mb]));
+}
+function openAddBack(m){
+  openSheet(`<h2>Add back ${esc(titleCase(m.name))}</h2>
+    <p>Enter the numbers from your call plan report.</p>
+    <div class="logday" style="margin-top:8px;flex-wrap:wrap;gap:10px">
+      <label class="small">City <input id="abC" value="${esc(titleCase(m.city || ""))}" style="width:160px"></label>
+      <label class="small">Assigned <input id="abA" type="number" inputmode="numeric" min="0" value="${m.a || ""}" style="width:80px"></label>
+      <label class="small">Completed <input id="abD" type="number" inputmode="numeric" min="0" value="${m.c0 || 0}" style="width:80px"></label></div>
+    <p class="small" id="abErr" style="color:var(--red-ink)"></p>
+    <div class="foot"><button class="btn" id="abX">Back</button><button class="btn primary" id="abOk">Add to my call plan</button></div>`);
+  $("abX").onclick = openMissing;
+  $("abOk").onclick = () => {
+    const a = Math.max(0, +$("abA").value || 0), c = Math.min(a, Math.max(0, +$("abD").value || 0));
+    if (!a){ $("abErr").textContent = "Enter the assigned number from your report."; return; }
+    state.doctors.push({id:m.id, name:m.name.toUpperCase(), city:($("abC").value || "").trim().toUpperCase(), c0:c, a, r0:a - c, lastRpt:null, log:[]});
+    state.dropped = (state.dropped || []).filter(x => x.id !== m.id);
+    save(); render(); closeSheet(); toast(`Added back ${titleCase(m.name)} · ${a - c} left`);
+  };
+}
+/* Maps: directions to today's next stop (only the office address goes to Maps, never a name), or Maps itself */
+const isAndroid = () => /Android/i.test(navigator.userAgent);
+// on iPad and iPhone, maps:// opens the Maps app itself (a maps.apple.com link can land on the Maps website instead)
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const dirUrl = addr => isAndroid() ? "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(addr) : (isIOS() ? "maps://?daddr=" : "https://maps.apple.com/?daddr=") + encodeURIComponent(addr);
+const searchUrl = q => isAndroid() ? "https://www.google.com/maps/search/" + encodeURIComponent(q) : (isIOS() ? "maps://?q=" : "https://maps.apple.com/?q=") + encodeURIComponent(q);
+const mapsHome = () => isAndroid() ? "https://www.google.com/maps" : isIOS() ? "maps://" : "https://maps.apple.com/";
+// app links open in place; web links in a new tab
+const tgt = u => /^https?:/.test(u) ? ' target="_blank" rel="noopener"' : "";
+// today's planned stops from Plan my week, in route order, with whether each is already logged today
+function stopsToday(){
+  try {
+    const r = routerRaw(), t = todayISO(), d = new Date(); const mon = isoDay(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)));
+    const day = r.weeks && r.weeks[mon] && r.weeks[mon].plan.days[t]; if (!day) return [];
+    let offs = {}; try { offs = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+    const am = day.stops.filter(s => s.slot === "am"), pm = day.stops.filter(s => s.slot !== "am");
+    return am.concat(pm).map(s => { const doc = find(s.id); const o = (offs[s.id] || []).find(x => x.k === s.addrKey) || (offs[s.id] || [])[0];
+      const addr = o && o.a && !/not set yet/.test(o.a) ? o.a : "";
+      return {id: s.id, name: doc ? doc.name : s.id, city: addr ? addr.split(", ").pop() : titleCase((doc && doc.city) || ""), addr, done: !!s.done || !!(doc && doc.log.includes(t))}; });
+  } catch(e){ return []; }
+}
+function mapsTile(){ const nx = stopsToday().find(x => !x.done); $("mapNext").textContent = nx ? "Next: " + titleCase(nx.name.split(" ").pop()) : ""; }
+$("mapBtn").onclick = () => openMaps();
+function openMaps(){
+  const st = stopsToday(), nx = st.find(x => !x.done);
+  openSheet(`<h2>Maps</h2>
+    ${nx ? `<div class="foot" style="justify-content:flex-start;margin-top:8px">${nx.addr ? `<a class="btn primary" href="${esc(dirUrl(nx.addr))}"${tgt(dirUrl(nx.addr))}>➜ Next stop: ${esc(titleCase(nx.name))} · ${esc(nx.city)}</a>` : `<span class="small">Next stop: ${esc(titleCase(nx.name))} · ${esc(nx.city)} (address not set, so no directions)</span>`}</div>` : ""}
+    ${st.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Today's route</b></p><div class="cands">${st.map(x => x.addr && !x.done ? `<a class="cand" style="text-decoration:none;color:inherit;display:flex;justify-content:space-between;gap:8px" href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}><span><b>${esc(titleCase(x.name))}</b><br><span class="small">${esc(x.addr)}</span></span><span class="small" style="align-self:center">Directions ›</span></a>` : `<div class="cand" style="opacity:.6"><b>${esc(titleCase(x.name))}</b> <span class="small">· ${x.done ? "✓ logged today" : esc(x.city) + " · no address yet"}</span></div>`).join("")}</div>` : `<p class="small">No route for today. Build your week in Plan my week to get directions to each stop here.</p>`}
+    <p style="margin-top:14px"><b style="color:var(--ink)">Near me</b></p>
+    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><a class="btn" href="${esc(searchUrl("restaurants"))}"${tgt(searchUrl("x"))}>🍴 Food</a><a class="btn" href="${esc(searchUrl("coffee"))}"${tgt(searchUrl("x"))}>☕ Coffee</a><a class="btn" href="${esc(searchUrl("gas station"))}"${tgt(searchUrl("x"))}>⛽ Gas</a><a class="btn" href="${mapsHome()}"${tgt(mapsHome())}>Open the Maps app</a></div>
+    <p class="small" style="margin-top:12px">Opens ${isAndroid() ? "Google" : "Apple"} Maps. Only an office address or your search goes to Maps, never a doctor's name.</p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+}
+/* DoorDash: just opens the app, where your saved addresses already are. Nothing is sent from here. */
+$("ddBtn").onclick = () => {
+  const t0 = Date.now(); location.href = "doordash://";
+  setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
+};
+/* ---------- Home Screen + offline ---------- */
+const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+$("installTip").hidden = standalone;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+// ask iPadOS to keep this app's data even when the iPad is low on space
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
+// a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
+if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
+  if (!ev.data || ev.data.type !== "app-updated" || document.getElementById("updBar")) return;
+  const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.onclick = () => location.reload(); document.body.appendChild(b);
+});
+if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
+
+render();
+geoLoad(applyGeo);
+// "Add Matthys" from Plan my week's build check
+try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); o.cal = true; openAddProvider(null, o); } } catch(e){}
+</script>
+</body>
+</html>
