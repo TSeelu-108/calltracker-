@@ -515,14 +515,95 @@ function scheduleFromWords(words, weekMon, nameIndex){
 }
 
 /* ---------------- priority ---------------- */
-function scoreDoctors(docs){
+/* Pacing through the quarter. Each doctor has a rhythm: the quarter divided by their assigned calls
+   (2 assigned: about every 6 weeks, 3: monthly, 6: every 2 weeks, 12: weekly).
+   - Due: calls left and their turn has come (or never called), or behind pace for that doctor, or the last 3 weeks of the quarter.
+   - Early: calls left but not their turn yet. Used to fill a day, the least-ahead first; twice-a-month doctors last.
+   - Extra: quota met. Can still fill a day after their full rhythm has passed, up to a couple over quota (relative to the quota).
+   Calendar visits, anchors and blitzes are separate and always win. */
+const quarterEnd = iso => { const d = fromISO(iso); const m = Math.floor(d.getMonth() / 3) * 3 + 3; return isoDay(new Date(d.getFullYear(), m, 0)); };
+const quarterStart = iso => { const d = fromISO(iso); return isoDay(new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)); };
+const daysBetween = (a, b) => Math.round((fromISO(b) - fromISO(a)) / 864e5);
+// common US holidays (a weekend date moves to the Friday or Monday off)
+function holidaysOf(y){
+  const nth = (m, wd, n) => { const d = new Date(y, m, 1); const off = (wd - d.getDay() + 7) % 7; return new Date(y, m, 1 + off + 7 * (n - 1)); };
+  const last = (m, wd) => { const d = new Date(y, m + 1, 0); return new Date(y, m, d.getDate() - ((d.getDay() - wd + 7) % 7)); };
+  const obs = d => { const w = d.getDay(); return w === 6 ? new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1) : w === 0 ? new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1) : d; };
+  const tg = nth(10, 4, 4);
+  return [obs(new Date(y,0,1)), nth(0,1,3), nth(1,1,3), last(4,1), obs(new Date(y,5,19)), obs(new Date(y,6,4)), nth(8,1,1), tg, new Date(y,10,tg.getDate()+1),
+    obs(new Date(y,11,24)), obs(new Date(y,11,25)), obs(new Date(y,11,31))].map(isoDay);
+}
+// field days in [a, b]: work days that aren't time off
+function fieldDaysIn(a, b, o){
+  let n = 0; for (let d = a; d <= b; d = addDays(d, 1)){ const w = fromISO(d).getDay(); if ((o.workDays || [1,2,3,4,5]).includes(w) && !(o.isOff && o.isOff(d))) n++; }
+  return n;
+}
+// your goal (say 90%) as a number of calls per doctor: everyone keeps at least one call (reach), and the cuts come
+// mostly from the doctors with the fewest assigned calls, so the high-call doctors stay close to their full quota
+function goalTargets(docs, goal){
+  const list = docs.filter(d => !d.added && +d.assigned > 0);
+  list.forEach(d => { d.target = +d.assigned; });
+  const A = list.reduce((t,d) => t + d.target, 0);
+  let cut = A - Math.round(A * Math.max(0.3, Math.min(1, goal || 1)));
+  const floor = d => Math.max(1, d.completed != null ? +d.completed : d.assigned - d.remaining);
+  while (cut > 0){
+    let best = null, bv = -Infinity;
+    for (const d of list){ if (d.target <= floor(d)) continue; const v = d.target / d.assigned - 0.05 * d.assigned; if (v > bv){ bv = v; best = d; } }
+    if (!best) break; best.target--; cut--;
+  }
+  return list.reduce((t,d) => t + d.target, 0);
+}
+function scoreDoctors(docs, refISO, qEnd, opts){
+  opts = opts || {};
+  const ref = refISO || isoDay(new Date());
+  const end = qEnd && qEnd >= ref ? qEnd : quarterEnd(ref), start = quarterStart(end);
+  const qDays = Math.max(28, daysBetween(start, end) + 1);
+  const fTotal = Math.max(1, fieldDaysIn(start, end, opts)), fDone = fieldDaysIn(start, addDays(ref, -1), opts);
+  const f = Math.max(0, Math.min(1, (fDone + 0.5) / fTotal));
+  const lastWeeks = daysBetween(ref, end) <= 21;
+  goalTargets(docs, opts.goal || 1);
   const need = d => d.callsPerWeekNeeded != null ? d.callsPerWeekNeeded : (d.assigned ? d.remaining / d.assigned : 0);
   const maxNeed = Math.max(0.0001, ...docs.map(need));
   docs.forEach(d => {
-    const stale = d.daysSinceLastCall == null ? 1 : Math.min(d.daysSinceLastCall, 60) / 60;
-    d.score = d.added ? 0.1 * stale : 0.8 * need(d) / maxNeed + 0.2 * stale;
+    d.due = d.early = d.extra = d.behind = false; d.pace = null;
+    const since = d.lastCall ? daysBetween(d.lastCall, ref) : d.daysSinceLastCall;
+    const stale = since == null ? 1 : Math.min(Math.max(0, since), 60) / 60;
+    if (d.added){ d.score = 0.1 * stale; return; }
+    const a = +d.assigned || 0;
+    if (!a){ d.score = 0.8 * need(d) / maxNeed + 0.2 * stale; return; }   // no quota known: the old way
+    const t = d.target || a, done = d.completed != null ? +d.completed : a - d.remaining;
+    const rhythm = qDays / t, turn = since == null || since >= 0.8 * rhythm;
+    // catching up never means seeing someone too often: at least about 2 weeks apart (5 days for weekly doctors)
+    const gapOk = since == null || since >= (t >= 12 ? 5 : 12);
+    d.pace = done - t * f;                       // + ahead of pace toward your goal for this doctor, - behind
+    if (done < t){
+      d.behind = (d.pace <= -0.75 || lastWeeks) && gapOk;
+      if (d.behind || turn){ d.due = true; d.score = 1 + 0.25 * Math.min(2, Math.max(0, -d.pace)) + (d.behind ? 0.25 : 0) + 0.02 * a + 0.1 * stale; }
+      else { d.early = true; d.score = 0.45 - 0.2 * Math.min(1, Math.max(0, d.pace)) - (t >= 6 ? 0.15 : 0); }
+    } else if (d.remaining > 0){
+      // your goal for them is met but the full quota isn't: an early call when their turn comes
+      if (turn){ d.early = true; d.score = 0.2 + 0.01 * a; } else { d.noAuto = true; d.score = 0; }
+    } else {
+      const over = done - a, cap = Math.max(2, Math.round(a / 3));
+      if (over < cap && turn){ d.extra = true; d.noAuto = false; d.score = 0.12 - 0.03 * over; }
+      else { d.noAuto = true; d.score = 0; }
+    }
   });
   return docs;
+}
+// the whole plan against your goal: calls ahead of an even pace (counting field days only), and whether the goal still fits
+function paceSummary(docs, refISO, qEnd, opts){
+  opts = opts || {};
+  const ref = refISO || isoDay(new Date());
+  const end = qEnd && qEnd >= ref ? qEnd : quarterEnd(ref), start = quarterStart(end);
+  const fTotal = Math.max(1, fieldDaysIn(start, end, opts)), fDone = fieldDaysIn(start, addDays(ref, -1), opts), fLeft = fTotal - fDone;
+  const f = Math.max(0, Math.min(1, (fDone + 0.5) / fTotal));
+  let done = 0, T = 0, A = 0;
+  docs.forEach(d => { if (d.added || !d.assigned) return; A += +d.assigned; T += d.target || +d.assigned; done += d.completed != null ? +d.completed : d.assigned - d.remaining; });
+  if (!A) return null;
+  const possible = Math.floor(fLeft * (opts.perDay || 6) * 0.85), needed = Math.max(0, T - done);
+  return {goal: Math.round(T / A * 100), target: T, assigned: A, done, ahead: Math.round(done - T * f), fieldLeft: fLeft,
+    fits: possible >= needed, reach: Math.min(100, Math.round((done + possible) / A * 100)), pct: Math.round(f * 100)};
 }
 
 /* ---------------- scheduling ---------------- */
@@ -1066,7 +1147,7 @@ function docsFromTrackerFile(obj){
       const rem = Math.max(0, d.r0 - d.log.length); const lc = d.log.concat(d.hist || [], d.lastRpt ? [d.lastRpt] : []).sort().pop() || null;
       return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed:d.c0 + d.log.length, lastCall:lc, added: !!d.added, kind: d.kind || "",
         daysSinceLastCall: lc ? Math.round((fromISO(todayISO)-fromISO(lc))/864e5) : null, callsPerWeekNeeded: d.added ? 0 : (weeksLeft ? rem/weeksLeft : null),
-        noAuto: !d.added && rem <= 0};
+        noAuto: false};
     });
   }
   throw new Error("That file isn't a remaining-calls export from the Call Tracker.");
@@ -1094,7 +1175,7 @@ function csvRows(text){
 
 const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, ZIPS, loadGeo, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, MEAL_RE: MEAL, parseTSV,
-  scheduleFromWords, scoreDoctors, availableOn, planWeek, rebuildDay, placeFixed, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
+  scheduleFromWords, scoreDoctors, paceSummary, holidaysOf, availableOn, planWeek, rebuildDay, placeFixed, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
   docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};
 if (typeof module !== "undefined") module.exports = api; else root.RouteLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);
