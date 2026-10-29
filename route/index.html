@@ -2102,7 +2102,8 @@ function openWho(){
       ${a.cities.length > 1 ? `<div class="chips" style="margin-top:8px">${a.cities.map(c => `<button class="chip" data-wcity="${c.k}" aria-pressed="${!who.off.includes(c.k)}" style="min-height:36px;${who.off.includes(c.k) ? "opacity:.6" : "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px"}">${who.off.includes(c.k) ? "" : "✓ "}${esc(c.name)}</button>`).join("")}</div>` : ""}
       ${folded ? "" : `<div class="cands">${list.map(row).join("") || `<p class="sub">No one ${who.all ? "" : "with calls left "}is in there on ${dayName}.</p>`}</div>`}</div>`; };
   openSheet(`<h2>Who's in</h2>
-    <div class="seg" role="group" aria-label="Day" style="margin-top:8px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div>
+    <p class="sub" style="margin-top:6px">Pick any day this week. Use the arrows on the main screen for another week.</p>
+    <div class="seg" role="group" aria-label="Day" style="margin-top:6px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}" style="${d===iso ? "background:var(--accent);color:var(--accent-ink);font-weight:700" : ""}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}${d === todayISO() ? " · today" : ""}</button>`).join("")}</div>
     <div class="seg" role="group" aria-label="Which doctors" style="margin-top:8px"><button data-wall="0" aria-pressed="${!who.all}">Calls left only</button><button data-wall="1" aria-pressed="${who.all}">Everyone in</button></div>
     <p class="sub" style="margin-top:10px">Tap the areas you'll be in. Tap again to take one off.</p>
     <div class="chips" style="margin-top:6px">${areas.map(a => { const n = (rows[a.id] || []).length, on = who.sel.includes(a.id);

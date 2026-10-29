@@ -1,6 +1,6 @@
 // Week Router offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "weekrouter-shell-v55";
+const SHELL = "weekrouter-shell-v58";
 const FILES = ["./", "index.html", "logic.js", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 const looksWhole = (text, path, mode) => mode === "navigate" || /(^|\/)(index\.html)?$/.test(path) ? /<\/html>\s*$/i.test(text) && text.length > 2000 : /\.js$/.test(path) ? text.trim().length > 200 : true;
 // install only when the page itself arrived whole; otherwise the version already on the iPad keeps running

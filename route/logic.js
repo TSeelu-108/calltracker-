@@ -568,7 +568,7 @@ function scoreDoctors(docs, refISO, qEnd, opts){
     d.due = d.early = d.extra = d.behind = false; d.pace = null;
     const since = d.lastCall ? daysBetween(d.lastCall, ref) : d.daysSinceLastCall;
     const stale = since == null ? 1 : Math.min(Math.max(0, since), 60) / 60;
-    if (d.added){ d.score = 0.1 * stale; return; }
+    if (d.added || d.noQuota){ d.score = 0.1 * stale; return; }   // providers you added, and call plan doctors with no calls assigned
     const a = +d.assigned || 0;
     if (!a){ d.score = 0.8 * need(d) / maxNeed + 0.2 * stale; return; }   // no quota known: the old way
     const t = d.target || a, done = d.completed != null ? +d.completed : a - d.remaining;
@@ -1145,7 +1145,7 @@ function docsFromTrackerFile(obj){
     const weeksLeft = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO))/864e5)+1)/7)) : null;
     return obj.doctors.map(d => {
       const rem = Math.max(0, d.r0 - d.log.length); const lc = d.log.concat(d.hist || [], d.lastRpt ? [d.lastRpt] : []).sort().pop() || null;
-      return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed:d.c0 + d.log.length, lastCall:lc, added: !!d.added, kind: d.kind || "",
+      return {id:normName(d.name), name:d.name, city:d.city, remaining:rem, assigned:d.a, completed: d.added || !d.a ? d.c0 + d.log.length : Math.min(d.a, d.c0 + d.log.length), lastCall:lc, added: !!d.added, noQuota: !d.added && !d.a, kind: d.kind || "", prof: d.prof || null,
         daysSinceLastCall: lc ? Math.round((fromISO(todayISO)-fromISO(lc))/864e5) : null, callsPerWeekNeeded: d.added ? 0 : (weeksLeft ? rem/weeksLeft : null),
         noAuto: false};
     });
