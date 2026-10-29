@@ -598,6 +598,9 @@ function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
       "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(r.title || title));
     if (r.loc || loc) L.push("LOCATION:" + e(r.loc || loc));
     if (ppl.length) L.push("DESCRIPTION:" + e("Invite: " + ppl.map(p => p.name + " <" + p.email + ">").join(", ")));
+    // the people are on the event too, so Outlook can show them as invitees; tapping Send there sends the invites
+    if (ppl.length && myEmail){ L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
+      ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email)); }
     L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
     if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(r.title || title),"TRIGGER:-" + remind,"END:VALARM");
     L.push("END:VEVENT");
