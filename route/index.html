@@ -426,7 +426,8 @@ function staffRead(box){
 /*__BOOK_START__*/
 /* ---------- book lunches, coffees, breakfasts and snacks (shared by the Call Tracker and Plan my week) ----------
    Builds one calendar file (.ics) with every date you pick. Opened in Outlook, "Add all" puts them on your
-   calendar and sends the invites. Nothing is sent from this app; the file goes wherever you share it. */
+   calendar as plain events (Outlook won't import an invite you organize yourself). The people to invite are
+   listed in each event; adding them in Outlook sends the real invites from your account. Nothing is sent from this app. */
 const INV_KEY = "invitees.v1", BOOK_KEY = "bookings.v1";
 const BOOK_KINDS = [["Lunch","12:00"],["Coffee","09:00"],["Breakfast","08:00"],["Snacks","14:00"]];
 const bEsc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -511,10 +512,10 @@ function openBook(docId, back){
       <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="bTown" ${st.town ? "checked" : ""}> Show the city in the title${towns.length > 1 ? ` <span class="small">(${bEsc(towns.join(", "))})</span>` : ""}</label>
       <div class="offbox" style="margin-top:8px"><span class="small">${st.rows.length > 1 ? "They will read" : "It will read"}</span><br><b id="bTitleP">${[...new Set(st.rows.map(r => bEsc(titleFor(r))))].join("<br>")}</b></div>
       ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
-      <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
+      <p class="small" style="margin-top:10px">Next, each ${st.rows.length > 1 ? "one opens" : "one opens"} in Outlook with the time, place${st.who.length ? " and the people you picked" : ""} filled in. Tap Send there and it's on your calendar${st.who.length ? ", and the invites go out from you" : ""}.</p>
       ${(() => { const today = bIso(new Date()), mine = bookingsAll().map((b,i) => [b,i]).filter(([b]) => b.date >= today && (b.docs || []).includes(docId));
-        return mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Already booked</b> <span class="small">· removing one here only takes it out of Plan my week. Cancel it in Outlook too.</span></p>${mine.map(([b,i]) => `<div class="logday" style="margin-top:4px;gap:8px"><span>${bEsc(new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(b.time)} · ${bEsc(b.title)}</span><button type="button" class="btn small ghost" data-bdrop="${i}">Remove</button></div>`).join("")}` : ""; })()}
-      <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
+        return mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Already booked</b> <span class="small">· removing one here only takes it out of Plan my week. Cancel it in Outlook too.</span></p>${mine.map(([b,i]) => `<div class="logday" style="margin-top:4px;gap:8px;flex-wrap:wrap"><span>${bEsc(new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(b.time)} · ${bEsc(b.title)}</span><button type="button" class="btn small" data-bresend="${i}">Send again</button><button type="button" class="btn small ghost" data-bdrop="${i}">Remove</button></div>`).join("")}` : ""; })()}
+      <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Next: send ${st.rows.length > 1 ? st.rows.length + " invites" : "the invite"}</button></div>`);
     const sync = () => {
       $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60;
         r.kind = el.querySelector("[data-bkind]").value; const of = el.querySelector("[data-boff]"); if (of) r.k = of.value; });
@@ -533,6 +534,11 @@ function openBook(docId, back){
     if ($("bMe")) $("bMe").oninput = () => { const n = staffName($("bMe").value); if (n !== $("bMe").value) $("bMe").value = n; me = n.trim(); $("bTitleP").innerHTML = [...new Set(st.rows.map(r => bEsc(titleFor(r))))].join("<br>");
       try { const r = bRouter(); r.settings = Object.assign(r.settings || {}, {myName: me}); localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
       try { if (typeof S === "object" && S && S.settings) S.settings.myName = me; } catch(e){} };
+    // a booking made earlier: its Outlook links and calendar file again (no second booking is added)
+    $("sheet").querySelectorAll("[data-bresend]").forEach(b => b.onclick = () => { const bk = bookingsAll()[+b.dataset.bresend]; if (!bk) return;
+      const nv = invAll(), ppl = (bk.who ? nv.people.filter(p => bk.who.includes(p.email)) : nv.people.filter(p => p.cp));
+      const r = {date:bk.date, time:bk.time, mins:bk.mins || 60, kind:bk.kind, title:bk.title, loc:bk.loc || ""};
+      bSend([r], ppl, "P1D", () => bShare(bookingICS([r], null, null, ppl, nv.me, me, "P1D"), (bk.kind + "-" + bk.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", 1), () => openBook(docId, back)); });
     $("sheet").querySelectorAll("[data-bdrop]").forEach(b => b.onclick = () => { sync(); bookingsDrop(+b.dataset.bdrop); toast("Removed from Plan my week"); draw(); });
     $("bX").onclick = () => back ? back() : closeSheet();
     $("bGo").onclick = () => {
@@ -543,18 +549,47 @@ function openBook(docId, back){
       const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
       const rows = st.rows.map(r => { const o = offOf(r.k); return {date:r.date, time:r.time, mins:r.mins, kind:r.kind, title: titleFor(r), loc: o ? o.a : ""}; });
       const ics = bookingICS(rows, null, null, ppl, nv.me, me, st.remind);
-      bookingsAdd(rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:r.kind, docs:st.docs.slice(), title:r.title, loc:r.loc})));
+      bookingsAdd(rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:r.kind, docs:st.docs.slice(), title:r.title, loc:r.loc, who:ppl.map(p => p.email)})));
       const kinds = [...new Set(rows.map(r => r.kind))];
-      bShare(ics, (kinds.join("-") + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
+      const fname = (kinds.join("-") + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics";
+      bSend(rows, ppl, st.remind, () => bShare(ics, fname, st.rows.length), back);
     };
   };
   draw();
+}
+/* sending the invites: each event opens in Outlook on the web with the title, time, place and invitees already filled in.
+   Tapping Send there puts it on your calendar and sends the real invites from your account. */
+function bTz(d){ const o = -d.getTimezoneOffset(), a = Math.abs(o); return (o >= 0 ? "+" : "-") + String(Math.floor(a / 60)).padStart(2, "0") + ":" + String(a % 60).padStart(2, "0"); }
+function bOutlookLink(r, ppl){
+  const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
+  const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
+  const iso = dt => bIso(dt) + "T" + String(dt.getHours()).padStart(2,"0") + ":" + String(dt.getMinutes()).padStart(2,"0") + ":00" + bTz(dt);
+  const q = new URLSearchParams({subject:r.title, startdt:iso(s), enddt:iso(en), location:r.loc || "", body:""});
+  if (ppl.length) q.set("to", ppl.map(p => p.email).join(","));
+  return "https://outlook.office.com/calendar/0/deeplink/compose?" + q.toString().replace(/\+/g, "%20");
+}
+function bSend(rows, ppl, remind, asFile, back){
+  const done = new Set();
+  const draw = () => openSheet(`<h2>Send ${rows.length > 1 ? "the invites" : "the invite"}</h2>
+    <p>Tap each one. Outlook opens with everything filled in${ppl.length ? `, including ${bEsc(ppl.map(p => p.name).join(", "))}` : ""}. Check it and tap <b>Send</b>${ppl.length ? "" : " (or Save)"}: it goes on your calendar${ppl.length ? " and the invites go out from your account" : ""}.</p>
+    ${rows.map((r, i) => `<div class="offbox" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <span><b style="color:var(--ink)">${bEsc(r.title)}</b><br><span class="small">${bEsc(new Date(r.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(r.time)}${r.loc ? " · " + bEsc(r.loc) : ""}</span></span>
+      <a class="btn${done.has(i) ? "" : " primary"}" data-bsend="${i}" href="${bEsc(bOutlookLink(r, ppl))}" target="_blank" rel="noopener">${done.has(i) ? "✓ Opened · open again" : "Open in Outlook"}</a></div>`).join("")}
+    <p class="small" style="margin-top:12px">Signed out of Outlook in the browser? Sign in once with your work account. Prefer a calendar file instead? <a href="#" id="bAsFile">Add to my calendar as a file</a> (invites then need to be added in Outlook).</p>
+    <div class="foot"><button class="btn primary" id="bDone">Done</button></div>`);
+  draw();
+  const wire = () => {
+    document.querySelectorAll("[data-bsend]").forEach(a => a.addEventListener("click", () => { done.add(+a.dataset.bsend); setTimeout(() => { draw(); wire(); }, 300); }));
+    document.getElementById("bAsFile").onclick = e => { e.preventDefault(); asFile(); };
+    document.getElementById("bDone").onclick = () => { closeSheet(); toast(done.size ? "Booked. Plan my week has it too." : "Saved in Plan my week. Open each one in Outlook to send."); };
+  };
+  wire();
 }
 function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
   const e = s => String(s || "").replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
   const fold = l => { const out = []; while (l.length > 74){ out.push(l.slice(0, 74)); l = " " + l.slice(74); } out.push(l); return out.join("\r\n"); };
   const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
-  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Call Tracker//Book//EN","METHOD:REQUEST","CALSCALE:GREGORIAN"];
+  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Call Tracker//Book//EN","METHOD:PUBLISH","CALSCALE:GREGORIAN"];
   rows.forEach((r, i) => {
     const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
     const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
@@ -562,8 +597,7 @@ function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
     L.push("BEGIN:VEVENT", "UID:" + Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2,8) + "@calltracker", "DTSTAMP:" + stamp,
       "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(r.title || title));
     if (r.loc || loc) L.push("LOCATION:" + e(r.loc || loc));
-    if (myEmail) L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
-    ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email));
+    if (ppl.length) L.push("DESCRIPTION:" + e("Invite: " + ppl.map(p => p.name + " <" + p.email + ">").join(", ")));
     L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
     if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(r.title || title),"TRIGGER:-" + remind,"END:VALARM");
     L.push("END:VEVENT");
@@ -573,7 +607,7 @@ function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
 }
 async function bShare(ics, name, n){
   const f = new File([ics], name, {type:"text/calendar"});
-  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); closeSheet(); toast(n > 1 ? `${n} invites ready. In Outlook, tap Add all.` : "Invite ready. In Outlook, tap Add all."); return; } }
+  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); closeSheet(); toast(n > 1 ? `${n} events ready. In Outlook, open the file and tap Add all.` : "Event ready. In Outlook, open the file and tap Add all."); return; } }
   catch(err){ if (err && err.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   closeSheet(); toast("Saved the file. Open it in Outlook and tap Add all.");
