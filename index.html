@@ -454,48 +454,62 @@ function openInvitees(back){
   };
 }
 
-/* the booking sheet. docId: the doctor you're with. Other doctors at the same office can be added. */
+/* the booking sheet. docId: the doctor you're with. Each date can be a different kind (lunch, coffee...) at a different
+   one of their offices. Other doctors at those offices can be added. */
 function openBook(docId, back){
-  const offs = bOffices(docId), office = offs[0] || null;
-  const all = bAllOffices(), here = office ? Object.keys(all).filter(id => (all[id] || []).some(o => o.k === office.k)) : [docId];
-  if (!here.includes(docId)) here.unshift(docId);
+  const offs = bOffices(docId), all = bAllOffices();
+  const offOf = k => offs.find(o => o.k === k) || offs[0] || null;
+  // the town of an office ("…, Pleasanton"); a doctor in more than one town gets it in the title so nobody goes to the wrong one
+  const townOf = o => o ? bTitle(String(o.k || "").split("|")[1] || String(o.a || "").split(",").pop().trim()) : "";
+  const towns = [...new Set(offs.map(townOf).filter(Boolean))];
   const v = invAll(); let me = (bRouter().settings || {}).myName || ""; const askName = !me;
-  const st = {kind:"Lunch", docs:[docId], rows:[{date:"", time:"12:00", mins:60}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
+  const st = {town: towns.length > 1, docs:[docId], rows:[{date:"", time:"12:00", mins:60, kind:"Lunch", k: offs[0] ? offs[0].k : ""}], who: v.people.filter(p => p.cp).map(p => p.email), remind:"P1D"};
+  // the doctors who share any of the offices picked
+  const hereNow = () => { const ks = new Set(st.rows.map(r => r.k).filter(Boolean)); const h = Object.keys(all).filter(id => (all[id] || []).some(o => ks.has(o.k))); if (!h.includes(docId)) h.unshift(docId); return h; };
   const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return bIso(d); };
   st.rows[0].date = tomorrow();
   const draw = (msg) => {
-    const titleFor = () => `${st.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}`;
-    openSheet(`<h2>Book a ${st.kind.toLowerCase()}</h2>
-      <p>${office ? bEsc(office.a) : "Office address not known yet. Open Plan my week once to set it."}</p>
-      <div class="seg" role="group" aria-label="Kind" style="margin-top:6px;flex-wrap:wrap">${BOOK_KINDS.map(([k]) => `<button type="button" data-bk="${k}" aria-pressed="${st.kind===k}">${k}</button>`).join("")}</div>
+    const titleFor = r => `${r.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}${st.town && townOf(offOf(r.k)) ? " (" + townOf(offOf(r.k)) + ")" : ""}`;
+    const here = hereNow(); st.docs = st.docs.filter(id => here.includes(id)); if (!st.docs.length) st.docs = [docId];
+    const kinds = [...new Set(st.rows.map(r => r.kind))];
+    openSheet(`<h2>Book ${kinds.length === 1 ? (/s$/i.test(kinds[0]) ? "" : "a ") + kinds[0].toLowerCase() : "lunches and coffees"}</h2>
+      ${offs.length ? (offs.length > 1 ? `<p class="small">${offs.length} offices. Pick the one for each date below.</p>` : `<p>${bEsc(offs[0].a)}</p>`) : `<p>Office address not known yet. Open Plan my week once to set it.</p>`}
       ${here.length > 1 ? `<p style="margin-top:12px"><b style="color:var(--ink)">With</b></p><div class="chips">${here.map(id => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bd="${bEsc(id)}" ${st.docs.includes(id) ? "checked" : ""}> ${bEsc(bTitle(bDocName(id)))}</label>`).join("")}</div>` : ""}
-      <p style="margin-top:12px"><b style="color:var(--ink)">When</b> <span class="small">· add as many dates as you like</span></p>
-      ${st.rows.map((r,i) => `<div class="logday" style="margin-top:6px;flex-wrap:wrap;gap:6px" data-br="${i}">
+      <p style="margin-top:12px"><b style="color:var(--ink)">When</b> <span class="small">· add as many dates as you like, each its own kind${offs.length > 1 ? " and office" : ""}</span></p>
+      ${st.rows.map((r,i) => `<div class="logday" style="margin-top:8px;flex-wrap:wrap;gap:6px;${st.rows.length > 1 ? "border-top:1px solid var(--line);padding-top:8px" : ""}" data-br="${i}">
+        <select data-bkind aria-label="Kind">${BOOK_KINDS.map(([k]) => `<option${k === r.kind ? " selected" : ""}>${k}</option>`).join("")}</select>
         <input type="date" data-bdate value="${r.date}"><input type="time" data-btime value="${r.time}" step="900">
         <select data-bmins>${[30,45,60,75,90,120].map(m => `<option value="${m}"${m===r.mins?" selected":""}>${m < 60 ? m + " min" : (m/60) + (m===60 ? " hour" : " hours")}</option>`).join("")}</select>
-        ${st.rows.length > 1 ? `<button type="button" class="btn small ghost" data-brm="${i}" aria-label="Remove this date">×</button>` : ""}</div>`).join("")}
+        ${st.rows.length > 1 ? `<button type="button" class="btn small ghost" data-brm="${i}" aria-label="Remove this date">×</button>` : ""}
+        ${offs.length > 1 ? `<select data-boff aria-label="Office" style="flex-basis:100%;max-width:100%">${offs.map(o => `<option value="${bEsc(o.k)}"${o.k === r.k ? " selected" : ""}>${bEsc(townOf(o))} · ${bEsc(o.a)}</option>`).join("")}</select>` : ""}</div>`).join("")}
       <button type="button" class="btn small ghost" id="bAddDate" style="margin-top:6px">+ Add another date</button>
       <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
       ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
       <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
       ${askName ? `<label class="small" style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><span><b style="color:var(--ink)">Your name</b> · finishes the title. Saved for next time.</span><input id="bMe" value="${bEsc(me)}" placeholder="First and last name" autocomplete="off" autocapitalize="words" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>` : ""}
-      <div class="offbox" style="margin-top:12px"><span class="small">Each one will read</span><br><b id="bTitleP">${bEsc(titleFor())}</b></div>
+      <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="bTown" ${st.town ? "checked" : ""}> Show the city in the title${towns.length > 1 ? ` <span class="small">(${bEsc(towns.join(", "))})</span>` : ""}</label>
+      <div class="offbox" style="margin-top:8px"><span class="small">${st.rows.length > 1 ? "They will read" : "It will read"}</span><br><b id="bTitleP">${[...new Set(st.rows.map(r => bEsc(titleFor(r))))].join("<br>")}</b></div>
       ${msg ? `<p style="color:var(--red-ink)"><b>${bEsc(msg)}</b></p>` : ""}
       <p class="small" style="margin-top:10px">Next: share the file to Outlook (or email it to yourself) and tap <b>Add all</b>. Outlook adds ${st.rows.length > 1 ? "them" : "it"} to your calendar and sends the invites.</p>
       ${(() => { const today = bIso(new Date()), mine = bookingsAll().map((b,i) => [b,i]).filter(([b]) => b.date >= today && (b.docs || []).includes(docId));
         return mine.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Already booked</b> <span class="small">· removing one here only takes it out of Plan my week. Cancel it in Outlook too.</span></p>${mine.map(([b,i]) => `<div class="logday" style="margin-top:4px;gap:8px"><span>${bEsc(new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))} · ${bEsc(b.time)} · ${bEsc(b.title)}</span><button type="button" class="btn small ghost" data-bdrop="${i}">Remove</button></div>`).join("")}` : ""; })()}
       <div class="foot"><button class="btn" id="bX">Cancel</button><button class="btn primary" id="bGo">Create ${st.rows.length > 1 ? st.rows.length + " invites" : "invite"}</button></div>`);
     const sync = () => {
-      $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60; });
+      $("sheet").querySelectorAll("[data-br]").forEach(el => { const r = st.rows[+el.dataset.br]; r.date = el.querySelector("[data-bdate]").value; r.time = el.querySelector("[data-btime]").value || r.time; r.mins = +el.querySelector("[data-bmins]").value || 60;
+        r.kind = el.querySelector("[data-bkind]").value; const of = el.querySelector("[data-boff]"); if (of) r.k = of.value; });
       st.docs = here.length > 1 ? [...$("sheet").querySelectorAll("[data-bd]:checked")].map(c => c.dataset.bd) : st.docs;
       st.who = [...$("sheet").querySelectorAll("[data-bw]:checked")].map(c => c.dataset.bw);
       st.remind = $("bRem").value;
+      st.town = $("bTown").checked;
     };
-    $("sheet").querySelectorAll("[data-bk]").forEach(b => b.onclick = () => { sync(); const old = (BOOK_KINDS.find(k => k[0] === st.kind) || [])[1]; st.kind = b.dataset.bk; const nt = BOOK_KINDS.find(k => k[0] === st.kind)[1]; st.rows.forEach(r => { if (r.time === old) r.time = nt; }); draw(); });
-    $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins}); draw(); };
+    $("bTown").onchange = () => { sync(); draw(); };
+    // a new kind on a date moves its time to that kind's usual time, unless you'd changed the time
+    $("sheet").querySelectorAll("[data-bkind]").forEach(s => s.onchange = () => { const r = st.rows[+s.closest("[data-br]").dataset.br]; const old = (BOOK_KINDS.find(k => k[0] === r.kind) || [])[1]; sync(); if (r.time === old) r.time = (BOOK_KINDS.find(k => k[0] === r.kind) || [])[1] || r.time; draw(); });
+    $("sheet").querySelectorAll("[data-boff]").forEach(s => s.onchange = () => { sync(); draw(); });
+    $("bAddDate").onclick = () => { sync(); const last = st.rows[st.rows.length-1]; let d = last.date ? new Date(last.date + "T12:00") : new Date(); d.setDate(d.getDate() + 7); st.rows.push({date: bIso(d), time: last.time, mins: last.mins, kind: last.kind, k: last.k}); draw(); };
     $("sheet").querySelectorAll("[data-brm]").forEach(b => b.onclick = () => { sync(); st.rows.splice(+b.dataset.brm, 1); draw(); });
     $("bPeople").onclick = () => { sync(); openInvitees(() => { const nv = invAll(); v.people = nv.people; v.me = nv.me; st.who = st.who.filter(e => nv.people.some(p => p.email === e)).concat(nv.people.filter(p => p.cp && !st.who.includes(p.email)).map(p => p.email)); draw(); }); };
-    if ($("bMe")) $("bMe").oninput = () => { const n = staffName($("bMe").value); if (n !== $("bMe").value) $("bMe").value = n; me = n.trim(); $("bTitleP").textContent = titleFor();
+    if ($("bMe")) $("bMe").oninput = () => { const n = staffName($("bMe").value); if (n !== $("bMe").value) $("bMe").value = n; me = n.trim(); $("bTitleP").innerHTML = [...new Set(st.rows.map(r => bEsc(titleFor(r))))].join("<br>");
       try { const r = bRouter(); r.settings = Object.assign(r.settings || {}, {myName: me}); localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){}
       try { if (typeof S === "object" && S && S.settings) S.settings.myName = me; } catch(e){} };
     $("sheet").querySelectorAll("[data-bdrop]").forEach(b => b.onclick = () => { sync(); bookingsDrop(+b.dataset.bdrop); toast("Removed from Plan my week"); draw(); });
@@ -506,10 +520,11 @@ function openBook(docId, back){
       if (!st.docs.length) return draw("Pick at least one doctor.");
       if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
       const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
-      const title = titleFor(), loc = office ? office.a : "";
-      const ics = bookingICS(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins})), title, loc, ppl, nv.me, me, st.remind);
-      bookingsAdd(st.rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:st.kind, docs:st.docs.slice(), title})));
-      bShare(ics, (st.kind + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
+      const rows = st.rows.map(r => { const o = offOf(r.k); return {date:r.date, time:r.time, mins:r.mins, kind:r.kind, title: titleFor(r), loc: o ? o.a : ""}; });
+      const ics = bookingICS(rows, null, null, ppl, nv.me, me, st.remind);
+      bookingsAdd(rows.map(r => ({date:r.date, time:r.time, mins:r.mins, kind:r.kind, docs:st.docs.slice(), title:r.title, loc:r.loc})));
+      const kinds = [...new Set(rows.map(r => r.kind))];
+      bShare(ics, (kinds.join("-") + "-" + st.docs.map(bLast).join("-")).replace(/[^A-Za-z0-9-]+/g, "") + ".ics", st.rows.length);
     };
   };
   draw();
@@ -524,12 +539,12 @@ function bookingICS(rows, title, loc, ppl, myEmail, myName, remind){
     const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + r.mins * 60000);
     const z = dt => dt.toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
     L.push("BEGIN:VEVENT", "UID:" + Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2,8) + "@calltracker", "DTSTAMP:" + stamp,
-      "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(title));
-    if (loc) L.push("LOCATION:" + e(loc));
+      "DTSTART:" + z(s), "DTEND:" + z(en), "SUMMARY:" + e(r.title || title));
+    if (r.loc || loc) L.push("LOCATION:" + e(r.loc || loc));
     if (myEmail) L.push("ORGANIZER;CN=" + e(myName || myEmail) + ":mailto:" + myEmail);
     ppl.forEach(p => L.push("ATTENDEE;CN=" + e(p.name) + ";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:" + p.email));
     L.push("STATUS:CONFIRMED", "TRANSP:OPAQUE");
-    if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(title),"TRIGGER:-" + remind,"END:VALARM");
+    if (remind) L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:" + e(r.title || title),"TRIGGER:-" + remind,"END:VALARM");
     L.push("END:VEVENT");
   });
   L.push("END:VCALENDAR");
