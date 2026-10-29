@@ -245,7 +245,7 @@ input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display
     </div>
     <div class="sub" id="planLbl" style="margin-top:6px"></div>
     <nav class="tiles" aria-label="Main">
-      <button class="tile primary" id="importBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>Load screenshots</button>
+      <button class="tile primary" id="importBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>Update my calls</button>
       <button class="tile t-green" id="dayBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6l1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg></span>Today's calls</button>
       <a class="tile t-blue" href="route/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span>Plan my week</a>
       <button class="tile t-amber" id="evBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5.5 13.5H11L10 21.5l8.5-12H13z"/></svg></span>Chargers</button>
@@ -555,7 +555,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 const done = d => d.c0 + d.log.length;
 const rem = d => Math.max(0, d.r0 - d.log.length);
 function status(d){
-  if (d.added) return "add";
+  if (d.added || !d.a) return "add";
   const r = rem(d);
   if (r === 0) return "grn";
   if (d.a > 0 && r / d.a > 0.5) return "red";
@@ -579,11 +579,11 @@ function renderHeader(){
   const off = logDay !== t;
   $("logWarn").hidden = !off; $("backToday").hidden = !off;
   let C=0,A=0,R=0,g=0,y=0,r=0,today=0;
-  const plan = state.doctors.filter(d => !d.added);
+  const plan = state.doctors.filter(d => !d.added && d.a > 0);
   for (const d of state.doctors){
     today += allDates(d).filter(x => x === t).length;
-    if (d.added) continue;
-    C += done(d); A += d.a; R += rem(d);
+    if (d.added || !d.a) continue;
+    C += Math.min(done(d), d.a); A += d.a; R += rem(d);   // never more than assigned, like the attainment report
     const s = status(d); if (s==="grn") g++; else if (s==="yel") y++; else r++;
   }
   $("sToday").textContent = today;
@@ -611,7 +611,7 @@ const awayLbl = r => r.from === r.to ? shortDate(r.from) : shortDate(r.from) + "
 function renderList(){
   if (!state.doctors.length){
     $("list").innerHTML = `<div class="empty">
-      <button class="btn primary" id="emptyImport">Load screenshots</button>
+      <button class="btn primary" id="emptyImport">Load my call plan</button>
       <button class="btn ghost" id="emptyRestore">Restore a backup file</button></div>`;
     $("emptyImport").onclick = () => $("importBtn").click();
     $("emptyRestore").onclick = () => $("moreBtn").click();
@@ -660,7 +660,7 @@ function renderList(){
         ${(() => { const a = AW[d.id] && AW[d.id].find(r => r.to >= todayISO()); return a ? `<div class="bz"><span class="away">${a.from <= todayISO() ? "Out until " + shortDate(a.to) : "Out " + awayLbl(a)}</span></div>` : ""; })()}
         ${BZN[d.id] ? `<div class="bz">${BZN[d.id].map(n => `<span>${esc(n)}</span>`).join("")}</div>` : ""}
       </button>
-      ${d.added ? `<div class="addtag"><b>${d.log.length + (d.hist||[]).length}</b>calls · added by you</div>` : `<div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>`}
+      ${d.added || !d.a ? `<div class="addtag"><b>${d.log.length + (d.hist||[]).length}</b>calls · ${d.added ? "added by you" : "no calls assigned"}</div>` : `<div class="car"><div>${done(d)}<small>C</small></div><div>${d.a}<small>A</small></div><div class="r">${rem(d)}<small>R</small></div></div>`}
       <div class="act">
         <button class="undo" data-u="${esc(d.id)}" ${d.log.length ? "" : "disabled"} aria-label="Undo last call for ${esc(d.name)}">↶</button>
         <button class="call" data-c="${esc(d.id)}">+ Call</button>
@@ -741,7 +741,7 @@ function openRemoveDoc(id){
   const d = find(id); if (!d) return; let why = "";
   const draw = () => openSheet(`<h2>Remove ${esc(titleCase(d.name))}?</h2>
     <p>They come off your list and won't be planned in Plan my week. Their calls stop counting in your totals here${d.a ? ` (${d.a} assigned, ${rem(d)} left)` : ""}.</p>
-    <p class="small">Nothing is deleted: Settings → Providers → Removed doctors brings them back. If they still appear in a newer call plan report, they stay off your list until you bring them back.</p>
+    <p class="small">Nothing is deleted: Settings → Providers → Removed doctors brings them back. If they still appear in a newer report, they stay off your list until you bring them back.</p>
     <div class="fld" style="margin-top:10px">Why <span class="small" style="font-weight:400">(optional, just for you)</span><div class="chips" style="margin-top:6px">${RM_WHY.map(w => `<button type="button" class="chip" data-why="${esc(w)}" aria-pressed="${why === w}" style="min-height:38px;padding-right:12px;${why === w ? "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700" : ""}">${esc(w)}</button>`).join("")}</div></div>
     <div class="foot"><button class="btn" id="rmNo">Cancel</button><button class="btn primary" id="rmYes" style="background:var(--red-ink);border-color:var(--red-ink)">Remove</button></div>`);
   draw();
@@ -773,7 +773,8 @@ function openRemovedDocs(back){
 function openHistory(id){
   const d = find(id); const days = d.log.slice().sort().reverse();
   openSheet(`<h2>${esc(d.name)}</h2>
-    <p>${esc(d.city||"No city listed")} · ${d.added ? `${esc(KIND_LBL[d.kind] || "Provider")} you added · not on your call plan` : `${done(d)} completed of ${d.a} assigned · ${rem(d)} remaining`}</p>
+    <p>${esc(d.city||"No city listed")} · ${d.added ? `${esc(KIND_LBL[d.kind] || "Provider")} you added · not on your call plan` : d.a ? `${Math.min(done(d), d.a)} completed of ${d.a} assigned · ${rem(d)} remaining` : "No calls assigned this quarter"}</p>
+    ${d.prof ? `<div class="chips" style="margin:6px 0 4px">${(d.prof.prios || []).map(x => `<span class="chip" style="padding-right:10px">${esc(x.label)}: ${esc(x.value)}</span>`).join("")}${d.prof.type ? `<span class="chip" style="padding-right:10px">${esc(d.prof.type)}</span>` : ""}${d.prof.spec ? `<span class="chip" style="padding-right:10px">${esc(d.prof.spec)}</span>` : ""}</div>${d.prof.address ? `<p class="small">${esc(d.prof.address)}, ${esc(d.prof.city)} ${esc(d.prof.zip)} <span class="small">(assigned calls report)</span></p>` : ""}` : ""}
     ${d.added ? `<div class="foot" style="justify-content:flex-start;margin-top:4px"><button class="btn small" id="hEdit">Edit office and days</button><button class="btn small ghost" id="hDel">Remove from my list</button></div>` : ""}
     ${blitzOf(d.id).length ? `<p style="margin-top:12px"><b style="color:var(--ink)">Blitzes</b></p>${blitzOf(d.id).map(b => `<div class="offbox" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${esc(b.name)} <span class="small">· ${b.freq === 14 ? "every other week" : "weekly"}</span></span><button class="btn small ghost" data-bzrm="${esc(b.id)}">Remove</button></div>`).join("")}` : ""}
     <p style="margin-top:12px"><b style="color:var(--ink)">Out of office</b> <span class="small">· not planned on these days</span></p>
@@ -1152,7 +1153,7 @@ function routingCSV(rows){
 function parseCallPlanText(text){
   const JUNK_LEAD = /^([^A-Z]{1,3}|[A-Z]|O|Oo|0|\(\)|\[\]|©|@|®|&)$/;
   const DATE = /^\d{1,2}\/\d{1,2}\/\d{2,4}[.,]?$/;
-  const PRODUCTISH = /(PRIMARY|SECONDARY|AIRSUPRA|BREZTRI|AEROSPHERE|[A-Za-z]{3,};|;[A-Za-z]{3,})/i;
+  const PRODUCTISH = /(PRIMARY|SECONDARY|[A-Za-z]{3,};|;[A-Za-z]{3,})/i;
   const rows = []; let total = null;
   for (let raw of text.split(/\n+/)){
     const line = raw.replace(/[|‘’`“”"]/g," ").replace(/\s+/g," ").trim();
@@ -1165,6 +1166,8 @@ function parseCallPlanText(text){
     let tok = line.split(" ");
     // find where product/sales text begins
     let p = tok.findIndex(t => PRODUCTISH.test(t));
+    // a product name made of two words ("NAME WORD-Primary"): the plain word just before belongs to it too, when numbers come before it
+    if (p >= 2 && /^[A-Za-z]{3,}$/.test(tok[p-1]) && /\d/.test(tok[p-2])) p--;
     if (p < 2) continue;
     const head = tok.slice(0,p), tail = tok.slice(p);
     // SD1 A: first standalone number after the product text
@@ -1276,7 +1279,206 @@ async function getWorker(onProgress){
   return ocrWorker;
 }
 
-$("importBtn").onclick = () => {
+/* ---------- your two reports ----------
+   1. The assigned calls report (Excel): each doctor's assigned calls for the quarter (Pre Calls), priorities, type, specialty, office.
+   2. The attainment report (as often as you like): the percent of each doctor's assigned calls done. Done = percent × assigned; left = assigned − done.
+   Attainment never goes over 100%, so no doctor counts for more than their assigned calls. */
+async function xInflateRaw(u8){ if (typeof DecompressionStream === "undefined") throw new Error("This iPad's software is too old to open .xlsx files (it needs iPadOS 16.4 or newer). Update the iPad, or save the spreadsheet as a .csv file and load that instead.");
+  const ds = new DecompressionStream("deflate-raw"); return new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer(); }
+async function readXlsxT(buf){
+  const u8 = new Uint8Array(buf), dv = new DataView(buf), td = new TextDecoder();
+  let e = u8.length - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("That file isn't an Excel .xlsx file.");
+  const n = dv.getUint16(e+10, true); let off = dv.getUint32(e+16, true); const files = {};
+  for (let i=0;i<n;i++){
+    const method = dv.getUint16(off+10,true), csize = dv.getUint32(off+20,true), nl = dv.getUint16(off+28,true), xl = dv.getUint16(off+30,true), cl = dv.getUint16(off+32,true), lho = dv.getUint32(off+42,true);
+    files[td.decode(u8.subarray(off+46, off+46+nl))] = {method, csize, lho}; off += 46+nl+xl+cl;
+  }
+  const get = async name => { const f = files[name]; if (!f) return null; const l = f.lho, s = l+30+dv.getUint16(l+26,true)+dv.getUint16(l+28,true); const data = u8.subarray(s, s+f.csize);
+    return td.decode(f.method === 0 ? data : new Uint8Array(await xInflateRaw(data))); };
+  const xml = s => new DOMParser().parseFromString(s, "application/xml");
+  const ssx = await get("xl/sharedStrings.xml");
+  const shared = ssx ? [...xml(ssx).getElementsByTagName("si")].map(si => [...si.getElementsByTagName("t")].map(t => t.textContent).join("")) : [];
+  const wb = xml(await get("xl/workbook.xml")), rels = xml(await get("xl/_rels/workbook.xml.rels"));
+  const relMap = {}; [...rels.getElementsByTagName("Relationship")].forEach(r => relMap[r.getAttribute("Id")] = r.getAttribute("Target"));
+  const sheets = [...wb.getElementsByTagName("sheet")].map(s => ({name:s.getAttribute("name"), target: relMap[s.getAttribute("r:id")] || relMap[s.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","id")]}));
+  const out = [];
+  for (const sh of sheets){
+    let path = String(sh.target||"").replace(/^\//,""); if (!path.startsWith("xl/")) path = "xl/" + path;
+    const sx = await get(path); if (!sx) continue;
+    const rows = [];
+    [...xml(sx).getElementsByTagName("row")].forEach(r => {
+      const ri = +r.getAttribute("r") - 1; const row = [];
+      [...r.getElementsByTagName("c")].forEach(c => {
+        const ref = c.getAttribute("r") || ""; let ci = 0; for (const ch of ref.replace(/\d+/g,"")) ci = ci*26 + (ch.charCodeAt(0)-64); ci--;
+        const t = c.getAttribute("t"), v = c.getElementsByTagName("v")[0], is = c.getElementsByTagName("is")[0];
+        let val = v ? v.textContent : (is ? [...is.getElementsByTagName("t")].map(x => x.textContent).join("") : "");
+        if (t === "s") val = shared[+val] ?? "";
+        const fm = c.getElementsByTagName("f")[0]; if (fm && t !== "s" && t !== "str" && !v) val = "=" + fm.textContent;
+        row[ci] = val;
+      });
+      rows[ri] = row;
+    });
+    out.push({name: sh.name, rows: rows.map(r => r || [])});
+  }
+  return out;
+}
+
+const TRK_ROUTER_KEYS = ["weekrouter.v1", "bookings.v1", "doctor.offices.v1"];
+// a doctor's name corrected by the report: carry everything kept under the old name over to the right one
+function renameDocEverywhere(oldId, newId){
+  if (!oldId || oldId === newId) return;
+  const walk = v => { if (Array.isArray(v)) return v.map(walk); if (v && typeof v === "object"){ const o = {}; for (const k in v) o[k === oldId ? newId : k] = walk(v[k]); return o; } return v === oldId ? newId : v; };
+  TRK_ROUTER_KEYS.forEach(k => { try { const raw = localStorage.getItem(k); if (!raw) return; localStorage.setItem(k, JSON.stringify(walk(JSON.parse(raw)))); } catch(e){} });
+}
+const titleName = s => titleCase(String(s || "").toLowerCase());
+// best match for a report name among the doctors you have: same name, same name with spaces or a letter or two off, or first and last swapped
+function matchDoc(id, pool){
+  const ex = pool.find(d => d.id === id); if (ex) return ex;
+  const flat = x => x.replace(/ /g, ""), toks = x => x.split(" ").sort().join(" "), last = x => x.split(" ").pop();
+  const hits = pool.filter(d => flat(d.id) === flat(id) || toks(d.id) === toks(id) || (d.id.length >= 7 && editDist(d.id, id) <= 2 && editDist(last(d.id), last(id)) <= 1));
+  return hits.length === 1 ? hits[0] : null;
+}
+function readPlanRows(sheets){
+  for (const sh of sheets){
+    const rows = sh.rows; const lc = r => (r || []).map(c => String(c ?? "").trim().toLowerCase());
+    const hi = rows.findIndex(r => { const l = lc(r); return l.includes("last name") && l.some(x => /^pre calls?$/.test(x)); }); if (hi < 0) continue;
+    const H = lc(rows[hi]), col = re => H.findIndex(h => re.test(h));
+    const c = {last: col(/^last name$/), first: col(/^first name$/), pre: col(/^pre calls?$/), adr: col(/^address/), city: col(/^city$/), zip: col(/^zip/), type: col(/sub ?type/), spec: col(/spec/)};
+    const pr = v => { v = String(v ?? "").trim(); return /^not in seg/i.test(v) ? "Not in segmentation" : v; };
+    // priority columns, whatever they're called ("Current ... Priority"); the earlier ("Previous") ones are skipped
+    const prCols = H.map((h, i) => /priority/.test(h) && !/previous|prior\b/.test(h) ? i : -1).filter(i => i >= 0);
+    const prLabel = i => titleCase(String(rows[hi][i] ?? "").replace(/current|priority/gi, "").replace(/\s+/g, " ").trim().toLowerCase()) || "Priority";
+    const out = [];
+    rows.slice(hi + 1).forEach(r => { r = r || []; const L = String(r[c.last] ?? "").trim(), F = String(r[c.first] ?? "").trim(); if (!L) return;
+      const name = norm(F + " " + L);
+      out.push({id: name, name, city: String(r[c.city] ?? "").trim().toUpperCase(), a: Math.max(0, Math.round(+r[c.pre] || 0)),
+        prof: {prios: prCols.map(i => ({label: prLabel(i), value: pr(r[i])})).filter(x => x.value), type: String(r[c.type] ?? "").trim(), spec: String(r[c.spec] ?? "").trim(),
+          address: titleCase(String(r[c.adr] ?? "").trim().toLowerCase()), city: titleName(r[c.city]), zip: String(r[c.zip] ?? "").trim().slice(0, 5)}}); });
+    if (out.length) return out;
+  }
+  return null;
+}
+function openReports(){
+  const hasPlan = state.doctors.some(d => !d.added && d.a > 0);
+  openSheet(`<h2>Update my calls</h2>
+    <div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">1. Assigned calls report</b>
+      <p class="small" style="margin:4px 0 8px">Your assigned calls for the quarter. Load it at the start of the quarter or whenever it changes.</p>
+      <label class="btn${hasPlan ? "" : " primary"}" for="planX">Choose the Excel file</label><input type="file" id="planX" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></div>
+    <div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">2. Attainment report</b>
+      <p class="small" style="margin:4px 0 8px">The percent done for each doctor. Load it as a file or as screenshots, as often as you like. Screenshots need to be taken with the device's buttons, not photos of a screen.</p>
+      ${hasPlan ? `<label class="btn primary" for="attF">Choose screenshots or file</label><input type="file" id="attF" accept="image/*,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>` : `<p class="small"><b>Load the assigned calls report first</b>, so the app knows each doctor's assigned calls.</p>`}</div>
+    <p class="small" id="rpMsg" style="margin-top:10px"></p>
+    <p class="small" style="margin-top:14px"><a href="#" id="oldShots">Older format: screenshots with C, A and R columns</a></p>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("oldShots").onclick = e => { e.preventDefault(); openOldImport(); };
+  $("planX").onchange = async e => { const f = e.target.files[0]; if (!f) return;
+    try { const rows = readPlanRows(await readXlsxT(await f.arrayBuffer())); if (!rows) throw new Error("That file doesn't have Last Name and Pre Calls columns. Is it the assigned calls report?"); reviewPlan(rows, f.name); }
+    catch(err){ $("rpMsg").textContent = err.message || "That file couldn't be read."; } };
+  if ($("attF")) $("attF").onchange = e => runAttainment([...e.target.files]);
+}
+function reviewPlan(rows, fname){
+  const pool = state.doctors.filter(d => !d.added), removedPool = state.removedDocs || [];
+  const used = new Set(), fixes = [], fresh = [], changed = [];
+  const plan = rows.map(r => { const m = matchDoc(r.id, pool.filter(d => !used.has(d.id))) || matchDoc(r.id, removedPool);
+    if (m){ used.add(m.id); if (m.id !== r.id) fixes.push([m.name, r.name]); if (m.a !== r.a) changed.push([r.name, m.a, r.a]); } else fresh.push(r.name);
+    return {r, m}; });
+  const gone = pool.filter(d => !used.has(d.id));
+  const A = rows.reduce((t, r) => t + r.a, 0), zero = rows.filter(r => !r.a).length;
+  const li = arr => `<ul class="hist">${arr.map(x => `<li><span>${x}</span></li>`).join("")}</ul>`;
+  openSheet(`<h2>Assigned calls report</h2>
+    <p><b style="color:var(--ink)">${rows.length} doctors · ${A} assigned calls</b>${zero ? ` · ${zero} with no calls assigned (kept on your list)` : ""}</p>
+    ${fixes.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Names corrected (${fixes.length})</b> <span class="small">their calls, offices and notes carry over</span></p>${li(fixes.map(([a,b]) => esc(titleName(a)) + " → <b>" + esc(titleName(b)) + "</b>"))}` : ""}
+    ${changed.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Assigned calls changed (${changed.length})</b></p>${li(changed.map(([n,a,b]) => esc(titleName(n)) + ": " + a + " → <b>" + b + "</b>"))}` : ""}
+    ${fresh.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">New on your call plan (${fresh.length})</b></p>${li(fresh.map(n => esc(titleName(n))))}` : ""}
+    ${gone.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Not on this report (${gone.length})</b> <span class="small">taken off your list; Settings → Removed doctors brings them back</span></p>${li(gone.map(d => esc(titleName(d.name))))}` : ""}
+    <p class="small" style="margin-top:12px">Calls already counted stay. Load today's attainment next to bring every doctor's calls up to date.</p>
+    <div class="foot"><button class="btn" id="rpBack">Back</button><button class="btn primary" id="rpGo">Use these assigned calls</button></div>`);
+  $("rpBack").onclick = openReports;
+  $("rpGo").onclick = () => {
+    const nextDocs = [];
+    for (const {r, m} of plan){
+      if (m && m.removed){ renameDocEverywhere(m.id, r.id); Object.assign(m, {id:r.id, name:r.name, a:r.a, r0:Math.max(0, r.a - (m.c0 || 0)), prof:r.prof, city:r.city || m.city}); continue; }
+      if (m){ renameDocEverywhere(m.id, r.id); delete m.added; delete m.kind; Object.assign(m, {id:r.id, name:r.name, city:r.city || m.city, a:r.a, r0:Math.max(0, r.a - Math.min(m.c0 || 0, r.a)), c0:Math.min(m.c0 || 0, r.a), prof:r.prof}); nextDocs.push(m); }
+      else nextDocs.push({id:r.id, name:r.name, city:r.city, c0:0, a:r.a, r0:r.a, lastRpt:null, log:[], prof:r.prof});
+    }
+    state.removedDocs = (state.removedDocs || []).concat(gone.map(d => ({...d, removed:{at:todayISO(), why:"Not on the assigned calls report"}})));
+    state.doctors = nextDocs.concat(state.doctors.filter(d => d.added));
+    state.planReport = {name: fname, at: todayISO(), assigned: A};
+    state.source = "assigned calls " + shortDate(todayISO());
+    save(); render(); closeSheet(); toast(`Assigned calls loaded: ${rows.length} doctors, ${A} calls`);
+  };
+}
+// attainment: "ALEX DIAZ (1) ... 67%" per doctor (the Subtotal rows and the total at the top are skipped)
+function parseAttainmentText(text){
+  const out = []; let pending = null;
+  const clean = raw => norm(raw).replace(/^(?:[A-Z]{1,2} )+(?=[A-Z]{3})/, "");
+  String(text || "").split(/\n+/).forEach(line => {
+    line = line.replace(/\bO\s*%/g, "0%");
+    const m = line.match(/([A-Za-z][A-Za-z.'\- ]{3,}?)\s*\(\s*\d+\s*\)?[^%\n]*?(\d{1,3})\s*%/);
+    if (m){ const name = clean(m[1]); pending = null; if (!name || /SUBTOTAL|TOTAL/.test(name) || +m[2] > 100) return; out.push({name, pct: +m[2]}); return; }
+    // the name and the percent can come out on separate lines
+    const n = line.match(/([A-Za-z][A-Za-z.'\- ]{3,}?)\s*\(\s*\d+\s*\)/);
+    if (n){ const name = clean(n[1]); pending = name && !/SUBTOTAL|TOTAL/.test(name) ? name : null; return; }
+    const p = line.match(/^\W*(\d{1,3})\s*%\W*$/);
+    if (p && pending && +p[1] <= 100){ out.push({name: pending, pct: +p[1]}); pending = null; }
+  });
+  return out;
+}
+function attainmentFromSheets(sheets){
+  for (const sh of sheets){
+    const rows = sh.rows; const lc = r => (r || []).map(c => String(c ?? "").trim().toLowerCase());
+    const hi = rows.findIndex(r => lc(r).some(x => /attainment/.test(x))); if (hi < 0) continue;
+    const H = lc(rows[hi]), ci = H.findIndex(h => /attainment/.test(h)), ni = H.findIndex(h => /name/.test(h));
+    const out = [];
+    rows.slice(hi + 1).forEach(r => { r = r || []; const raw = String(r[ni] ?? "").replace(/\(\s*\d+\s*\)/, "").trim(); if (!raw || /total/i.test(raw)) return;
+      let v = String(r[ci] ?? "").trim(); let pct = parseFloat(v); if (isNaN(pct)) return; if (!/%/.test(v) && pct <= 1) pct *= 100;
+      out.push({name: norm(raw), pct: Math.round(pct)}); });
+    if (out.length) return out;
+  }
+  return null;
+}
+async function runAttainment(files){
+  const imgs = files.filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|heic)$/i.test(f.name)), xls = files.filter(f => /\.xlsx$/i.test(f.name));
+  let got = [];
+  for (const f of xls){ try { got = got.concat(attainmentFromSheets(await readXlsxT(await f.arrayBuffer())) || []); } catch(e){} }
+  if (imgs.length){
+    $("rpMsg").textContent = "Getting the reader ready…"; busy = true;
+    try {
+      const w = await getWorker(() => {});
+      for (let i = 0; i < imgs.length; i++){ $("rpMsg").textContent = `Reading screenshot ${i+1} of ${imgs.length}…`; const {data} = await w.recognize(imgs[i]); got = got.concat(parseAttainmentText(data.text)); }
+    } catch(e){ busy = false; $("rpMsg").textContent = navigator.onLine ? "The reader couldn't start. Close the app fully and open it again." : "The first time, the iPad needs internet to set up the reader."; return; }
+    busy = false;
+  }
+  if (!got.length){ $("rpMsg").textContent = "No attainment rows found. Use screenshots taken with the iPad's buttons, showing the names and the Attainment column."; return; }
+  reviewAttainment(got);
+}
+function reviewAttainment(got){
+  const pool = state.doctors.filter(d => !d.added && d.a > 0), byId = new Map(), miss = [];
+  got.forEach(g => { const m = matchDoc(g.name, pool); if (m) byId.set(m.id, {d:m, pct:g.pct}); else if (!(state.removedDocs || []).some(x => x.id === g.name) && !state.doctors.some(x => x.id === g.name && !x.a)) miss.push(g.name); });
+  const items = [...byId.values()].map(x => { const doneNow = Math.round(x.pct / 100 * x.d.a); return {...x, doneNow, before: Math.min(done(x.d), x.d.a)}; });
+  const ch = items.filter(x => x.doneNow !== x.before).sort((a,b) => a.d.name.localeCompare(b.d.name));
+  const notSeen = pool.filter(d => !byId.has(d.id));
+  const nowOf = new Map(items.map(x => [x.d.id, x.doneNow]));
+  const C = pool.reduce((t, d) => t + (nowOf.has(d.id) ? nowOf.get(d.id) : Math.min(done(d), d.a)), 0), A = pool.reduce((t, d) => t + d.a, 0);
+  openSheet(`<h2>Attainment report</h2>
+    <p><b style="color:var(--ink)">${items.length} of ${pool.length} doctors read · ${C} of ${A} calls done · ${A - C} left</b></p>
+    ${ch.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Changed since last time (${ch.length})</b></p><ul class="hist">${ch.map(x => `<li><span>${esc(titleName(x.d.name))} <span class="small">${x.pct}% of ${x.d.a}</span></span><span>${x.before} → <b>${x.doneNow}</b> done · ${x.d.a - x.doneNow} left</span></li>`).join("")}</ul>` : `<p class="small">No changes since your last update.</p>`}
+    ${notSeen.length ? `<p class="small" style="margin-top:10px"><b>Not in these screenshots (${notSeen.length}), left as they were:</b> ${esc(notSeen.slice(0, 12).map(d => titleName(d.name)).join(", "))}${notSeen.length > 12 ? "…" : ""}. Add the screenshots that show them if you meant to include them.</p>` : ""}
+    ${miss.length ? `<p class="small" style="margin-top:10px;color:var(--red-ink)"><b>Couldn't match (${miss.length}):</b> ${esc(miss.map(titleName).join(", "))}</p>` : ""}
+    <p class="small" style="margin-top:10px">Calls you logged here are now counted by the report.</p>
+    <div class="foot"><button class="btn" id="atBack">Back</button><button class="btn primary" id="atGo">Update ${items.length} doctor${items.length === 1 ? "" : "s"}</button></div>`);
+  $("atBack").onclick = openReports;
+  $("atGo").onclick = () => {
+    items.forEach(({d, doneNow}) => { d.hist = (d.hist || []).concat(d.log); d.log = []; d.c0 = doneNow; d.r0 = d.a - doneNow; });
+    state.source = "updated " + shortDate(todayISO()); state.attainAt = todayISO();
+    save(); render(); closeSheet(); toast(`Updated ${items.length} doctors · ${A - C} calls left`);
+  };
+}
+
+$("importBtn").onclick = () => openReports();
+function openOldImport(){
   openSheet(`<h2>Load screenshots</h2>
     <p>Pick every page of your call plan, including the last one with the total row.</p>
     <div class="drop">
@@ -1291,7 +1493,7 @@ $("importBtn").onclick = () => {
   $("closeS").onclick = closeSheet;
   parsed = []; reportTotal = null;
   $("shotF").onchange = e => runImport([...e.target.files]);
-};
+}
 
 let parsed = [], reportTotal = null;
 async function runImport(files){
@@ -1482,7 +1684,7 @@ function openMissing(){
 }
 function openAddBack(m){
   openSheet(`<h2>Add back ${esc(titleCase(m.name))}</h2>
-    <p>Enter the numbers from your call plan report.</p>
+    <p>Enter the numbers from your latest report.</p>
     <div class="logday" style="margin-top:8px;flex-wrap:wrap;gap:10px">
       <label class="small">City <input id="abC" value="${esc(titleCase(m.city || ""))}" style="width:160px"></label>
       <label class="small">Assigned <input id="abA" type="number" inputmode="numeric" min="0" value="${m.a || ""}" style="width:80px"></label>
