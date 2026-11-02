@@ -1864,6 +1864,18 @@ function openPasteWeek(text){
 /* screenshots read on the iPad */
 function simdSupported(){ try { return WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11])); } catch(e){ return false; } }
 const CORE_FILE = simdSupported() ? "tesseract-core-simd-lstm.wasm.js" : "tesseract-core-lstm.wasm.js";
+// a screenshot turned into black text on white: dark writing stays, light stripes and coloured backgrounds go
+async function bwImage(file){
+  try {
+    const bmp = await createImageBitmap(file);
+    const cv = document.createElement("canvas"); cv.width = bmp.width; cv.height = bmp.height;
+    const cx = cv.getContext("2d"); cx.drawImage(bmp, 0, 0);
+    const im = cx.getImageData(0, 0, cv.width, cv.height), p = im.data;
+    for (let i = 0; i < p.length; i += 4){ const v = 0.299 * p[i] + 0.587 * p[i+1] + 0.114 * p[i+2] < 150 ? 0 : 255; p[i] = p[i+1] = p[i+2] = v; }
+    cx.putImageData(im, 0, 0);
+    return await new Promise(res => cv.toBlob(b => res(b), "image/png"));
+  } catch(e){ return null; }
+}
 async function vendorBlob(url){
   let res = null;
   try { const c = await caches.open(VCACHE); res = await c.match(url);
@@ -1913,10 +1925,15 @@ async function readShots(files, whoFn){
   for (let i=0;i<files.length && !sig.aborted;i++){
     $("oStat").textContent = `Reading screenshot ${i+1} of ${files.length}…`; bar(0);
     try {
-      const { data } = await worker.recognize(files[i], {}, {tsv:true, text:true});
-      const words = L.parseTSV(data.tsv || "");
-      const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
-      for (const d in r.byDate) r.byDate[d].forEach(x => { const prev = byDate[d].get(x.id); if (!prev || x.sure) byDate[d].set(x.id, x); });
+      // read twice: as it is, and in plain black and white (a striped or coloured block behind the names hides them otherwise)
+      for (const img of [await bwImage(files[i]), files[i]]){
+        if (!img) continue;
+        const { data } = await worker.recognize(img, {}, {tsv:true, text:true});
+        const words = L.parseTSV(data.tsv || "");
+        const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
+        // a two- or three-letter last name on its own ("HO", "SU", "LU") is too easily a stray scrap of text: kept only when the first name is there too
+        for (const d in r.byDate) r.byDate[d].forEach(x => { if (!x.sure && x.id.split(" ").pop().length <= 3) return; const prev = byDate[d].get(x.id); if (!prev || (x.sure && !prev.sure)) byDate[d].set(x.id, x); });
+      }
     } catch(e){ layouts.push("error"); }
   }
   busy = false; $("oProg").hidden = true;
