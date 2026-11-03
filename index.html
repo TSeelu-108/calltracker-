@@ -1805,6 +1805,8 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
   b.onclick = () => location.reload(); document.body.appendChild(b);
 });
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
+// a Home Screen app is often just brought back, not reopened: look for a newer version then too
+if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}), 4000); }); }
 
 render();
 geoLoad(applyGeo);
