@@ -296,6 +296,12 @@ function findDoctorsInText(text, nameIndex){
     if (byCity.length === 1){ put(byCity[0].id, true); continue; }
     (initial.length ? initial : byCity.length ? byCity : group).forEach(e => put(e.id, false));
   }
+  // a name cut short on a crowded calendar ("TANAK...", "CHEUN...", "PAREK..."): the start of exactly one last name, a guess to confirm
+  for (const w of W){
+    if (w.length < 4 || nameIndex.byLast[w] || !/^[A-Z]+$/.test(w)) continue;
+    const ids = new Set(); for (const L in nameIndex.byLast) if (L.length > w.length && L.length - w.length <= 3 && L.startsWith(w)) nameIndex.byLast[L].forEach(e => ids.add(e.id));
+    if (ids.size === 1){ const id = [...ids][0]; if (!found.has(id)) found.set(id, false); }
+  }
   return [...found.entries()].map(([id,sure]) => ({id, sure}));
 }
 
@@ -482,21 +488,37 @@ function scheduleFromWords(words, weekMon, nameIndex){
   // one anchor per date: keep the top-most occurrence
   const firstPer = {}; anchors.forEach(a => { if (!firstPer[a.date] || a.top < firstPer[a.date].top) firstPer[a.date] = a; });
   const A = Object.values(firstPer);
-  const out = {}; week.forEach(d => out[d] = []);
-  if (!A.length) return {byDate:out, layout:"none"};
+  const out = {}, others = {}; week.forEach(d => { out[d] = []; others[d] = []; });
+  if (!A.length) return {byDate:out, others, layout:"none"};
   const medH = A.map(a => a.h).sort((x,y)=>x-y)[Math.floor(A.length/2)] || 20;
   const sameRow = A.filter(a => Math.abs(a.top - A[0].top) < medH*1.5).length;
   const layout = A.length >= 2 && sameRow >= Math.min(A.length, 2) && sameRow === A.length ? "columns" : "rows";
   const buckets = {}; A.forEach(a => buckets[a.date] = []);
   if (layout === "columns"){
-    const cols = A.slice().sort((a,b) => a.cx - b.cx);
     const headerBottom = Math.max(...A.map(a => a.top + a.h));
-    words.forEach(w => {
-      if (w.top + w.h <= headerBottom - 2) return;
-      const cx = w.left + w.w/2; let best = cols[0], bd = Infinity;
-      cols.forEach(c => { const d = Math.abs(c.cx - cx); if (d < bd){ bd = d; best = c; } });
-      buckets[best.date].push(w);
-    });
+    // Day columns are evenly spaced, so two day headings are enough to place all five, even when one heading wasn't
+    // read or the calendar starts on Sunday: fit position = start + gap × day number, and give each word to its column.
+    const pts = A.map(a => [week.indexOf(a.date), a.cx]).filter(p => p[0] >= 0);
+    let slope = 0, icpt = 0;
+    if (pts.length >= 2){ const n = pts.length, mx = pts.reduce((t,p) => t + p[0], 0) / n, my = pts.reduce((t,p) => t + p[1], 0) / n;
+      const sxx = pts.reduce((t,p) => t + (p[0]-mx) ** 2, 0); slope = sxx ? pts.reduce((t,p) => t + (p[0]-mx) * (p[1]-my), 0) / sxx : 0; icpt = my - slope * mx; }
+    if (slope > 20){
+      for (const d of week) if (!buckets[d]) buckets[d] = [];
+      words.forEach(w => {
+        if (w.top + w.h <= headerBottom - 2) return;
+        const cx = w.left + w.w/2, k = Math.round((cx - icpt) / slope);
+        if (k < 0 || k >= week.length || Math.abs(cx - (icpt + slope * k)) > slope * 0.55) return;
+        buckets[week[k]].push(w);
+      });
+    } else {
+      const cols = A.slice().sort((a,b) => a.cx - b.cx);
+      words.forEach(w => {
+        if (w.top + w.h <= headerBottom - 2) return;
+        const cx = w.left + w.w/2; let best = cols[0], bd = Infinity;
+        cols.forEach(c => { const d = Math.abs(c.cx - cx); if (d < bd){ bd = d; best = c; } });
+        buckets[best.date].push(w);
+      });
+    }
   } else {
     const rows = A.slice().sort((a,b) => a.top - b.top);
     words.forEach(w => {
@@ -510,8 +532,16 @@ function scheduleFromWords(words, weekMon, nameIndex){
     const lines = []; ws.forEach(w => { const L = lines.find(l => Math.abs(l.top - w.top) < Math.max(8, w.h*0.6)); if (L){ L.ws.push(w); } else lines.push({top:w.top, ws:[w]}); });
     const text = lines.map(l => l.ws.sort((a,b)=>a.left-b.left).map(w => w.text).join(" ")).join("\n");
     out[d] = findDoctorsInText(text, nameIndex);
+    // other people on their calendar ("CHANDLER, NORMA"): not on your list, but shown so you see their whole day
+    const mine = new Set(out[d].filter(x => x.sure !== false || x.id.split(" ").pop().length > 3).map(x => x.id.split(" ").pop()));
+    const seen = new Set(); others[d] = [];
+    for (const m of text.matchAll(/\b([A-Z][A-Z'\-]{2,}(?: [A-Z][A-Z'\-]+)?)\s*,\s*([A-Z][A-Za-z'\-]{1,})/g)){
+      const last = m[1].trim(), first = m[2];
+      if (mine.has(last) || [...mine].some(x => x.startsWith(last) || last.startsWith(x)) || seen.has(last) || /^(DR|MD|NP|PA|CALL|AM|PM)$/.test(last)) continue;
+      seen.add(last); others[d].push((first.replace(/\.+$/, "") + " " + last).toLowerCase().replace(/(^|[\s\-\x27])([a-z])/g, (q, a, b) => a + b.toUpperCase()));
+    }
   }
-  return {byDate:out, layout};
+  return {byDate:out, others, layout};
 }
 
 /* ---------------- priority ---------------- */

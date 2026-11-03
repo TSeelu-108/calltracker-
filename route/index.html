@@ -1794,12 +1794,13 @@ function openCounterparts(){
       const whoOf = {}; v.forEach(x => (whoOf[x.id] = whoOf[x.id] || new Set()).add(x.who));
       const both = Object.keys(whoOf).filter(id => whoOf[id].size > 1);
       const lastName = id => { const w = title(docName(id)).split(" "); const L = w[w.length - 1]; return v.filter(x => title(docName(x.id)).split(" ").pop() === L && x.id !== id).length ? w[0][0] + ". " + L : L; };
-      const groups = [...new Set(people.concat(v.map(x => x.who)))].map((who, gi) => [who, gi, v.filter(x => x.who === who)]).filter(g => g[2].length);
+      const oth = (S.cpOther || []).filter(x => x.date === iso);
+      const groups = [...new Set(people.concat(v.map(x => x.who)).concat(oth.map(x => x.who)))].map((who, gi) => [who, gi, v.filter(x => x.who === who), oth.filter(x => x.who === who)]).filter(g => g[2].length || g[3].length);
       return `<div class="cpday"><b>${fmtDay(iso)}</b>
         ${both.length ? `<p class="small" style="margin:4px 0 2px;color:var(--ink)"><span style="display:inline-block;width:3px;height:12px;background:#ea580c;border-radius:2px;margin-right:6px;vertical-align:-1px"></span>${esc([...new Set(both.flatMap(id => [...whoOf[id]]))].join(" and "))} are both seeing ${both.length === 1 ? "" : both.length + " doctors: "}${esc(both.map(lastName).join(", "))}</p>` : ""}
-        ${groups.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${groups.map(([who, gi, list]) => { const pc = [["#2563eb","#eef4ff"],["#9333ea","#f6efff"],["#0f766e","#ecfdf5"],["#c2410c","#fff4ec"],["#be185d","#fdf0f6"],["#4d7c0f","#f3fae8"]][gi % 6];
-          return `<div style="flex:1 1 150px;min-width:0;background:${pc[1]};border-radius:12px;padding:10px"><div style="font-weight:700;color:${pc[0]};margin-bottom:6px">${esc(who)} · ${list.length}</div>
-          ${list.map(x => { const dbl = both.includes(x.id); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--surface);border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:14px;${dbl ? "box-shadow:inset 3px 0 0 #ea580c;font-weight:600;" : ""}${x.sure === false ? "outline:1px dashed var(--line);" : ""}" title="${esc(title(docName(x.id)))}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lastName(x.id))}${x.sure===false?"?":""}</span>${x.src === "calendar" ? `<span class="sub">cal</span>` : `<button aria-label="Remove ${esc(title(docName(x.id)))}" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}" style="border:0;background:none;color:var(--muted);font-size:15px;padding:0 2px;min-height:0;cursor:pointer">✕</button>`}</div>`; }).join("")}</div>`; }).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
+        ${groups.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${groups.map(([who, gi, list, others]) => { const pc = [["#2563eb","#eef4ff"],["#9333ea","#f6efff"],["#0f766e","#ecfdf5"],["#c2410c","#fff4ec"],["#be185d","#fdf0f6"],["#4d7c0f","#f3fae8"]][gi % 6];
+          return `<div style="flex:1 1 150px;min-width:0;background:${pc[1]};border-radius:12px;padding:10px"><div style="font-weight:700;color:${pc[0]};margin-bottom:6px">${esc(who)} · ${list.length + others.length}</div>
+          ${list.map(x => { const dbl = both.includes(x.id); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--surface);border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:14px;${dbl ? "box-shadow:inset 3px 0 0 #ea580c;font-weight:600;" : ""}${x.sure === false ? "outline:1px dashed var(--line);" : ""}" title="${esc(title(docName(x.id)))}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lastName(x.id))}${x.sure===false?"?":""}</span>${x.src === "calendar" ? `<span class="sub">cal</span>` : `<button aria-label="Remove ${esc(title(docName(x.id)))}" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}" style="border:0;background:none;color:var(--muted);font-size:15px;padding:0 2px;min-height:0;cursor:pointer">✕</button>`}</div>`; }).join("")}${others.map(o => `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:13px;color:var(--muted);border:1px dashed var(--line)" title="Not on your list"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name.split(" ").pop())}</span><span style="font-size:11px">not yours</span></div>`).join("")}</div>`; }).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
     <div class="field">Add one by hand
       <div class="actions">
         <select id="aWho">${people.map(p => `<option>${esc(p)}</option>`).join("")}</select>
@@ -1939,19 +1940,22 @@ async function readShots(files, whoFn){
     $("oStat").textContent = "Getting the reader ready…";
     worker = await getWorker(m => { if (m.status === "recognizing text") bar(m.progress||0); else if (m.progress != null) { $("oStat").textContent = "Getting the reader ready… (the first time needs internet)"; bar(m.progress); } });
   } catch(e){ busy = false; $("oProg").hidden = true; $("oStat").textContent = navigator.onLine ? "The reader couldn't start. Close the app fully and open it again." : "The first time, your device needs internet to set up the reader. After that it works offline."; return; }
-  const byDate = {}; D.days.forEach(d => byDate[d] = new Map()); let layouts = [];
+  const byDate = {}, otherBy = {}; D.days.forEach(d => { byDate[d] = new Map(); otherBy[d] = new Set(); }); let layouts = [];
   for (let i=0;i<files.length && !sig.aborted;i++){
     $("oStat").textContent = `Reading screenshot ${i+1} of ${files.length}…`; bar(0);
     try {
-      // read twice: as it is, and in plain black and white (a striped or coloured block behind the names hides them otherwise)
+      // read twice, as it is and in plain black and white (stripes or coloured blocks behind the names hide them otherwise),
+      // and work out the day columns from everything both readings found
+      let words = [];
       for (const img of [await bwImage(files[i]), files[i]]){
         if (!img) continue;
         const { data } = await worker.recognize(img, {}, {tsv:true, text:true});
-        const words = L.parseTSV(data.tsv || "");
-        const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
-        // a two- or three-letter last name on its own ("HO", "SU", "LU") is too easily a stray scrap of text: kept only when the first name is there too
-        for (const d in r.byDate) r.byDate[d].forEach(x => { if (!x.sure && x.id.split(" ").pop().length <= 3) return; const prev = byDate[d].get(x.id); if (!prev || (x.sure && !prev.sure)) byDate[d].set(x.id, x); });
+        L.parseTSV(data.tsv || "").forEach(w => { if (!words.some(x => Math.abs(x.left - w.left) < 8 && Math.abs(x.top - w.top) < 8 && Math.abs(x.w - w.w) < 14)) words.push(w); });
       }
+      const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
+      for (const d in (r.others || {})) if (otherBy[d]) r.others[d].forEach(n => otherBy[d].add(n));
+      // a two- or three-letter last name on its own ("HO", "SU", "LU") is too easily a stray scrap of text: kept only when the first name is there too
+      for (const d in r.byDate) r.byDate[d].forEach(x => { if (!x.sure && x.id.split(" ").pop().length <= 3) return; const prev = byDate[d].get(x.id); if (!prev || (x.sure && !prev.sure)) byDate[d].set(x.id, x); });
     } catch(e){ layouts.push("error"); }
   }
   busy = false; $("oProg").hidden = true;
@@ -1961,13 +1965,16 @@ async function readShots(files, whoFn){
     return;
   }
   $("oStat").textContent = found.length ? `Found ${found.length} visit${found.length>1?"s":""}. Untick any that are wrong.` : "No doctors from your list were found in those screenshots.";
-  $("oRes").innerHTML = D.days.map(d => { const v = found.filter(x => x.date === d); return v.length ? `<div class="cpday"><b>${fmtDay(d)}</b><div class="chips">${v.map(x => `<label class="chip${x.sure?"":" maybe"}" style="padding-right:10px"><input type="checkbox" checked data-v="${esc(d+"|"+x.id+"|"+(x.sure?1:0))}"> ${esc(docName(x.id))}${x.sure?"":"?"}</label>`).join("")}</div></div>` : ""; }).join("");
+  $("oRes").innerHTML = D.days.map(d => { const v = found.filter(x => x.date === d), ot = [...otherBy[d]]; return v.length || ot.length ? `<div class="cpday"><b>${fmtDay(d)}</b><div class="chips">${v.map(x => `<label class="chip${x.sure?"":" maybe"}" style="padding-right:10px"><input type="checkbox" checked data-v="${esc(d+"|"+x.id+"|"+(x.sure?1:0))}"> ${esc(docName(x.id))}${x.sure?"":"?"}</label>`).join("")}</div>${ot.length ? `<p class="sub" style="margin-top:6px">Also on their calendar, not on your list: ${esc(ot.join(", "))}</p>` : ""}</div>` : ""; }).join("");
   $("oFoot").innerHTML = `<button class="btn" id="closeS">Cancel</button><button class="btn primary" id="oSave" ${found.length?"":"disabled"}>Add to this week</button>`;
   $("closeS").onclick = closeSheet;
   $("oSave").onclick = () => {
     const who = whoFn();
     // replace earlier screenshot visits for this person this week
     S.cp = S.cp.filter(x => !(x.who === who && x.src === "screenshot" && D.days.includes(x.date)));
+    // the people on their calendar who aren't on your list: kept only to show their whole day in Review
+    S.cpOther = (S.cpOther || []).filter(x => !(x.who === who && D.days.includes(x.date)) && x.date >= L.addDays(todayISO(), -21));
+    D.days.forEach(d => otherBy[d].forEach(name => S.cpOther.push({date:d, who, name})));
     $("sheet").querySelectorAll("[data-v]:checked").forEach(c => { const [date,id,s] = c.dataset.v.split("|"); S.cp.push({date, id, who, src:"screenshot", sure: s === "1"}); });
     save(); closeSheet(); render(); toast(`Saved ${who}'s week`);
   };
