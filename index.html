@@ -1794,19 +1794,23 @@ $("ddBtn").onclick = () => {
 /* ---------- Home Screen + offline ---------- */
 const standalone = window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
 $("installTip").hidden = standalone;
+const APP_SHELL = "calltracker-shell-v51";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ask iPadOS to keep this app's data even when the iPad is low on space
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
   if (!ev.data || ev.data.type !== "app-updated" || document.getElementById("updBar")) return;
+  if (!ev.data.ver || ev.data.ver === APP_SHELL) return;   // an older helper, or this page already is that version
+  let just = 0; try { just = +sessionStorage.getItem("upd.just") || 0; } catch(e){}
+  if (Date.now() - just < 60000) return;   // just updated: a late duplicate notice is not news
   const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
   b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
-  b.onclick = () => location.reload(); document.body.appendChild(b);
+  b.onclick = () => { b.remove(); try { sessionStorage.setItem("upd.just", String(Date.now())); } catch(e){} const c = navigator.serviceWorker.controller; if (c) c.postMessage({type:"update-seen"}); setTimeout(() => location.reload(), 150); }; document.body.appendChild(b);
 });
-if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
+if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 // a Home Screen app is often just brought back, not reopened: look for a newer version then too
-if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?"}), 4000); }); }
+if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}), 4000); }); }
 
 render();
 geoLoad(applyGeo);
