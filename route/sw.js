@@ -1,6 +1,6 @@
 // Week Router offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "weekrouter-shell-v72";
+const SHELL = "weekrouter-shell-v73";
 const FILES = ["./", "index.html", "logic.js", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 const looksWhole = (text, path, mode) => mode === "navigate" || /(^|\/)(index\.html)?$/.test(path) ? /<\/html>\s*$/i.test(text) && text.length > 2000 : /\.js$/.test(path) ? text.trim().length > 200 : true;
 // install only when the page itself arrived whole; otherwise the version already on the iPad keeps running
@@ -18,7 +18,7 @@ self.addEventListener("activate", e => e.waitUntil((async () => {
   await self.clients.claim();
   if (old.length){
     const c = await caches.open(SHELL); await c.put("__updated", new Response("1"));
-    (await self.clients.matchAll({type:"window"})).forEach(w => w.postMessage({type:"app-updated"}));
+    (await self.clients.matchAll({type:"window"})).forEach(w => w.postMessage({type:"app-updated", ver: SHELL}));
   }
 })()));
 self.addEventListener("fetch", e => {
@@ -47,12 +47,13 @@ self.addEventListener("fetch", e => {
     await cache.put(key, res);
     if (req.mode === "navigate" || /\.js$/.test(url.pathname)){
       await cache.put("__updated", new Response("1"));
-      const cs = await self.clients.matchAll({type:"window"}); cs.forEach(c => c.postMessage({type:"app-updated"}));
+      const cs = await self.clients.matchAll({type:"window"}); cs.forEach(c => c.postMessage({type:"app-updated", ver: SHELL}));
     }
   }));
 });
 // the page asks when it opens (an update found while it was loading can't be announced to it yet)
 self.addEventListener("message", e => {
+  if (e.data && e.data.type === "update-seen"){ e.waitUntil(caches.open(SHELL).then(c => c.delete("__updated"))); return; }
   if (!e.data || e.data.type !== "update?") return;
-  e.waitUntil((async () => { const cache = await caches.open(SHELL); if (await cache.match("__updated")){ await cache.delete("__updated"); e.source && e.source.postMessage({type:"app-updated"}); } })());
+  e.waitUntil((async () => { const cache = await caches.open(SHELL); if (await cache.match("__updated")){ await cache.delete("__updated"); if (e.data.ver === SHELL) return; e.source && e.source.postMessage({type:"app-updated", ver: SHELL}); } })());
 });
