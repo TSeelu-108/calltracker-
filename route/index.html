@@ -861,8 +861,17 @@ function render(){
   document.querySelector(".inputs").hidden = fold; $("inHead").hidden = fold;
   const lbl = ["Your calls", "Offices & times", "Counterparts' week", "Your Outlook calendar"];
   $("inStrip").hidden = !canFold;
-  $("inStrip").innerHTML = canFold ? `<span class="lead">Built from:</span>` + lbl.map((t,k) => { const st = $("d" + (k+1)).className.replace("dot","").trim(); return `<button type="button" data-instrip="1"><span class="dot ${st}"></span>${t}${st === "warn" ? " · check" : st ? "" : " · none yet"}</button>`; }).join("") + `<button type="button" class="more" data-instrip="1">${fold ? "Show ▾" : "Hide ▴"}</button>` : "";
-  $("inStrip").querySelectorAll("[data-instrip]").forEach(b => b.onclick = () => { inputsOpen = !inputsOpen; render(); });
+  $("inStrip").innerHTML = canFold ? `<span class="lead">Built from:</span>` + lbl.map((t,k) => { const st = $("d" + (k+1)).className.replace("dot","").trim(); return `<button type="button" data-instrip="1" data-incard="${k}"><span class="dot ${st}"></span>${t}${st === "warn" ? " · check" : st ? "" : " · none yet"}</button>`; }).join("") + `<button type="button" class="more" data-instrip="1">${fold ? "Show all ▾" : "Hide ▴"}</button>` : "";
+  $("inStrip").querySelectorAll("[data-instrip]").forEach(b => b.onclick = () => {
+    const k = b.dataset.incard;
+    if (k == null){ inputsOpen = !inputsOpen; render(); return; }
+    // a chip: open the inputs if they're folded, then go straight to that card and light it up for a moment
+    if (!inputsOpen){ inputsOpen = true; render(); }
+    const card = document.querySelectorAll(".inputs .card")[+k]; if (!card) return;
+    card.scrollIntoView({behavior:"smooth", block:"center"});
+    card.style.transition = "box-shadow .3s"; card.style.boxShadow = "0 0 0 3px var(--accent)";
+    setTimeout(() => { card.style.boxShadow = ""; }, 1600);
+  });
   renderRoute();
 }
 // doctors without a sure spreadsheet match or entered office/days
@@ -1075,7 +1084,7 @@ function renderRoute(){
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
   $("buildLbl").textContent = "Rebuild week";
-  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span><span class="pill">about <b>${mi}</b> miles</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${D.pace.ahead > 0 ? `<b>${D.pace.ahead}</b> call${D.pace.ahead === 1 ? "" : "s"} ahead of schedule` : D.pace.ahead < 0 ? `<b>${-D.pace.ahead}</b> call${D.pace.ahead === -1 ? "" : "s"} behind schedule` : "right on schedule"} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
+  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${D.pace.ahead > 0 ? `<b>${D.pace.ahead}</b> call${D.pace.ahead === 1 ? "" : "s"} ahead of schedule` : D.pace.ahead < 0 ? `<b>${-D.pace.ahead}</b> call${D.pace.ahead === -1 ? "" : "s"} behind schedule` : "right on schedule"} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   const isos = Object.keys(plan.days).sort(), tday = todayISO();
   let html = `<nav class="daynav" aria-label="Jump to a day">${isos.map(iso => { const d = plan.days[iso], dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
@@ -1125,7 +1134,7 @@ function renderRoute(){
     const cps = (cpBy[iso]||[]);
     const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
     html += `<section class="day" id="day-${iso}">
-      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " mi round trip" + (S.settings.home ? " from " + esc(title(S.settings.home)) : "") : ""}</span></div><div class="dayact">${iso < tday ? `<button class="btn small ghost" data-hidepast="${iso}">Hide</button>` : ""}<button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
+      <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " miles of driving" + (S.settings.home ? ", from " + esc(title(S.settings.home)) + " and back" : "") : ""}</span></div><div class="dayact">${iso < tday ? `<button class="btn small ghost" data-hidepast="${iso}">Hide</button>` : ""}<button class="btn small ghost" data-add="${iso}">Add a doctor</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. Doctors were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
       ${mealAsks().filter(e => L.isoDay(e.start) === iso).map(e => { const nm = mealName(e); return `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(nm)} isn't on your list, so this day isn't planned around your ${e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} ${esc(((e.summary || "").match(/lunch|breakfast|coffee|snacks?|dinner/i) || ["lunch"])[0].toLowerCase())}.</span><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button></div>`; }).join("")}
@@ -1781,7 +1790,16 @@ function openCounterparts(){
   if (!people.length){ needNames(openCounterparts); return; }
   openSheet(`<h2>Counterparts this week</h2>
     <p>You won't be routed to a doctor on a day one of them is seeing that doctor. Dashed names are a best guess from a short or shared name; remove any that are wrong.</p>
-    ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso); return `<div class="cpday"><b>${fmtDay(iso)}</b>${v.length ? `<div class="chips">${v.map(x => `<span class="chip${x.sure===false?" maybe":""}">${esc(x.who)}: ${esc(docName(x.id))}${x.sure===false?"?":""}${x.src === "calendar" ? ` <span class="sub">(calendar)</span>` : `<button aria-label="Remove" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}">×</button>`}</span>`).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
+    ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso);
+      const whoOf = {}; v.forEach(x => (whoOf[x.id] = whoOf[x.id] || new Set()).add(x.who));
+      const both = Object.keys(whoOf).filter(id => whoOf[id].size > 1);
+      const lastName = id => { const w = title(docName(id)).split(" "); const L = w[w.length - 1]; return v.filter(x => title(docName(x.id)).split(" ").pop() === L && x.id !== id).length ? w[0][0] + ". " + L : L; };
+      const groups = [...new Set(people.concat(v.map(x => x.who)))].map((who, gi) => [who, gi, v.filter(x => x.who === who)]).filter(g => g[2].length);
+      return `<div class="cpday"><b>${fmtDay(iso)}</b>
+        ${both.length ? `<p class="small" style="margin:4px 0 2px;color:var(--ink)"><span style="display:inline-block;width:3px;height:12px;background:#ea580c;border-radius:2px;margin-right:6px;vertical-align:-1px"></span>${esc([...new Set(both.flatMap(id => [...whoOf[id]]))].join(" and "))} are both seeing ${both.length === 1 ? "" : both.length + " doctors: "}${esc(both.map(lastName).join(", "))}</p>` : ""}
+        ${groups.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${groups.map(([who, gi, list]) => { const pc = [["#2563eb","#eef4ff"],["#9333ea","#f6efff"],["#0f766e","#ecfdf5"],["#c2410c","#fff4ec"],["#be185d","#fdf0f6"],["#4d7c0f","#f3fae8"]][gi % 6];
+          return `<div style="flex:1 1 150px;min-width:0;background:${pc[1]};border-radius:12px;padding:10px"><div style="font-weight:700;color:${pc[0]};margin-bottom:6px">${esc(who)} · ${list.length}</div>
+          ${list.map(x => { const dbl = both.includes(x.id); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--surface);border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:14px;${dbl ? "box-shadow:inset 3px 0 0 #ea580c;font-weight:600;" : ""}${x.sure === false ? "outline:1px dashed var(--line);" : ""}" title="${esc(title(docName(x.id)))}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lastName(x.id))}${x.sure===false?"?":""}</span>${x.src === "calendar" ? `<span class="sub">cal</span>` : `<button aria-label="Remove ${esc(title(docName(x.id)))}" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}" style="border:0;background:none;color:var(--muted);font-size:15px;padding:0 2px;min-height:0;cursor:pointer">✕</button>`}</div>`; }).join("")}</div>`; }).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
     <div class="field">Add one by hand
       <div class="actions">
         <select id="aWho">${people.map(p => `<option>${esc(p)}</option>`).join("")}</select>
