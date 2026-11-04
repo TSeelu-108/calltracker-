@@ -251,12 +251,19 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
   .stop{grid-template-columns:28px minmax(0,1fr)}
   .sbtns{grid-column:1 / -1;flex-direction:row;justify-content:flex-end}
 }
+/* tab bar shared with the Call Tracker */
+:root{--tabh:64px}
+body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(4,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
+.tab svg{width:24px;height:24px}
+.tab[aria-current=page]{color:var(--accent)}
+.toast{bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))!important}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <a class="backlink" href="../" id="trackerLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>Call Tracker</a>
     <div class="titlebar">
       <div class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><div><h1>Plan my week</h1>
         <div class="weeknav"><button class="icon" id="prevW" aria-label="Previous week">‹</button><span class="wk-lbl" id="weekLbl"></span><button class="icon" id="nextW" aria-label="Next week">›</button></div></div></div>
@@ -321,6 +328,12 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
   <div id="stale" class="banner" hidden><span>Something changed since this week was built.</span><button class="btn small" id="rebuild2">Rebuild week</button></div>
   <div id="routeArea"></div>
 </div>
+<nav class="tabbar" aria-label="Main">
+  <a class="tab" href="../#home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
+  <a class="tab" href="../#docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>Doctors</span></a>
+  <a class="tab" href="./" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span>Plan my week</span></a>
+  <a class="tab" href="../#more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg><span>More</span></a>
+</nav>
 <div class="toast" id="toast" hidden></div>
 <div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 
@@ -1084,7 +1097,7 @@ function renderRoute(){
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
   $("buildLbl").textContent = "Rebuild week";
-  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${D.pace.ahead > 0 ? `<b>${D.pace.ahead}</b> call${D.pace.ahead === 1 ? "" : "s"} ahead of schedule` : D.pace.ahead < 0 ? `<b>${-D.pace.ahead}</b> call${D.pace.ahead === -1 ? "" : "s"} behind schedule` : "right on schedule"} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
+  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> doctors planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${paceWords(D.pace).short} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   const isos = Object.keys(plan.days).sort(), tday = todayISO();
   let html = `<nav class="daynav" aria-label="Jump to a day">${isos.map(iso => { const d = plan.days[iso], dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
@@ -2295,15 +2308,23 @@ function weekText(){
   }
   return lines.join("\n");
 }
-// what "ahead of schedule" means, in plain words
+// your pace, in plain words
+// the same words as the Call Tracker's quarter card: calls a day to finish, against your doctors per day
+function paceWords(p){
+  const perDay = +S.settings.perDay || 6, toGo = Math.max(0, p.target - p.done), left = p.fieldLeft;
+  const need = left ? toGo / left : (toGo ? Infinity : 0), wk = (S.settings.workDays || [1,2,3,4,5]).length;
+  const extra = Math.ceil((need - perDay) * wk), r1 = n => n === Infinity ? "—" : String(Math.round(n * 10) / 10);
+  const say = !toGo ? "Quarter goal reached" : need <= perDay ? "On track" : need <= perDay * 1.25 ? `About ${extra} extra call${extra === 1 ? "" : "s"} a week` : `Your usual days reach about ${p.reach}%`;
+  return {toGo, need, perDay, extra, say, r1, short: toGo ? `about <b>${r1(need)}</b> a day to finish · ${esc(say.toLowerCase())}` : "goal reached"};
+}
 function openPace(){
-  const p = D.pace; if (!p) return;
-  const should = Math.max(0, p.done - p.ahead);
-  openSheet(`<h2>Your quarter so far</h2>
-    <p><b style="color:var(--ink)">${p.done} of ${p.target} calls done.</b> ${p.goal < 100 ? `Your goal is ${p.goal}% of your ${p.assigned} assigned calls.` : `That's your full ${p.assigned} assigned calls.`}</p>
-    <p><b style="color:var(--ink)">${p.ahead > 0 ? `${p.ahead} call${p.ahead === 1 ? "" : "s"} ahead of schedule.` : p.ahead < 0 ? `${-p.ahead} call${p.ahead === -1 ? "" : "s"} behind schedule.` : "Right on schedule."}</b> ${p.pct}% of your field days this quarter are behind you, so an even pace would have you at about ${should} calls by now. You've made ${p.done}.</p>
-    <p>${p.fits ? `At your doctors per day, the rest fits in the ${p.fieldLeft} field days left.` : `At your doctors per day, the ${p.fieldLeft} field days left get you to about ${p.reach}% of your assigned calls. The planner won't cram weeks to catch up; you can lower your goal in Settings.`}</p>
-    <p class="sub">Field days skip weekends, holidays and the time off you add in Settings. Calls you plan this week count once they're marked Done.</p>
+  const p = D.pace; if (!p) return; const w = paceWords(p);
+  openSheet(`<h2>Your pace</h2>
+    <p><b style="color:var(--ink)">${p.done} of ${p.target} calls done.</b> ${p.goal < 100 ? `Your goal is ${p.goal}% of your ${p.assigned} assigned calls.` : `That's all ${p.assigned} of your assigned calls.`}</p>
+    <p><b style="color:var(--ink)">${p.fieldLeft} field day${p.fieldLeft === 1 ? "" : "s"} left</b> this quarter. Weekends, holidays and your time off don't count.</p>
+    ${w.toGo ? `<p>To finish, that's about <b style="color:var(--ink)">${w.r1(w.need)} calls a day</b>. You plan ${w.perDay} doctors a day.</p>` : ""}
+    <p><b style="color:var(--ink)">${esc(w.say)}.</b> ${!w.toGo ? "Calls from here are extra." : w.need <= w.perDay ? "Your usual days get you there." : w.need <= w.perDay * 1.25 ? `Your usual ${w.perDay} a day comes up a little short, so plan about ${w.extra} more call${w.extra === 1 ? "" : "s"} each week.` : "That's more than your usual days fit. The planner won't cram your weeks to catch up; you can lower your goal in Settings."}</p>
+    <p class="sub">Calls you plan this week count once they're marked Done.</p>
     <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
 }
@@ -2497,7 +2518,7 @@ function openSettings(){
   };
 }
 
-const APP_SHELL = "weekrouter-shell-v73";
+const APP_SHELL = "weekrouter-shell-v74";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
@@ -2507,7 +2528,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
   let just = 0; try { just = +sessionStorage.getItem("upd.just") || 0; } catch(e){}
   if (Date.now() - just < 60000) return;   // just updated: a late duplicate notice is not news
   const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
-  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh,0px) + 16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
   b.onclick = () => { b.remove(); try { sessionStorage.setItem("upd.just", String(Date.now())); } catch(e){} const c = navigator.serviceWorker.controller; if (c) c.postMessage({type:"update-seen"}); setTimeout(() => location.reload(), 150); }; document.body.appendChild(b);
 });
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
