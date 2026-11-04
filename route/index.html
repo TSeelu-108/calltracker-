@@ -254,7 +254,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
 /* tab bar shared with the Call Tracker */
 :root{--tabh:64px}
 body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(4,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
 .tab[aria-current=page]{color:var(--accent)}
@@ -280,6 +280,13 @@ body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
 .lact{display:flex;gap:6px;flex-wrap:wrap}
 button.cand{background:var(--surface);color:var(--ink);font:inherit}
 .okline{color:var(--grn-ink);font-weight:600}
+.ldlist{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ldone{border-bottom:1px solid var(--line)}.ldone:last-child{border-bottom:0}
+.ldhead{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;background:transparent;font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.ldd{flex:none;width:96px;font-weight:700;font-size:14px}
+.ldt{flex:1;min-width:0;display:flex;flex-direction:column}
+.ldok{flex:none;color:var(--grn-ink);font-size:13px;font-weight:650}
+.ldone.open{background:var(--bg)}
 </style>
 </head>
 <body>
@@ -354,6 +361,7 @@ button.cand{background:var(--surface);color:var(--ink);font:inherit}
   <a class="tab" href="../#home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
   <a class="tab" href="../#docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>HCPs</span></a>
   <a class="tab" href="./" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span>Plan my week</span></a>
+  <a class="tab" href="../#lunch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M9 13v8M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg><span>Lunches</span></a>
   <a class="tab" href="../#more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg><span>More</span></a>
 </nav>
 <div class="toast" id="toast" hidden></div>
@@ -379,6 +387,12 @@ const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUp
 let S = load() || {};
 S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, mealSkip:{}, blitzes:[], away:{}, anchors:{}}, S);
 S.settings = Object.assign({home:"", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null, chargers:"off", myName:"", goal:100, timeOff:[], holidays:true}, S.settings||{});
+// keep this iPad's storage small over the years: pod visits and calendar sorting older than two months aren't needed
+try { const cut = new Date(Date.now() - 60 * 864e5), cutIso = cut.getFullYear() + "-" + String(cut.getMonth()+1).padStart(2,"0") + "-" + String(cut.getDate()).padStart(2,"0");
+  if (Array.isArray(S.cp)) S.cp = S.cp.filter(v => !v.date || v.date >= cutIso);
+  if (Array.isArray(S.cpOther)) S.cpOther = S.cpOther.filter(v => !v.date || v.date >= cutIso);
+  if (S.kinds) for (const k in S.kinds){ const t = +String(k).split("|").pop(); if (t && t < cut.getTime()) delete S.kinds[k]; }
+} catch(e){}
 function load(){
   try { const s = JSON.parse(localStorage.getItem(KEY)); if (!s) return null;
     if (s.ics) s.ics.events.forEach(e => { ["start","end","recurrenceId"].forEach(k => { if (e[k]) e[k].date = new Date(e[k].date); }); e.exdates = (e.exdates||[]).map(d => new Date(d)); });
@@ -732,52 +746,59 @@ async function bShare(ics, name, n){
 }
 
 /* ---------- the Lunches list: everything booked, what still needs sending, and booking without starting from an HCP ---------- */
+const lunchOpen = new Set();
 function openLunches(back, note){
+  // the Call Tracker has a Lunches tab: show it there; elsewhere (Plan my week) it's a sheet
+  if (typeof showLunchesTab === "function"){ closeSheet(); showLunchesTab(note); return; }
+  openSheet(`<div id="lunchPanel"></div>`); lunchesPanel($("lunchPanel"), {note, inSheet:true, back});
+}
+function lunchesPanel(root, o){
   const nv = invAll(), me = (bRouter().settings || {}).myName || "";
   const pplOf = b => b.who ? nv.people.filter(p => b.who.includes(p.email)) : nv.people.filter(p => p.cp);
   const rowOf = b => ({date:b.date, time:b.time, mins:b.mins || 60, kind:b.kind, title:b.title, loc:b.loc || ""});
+  const again = () => o.inSheet ? () => openLunches(o.back) : () => { closeSheet(); if (typeof showLunchesTab === "function") showLunchesTab(); };
   const draw = (msg) => {
     const up = bUpcoming(), todo = up.filter(b => !b.sent), sent = up.filter(b => b.sent);
-    const line = b => `<div class="offbox lrow" style="margin-top:8px">
+    const full = b => `<div class="offbox lrow" style="margin-top:8px">
         <div style="min-width:0"><b style="color:var(--ink)">${bEsc(b.title || b.kind)}</b><br><span class="small">${bEsc(bWhenTxt(b))} · ${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}</span>
-          ${pplOf(b).length ? `<br><span class="small">Invite: ${bEsc(pplOf(b).map(p => p.name).join(", "))}</span>` : ""}
-          ${b.sent ? `<br><span class="small" style="color:var(--grn-ink);font-weight:600">✓ ${b.sent === "outlook" ? "Opened in Outlook" : b.sent === "file" ? "Sent as a calendar file" : "Marked sent"}</span>` : ""}</div>
-        <div class="lact">${b.sent ? `<a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open again</a><button class="btn small ghost" data-lunsent="${bEsc(b.id)}">Not sent</button>`
-          : `<a class="btn small primary" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open in Outlook</a><button class="btn small" data-lsent="${bEsc(b.id)}">Already sent</button>`}
-          <button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}" aria-label="Remove">Remove</button></div></div>`;
-    openSheet(`<h2>Lunches and coffees</h2>
-      ${note ? `<p class="okline" style="margin-top:4px">${bEsc(note)}</p>` : ""}
-      <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn primary" id="lBook">+ Book a lunch or coffee</button></div>
+          ${pplOf(b).length ? `<br><span class="small">Invite: ${bEsc(pplOf(b).map(p => p.name).join(", "))}</span>` : ""}</div>
+        <div class="lact"><a class="btn small primary" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open in Outlook</a><button class="btn small" data-lsent="${bEsc(b.id)}">Already sent</button><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`;
+    const done = b => lunchOpen.has(b.id) ? `<div class="ldone open"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}${pplOf(b).length ? " · Invite: " + bEsc(pplOf(b).map(p => p.name).join(", ")) : ""}</span></span><span class="ldok">✓ ${b.sent === "file" ? "Sent as a file" : b.sent === "manual" ? "Marked sent" : "Sent"}</span></button>
+        <div class="lact" style="padding:4px 12px 12px"><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open again</a><button class="btn small ghost" data-lunsent="${bEsc(b.id)}">Not sent</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`
+      : `<div class="ldone"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(String(b.loc).split(",").pop().trim()) : ""}</span></span><span class="ldok">✓ Sent</span></button></div>`;
+    root.innerHTML = `${o.inSheet ? `<h2>Lunches and coffees</h2>` : ""}
+      ${o.note ? `<p class="okline" style="margin-top:4px">${bEsc(o.note)}</p>` : ""}
+      <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn primary" data-lbook>+ Book a lunch or coffee</button></div>
       <p class="sechd">To send${todo.length ? " (" + todo.length + ")" : ""}</p>
-      ${todo.length ? todo.map(line).join("") + `<p class="small" style="margin-top:10px"><b style="color:var(--ink)">Open in Outlook</b> opens each one in Outlook on the web with everything filled in; tap Send there. It works where you're signed in to your work account (your iPad).</p>
+      ${todo.length ? todo.map(full).join("") + `<p class="small" style="margin-top:10px"><b style="color:var(--ink)">Open in Outlook</b> opens each one in Outlook on the web with everything filled in; tap Send there. It works where you're signed in to your work account (your iPad).</p>
         <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">Not signed in to work Outlook on this device?</b><br><span class="small">Send all ${todo.length} as one calendar file instead: pick Mail and send it to your work email. In Outlook, open the attachment to add them to your calendar, then add the invitees listed in each one. This sends HCP names through the email you pick.</span>
-          <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small" id="lFile">Send all ${todo.length} as one file</button></div></div>`
-        : `<p class="small">Nothing waiting. Every upcoming booking has been sent.</p>`}
-      <p class="sechd">Coming up${sent.length ? " (" + sent.length + ")" : ""}</p>
-      ${sent.length ? sent.map(line).join("") : `<p class="small">Sent bookings show here until their day passes.</p>`}
+          <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small" data-lfile>Send all ${todo.length} as one file</button></div></div>`
+        : `<p class="small">Nothing to send. You're all caught up.</p>`}
+      <p class="sechd">Sent · coming up${sent.length ? " (" + sent.length + ")" : ""}</p>
+      ${sent.length ? `<div class="ldlist">${sent.map(done).join("")}</div><p class="small" style="margin-top:8px">You're done with these. Each one drops off by itself the day after it happens. Tap one to change it or remove it.</p>` : `<p class="small">Sent lunches wait here until their day, then drop off by themselves.</p>`}
       ${msg ? `<p class="small" style="color:var(--ink)">${bEsc(msg)}</p>` : ""}
-      <p class="small" style="margin-top:12px">Removing a booking here takes it out of the app and Plan my week only. If it was already sent, cancel it in Outlook too.</p>
-      <div class="foot"><button class="btn primary" id="lDone">Done</button></div>`);
-    $("lDone").onclick = () => back ? back() : closeSheet();
-    $("lBook").onclick = () => openBookStart(() => openLunches(back));
-    document.querySelectorAll("[data-lopen]").forEach(a => a.addEventListener("click", () => { const id = a.dataset.lopen; setTimeout(() => { bookingsSet(id, {sent: bookingsAll().find(x => x.id === id).sent || "outlook"}); draw(); }, 300); }));
-    document.querySelectorAll("[data-ledit]").forEach(b => b.onclick = () => { const bk = bookingsAll().find(x => x.id === b.dataset.ledit); if (bk) openBook((bk.docs || [])[0], () => openLunches(back), {edit: bk.id, after: back}); });
-    document.querySelectorAll("[data-lsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lsent, {sent:"manual"}); draw(); });
-    document.querySelectorAll("[data-lunsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lunsent, {sent:null}); draw(); });
-    document.querySelectorAll("[data-ldel]").forEach(b => b.onclick = () => { if (!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Tap again to remove"; return; } bookingsSet(b.dataset.ldel, null); draw(); });
-    if ($("lFile")) $("lFile").onclick = async () => {
+      <p class="small" style="margin-top:12px">Removing a booking takes it out of the app and Plan my week only. If it was already sent, cancel it in Outlook too.</p>
+      ${o.inSheet ? `<div class="foot"><button class="btn primary" data-ldone>Done</button></div>` : ""}`;
+    const q = sel => root.querySelectorAll(sel);
+    q("[data-ldone]").forEach(b => b.onclick = () => o.back ? o.back() : closeSheet());
+    q("[data-lbook]").forEach(b => b.onclick = () => openBookStart(again()));
+    q("[data-ltog]").forEach(b => b.onclick = () => { const id = b.dataset.ltog; lunchOpen.has(id) ? lunchOpen.delete(id) : lunchOpen.add(id); draw(); });
+    q("[data-lopen]").forEach(a => a.addEventListener("click", () => { const id = a.dataset.lopen; setTimeout(() => { const bk = bookingsAll().find(x => x.id === id); if (bk && !bk.sent) bookingsSet(id, {sent:"outlook"}); draw(); if (o.onChange) o.onChange(); }, 300); }));
+    q("[data-ledit]").forEach(b => b.onclick = () => { const bk = bookingsAll().find(x => x.id === b.dataset.ledit); if (bk) openBook((bk.docs || [])[0], again(), {edit: bk.id, after: o.inSheet ? o.back : null}); });
+    q("[data-lsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lsent, {sent:"manual"}); draw(); if (o.onChange) o.onChange(); });
+    q("[data-lunsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lunsent, {sent:null}); lunchOpen.delete(b.dataset.lunsent); draw(); if (o.onChange) o.onChange(); });
+    q("[data-ldel]").forEach(b => b.onclick = () => { if (!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Tap again to remove"; return; } bookingsSet(b.dataset.ldel, null); draw(); if (o.onChange) o.onChange(); });
+    q("[data-lfile]").forEach(btn => btn.onclick = async () => {
       const list = bToSend(); if (!list.length) return;
-      const byWho = list.map(b => [b, pplOf(b)]);
-      // one file; each event lists its own invitees
-      const ics = byWho.map(([b, p]) => bookingICS([rowOf(b)], null, null, p, nv.me, me, b.remind || "P1D")).map((t, i, a) => { const L = t.split("\r\n"); return i === 0 ? L.slice(0, -1) : L.slice(5, -1); }).flat().concat("END:VCALENDAR").join("\r\n");
+      const ics = list.map(b => bookingICS([rowOf(b)], null, null, pplOf(b), nv.me, me, b.remind || "P1D")).map((t, i) => { const L = t.split("\r\n"); return i === 0 ? L.slice(0, -1) : L.slice(5, -1); }).flat().concat("END:VCALENDAR").join("\r\n");
       const name = "Lunches " + bIso(new Date()) + ".ics", f = new File([ics], name, {type:"text/calendar"});
       try {
         if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); }
         else { const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
       } catch(err){ if (err && err.name === "AbortError") return; }
       list.forEach(b => bookingsSet(b.id, {sent:"file"}));
-      draw(`Sent ${list.length} as one file. If it didn't go through, tap Not sent on each one.`);
-    };
+      draw(`Sent ${list.length} as one file. If it didn't go through, open each one under "Sent" and tap Not sent.`); if (o.onChange) o.onChange();
+    });
   };
   draw();
 }
@@ -802,7 +823,7 @@ function openBookStart(back){
     $("lsRes").querySelectorAll("[data-lsd]").forEach(b => b.onclick = () => openBook(b.dataset.lsd, back));
     $("lsRes").querySelectorAll("[data-lso]").forEach(b => b.onclick = () => { const o = offices[b.dataset.lso]; const first = o.ids.find(id => (offs[id] || []).some(x => x.k === b.dataset.lso)) || o.ids[0]; openBook(first, back, {k: b.dataset.lso}); });
   };
-  $("lsQ").oninput = show; show(); setTimeout(() => $("lsQ").focus(), 50);
+  $("lsQ").oninput = show; show(); setTimeout(() => { const el = $("lsQ"); if (el) el.focus(); }, 50);
 }
 
 /*__BOOK_END__*/
@@ -2746,7 +2767,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v78";
+const APP_SHELL = "weekrouter-shell-v79";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
