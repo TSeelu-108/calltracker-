@@ -324,6 +324,11 @@ header.top{border-bottom:0;padding-bottom:6px}
 .step .opt{font-weight:500;color:var(--muted);font-size:14px}
 .setup .sft{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 18px 14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
 .toast{bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
+.remind{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;padding:12px 14px;margin-top:10px;box-shadow:0 4px 18px rgba(0,0,0,.05)}
+.remind > div{flex:1 1 300px;display:flex;flex-direction:column;gap:2px}
+.remind span{font-size:13.5px;color:var(--muted)}
+.remind.nq{border-left-color:var(--yel-edge)}
+.docfoot{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 </style>
 </head>
 <body>
@@ -341,6 +346,8 @@ header.top{border-bottom:0;padding-bottom:6px}
       <b>Put this on your Home Screen</b>
       Tap Share, then <b style="display:inline">Add to Home Screen</b>, and open it from that icon from now on.
     </div>
+    <div id="nqBox"></div>
+    <div id="bkBox"></div>
     <div id="setupBox"></div>
     <div class="qcard" id="qCard" hidden>
       <div class="qmain">
@@ -379,6 +386,7 @@ header.top{border-bottom:0;padding-bottom:6px}
       </select>
     </div>
     <div class="list" id="list"></div>
+    <div class="docfoot" id="docFoot"></div>
   </section>
 
   <section class="view" id="vMore" hidden>
@@ -390,8 +398,9 @@ header.top{border-bottom:0;padding-bottom:6px}
     </div>
     <div class="mlist">
       <button class="mrow" id="setupBtn"><span class="mic t-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span><span class="mtx"><b>Setup checklist</b><span>The steps for getting started</span></span><span class="mchev" aria-hidden="true">›</span></button>
-      <button class="mrow" id="settingsRow"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="mtx"><b>Settings</b><span>Quarter end, your name, HCPs and your data</span></span><span class="mchev" aria-hidden="true">›</span></button>
-      <a class="mrow" href="route/?settings"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><span class="mtx"><b>Plan my week settings</b><span>Your state, start town, HCPs per day, goal and time off</span></span><span class="mchev" aria-hidden="true">›</span></a>
+      <button class="mrow" id="settingsRow"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="mtx"><b>Settings</b><span>About you, where you work, your pod, schedule and backups</span></span><span class="mchev" aria-hidden="true">›</span></button>
+      <button class="mrow" id="bkRow"><span class="mic t-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 17v2.5h15V17"/></svg></span><span class="mtx"><b>Back up now</b><span id="bkRowSub">Saves everything to one file in Files</span></span><span class="mchev" aria-hidden="true">›</span></button>
+      <button class="mrow" id="nqRow"><span class="mic t-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m10 15 1.6 1.6L15 13"/></svg></span><span class="mtx"><b>Start a new quarter</b><span>Wrap up this quarter and load your new Assigned calls report</span></span><span class="mchev" aria-hidden="true">›</span></button>
     </div>
   </section>
 </div>
@@ -506,6 +515,54 @@ function staffRead(box){
   return [...box.querySelectorAll(".staffrow")].map(r => staffClean({t: r.querySelector("[data-st]").value, n: r.querySelector("[data-sn]").value.trim(), p: r.querySelector("[data-sp]").value})).filter(Boolean);
 }
 
+/*__DATA_START__*/
+/* ---------- backups: one file with everything this app keeps on this iPad (both halves), saved to Files ---------- */
+const BK_META = "backup.meta.v1";
+const BK_SKIP = /^(pending\.|backup\.meta|device\.allow)/;
+const bkToday = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+const bkDays = (a, b) => { const p = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }; return Math.round((p(b) - p(a)) / 864e5); };
+function bkMeta(){ let m = {}; try { m = JSON.parse(localStorage.getItem(BK_META)) || {}; } catch(e){} return Object.assign({every:"weekly", at:null, first:null, snooze:null}, m); }
+function bkSetMeta(m){ try { localStorage.setItem(BK_META, JSON.stringify(m)); } catch(e){} }
+function bkHasData(){ try { const t = JSON.parse(localStorage.getItem("callplan.tracker.v1")); return !!(t && ((t.doctors && t.doctors.length) || (t.HCPs && t.HCPs.length))); } catch(e){ return false; } }
+// a reminder is due once a day or a week has passed since the last backup (or since there was anything to back up)
+function bkDue(){
+  if (!bkHasData()) return false;
+  const m = bkMeta(), t = bkToday();
+  if (!m.first){ m.first = t; bkSetMeta(m); }
+  if (m.every === "off" || (m.snooze && m.snooze >= t)) return false;
+  if (!m.at) return true;   // never backed up: ask now (Later waits a day)
+  return bkDays(m.at, t) >= (m.every === "daily" ? 1 : 7);
+}
+function bkWhen(){ const m = bkMeta(); if (!m.at) return "No backup saved yet"; const n = bkDays(m.at, bkToday()); return "Last backup: " + (n === 0 ? "today" : n === 1 ? "yesterday" : n + " days ago"); }
+function bkSnooze(){ const m = bkMeta(); m.snooze = bkToday(); bkSetMeta(m); }
+function bkSave(){
+  const data = {}; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && !BK_SKIP.test(k)) data[k] = localStorage.getItem(k); }
+  const blob = new Blob([JSON.stringify({format:"calltracker-backup", version:2, savedAt:new Date().toISOString(), data})], {type:"application/json"});
+  const name = "Call Tracker backup " + bkToday() + ".json";
+  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const m = bkMeta(); m.at = bkToday(); m.snooze = null; bkSetMeta(m);
+  return name;
+}
+// a backup from this app (everything), or an older Call Tracker or Plan my week backup (one half)
+function bkRestore(text){
+  let o; try { o = JSON.parse(text); } catch(e){ return {ok:false, msg:"That file isn't a backup from this app."}; }
+  const mergeStaff = obj => { if (!obj || typeof obj !== "object") return; let cur = {}; try { cur = JSON.parse(localStorage.getItem("office.staff.v1")) || {}; } catch(e){} for (const k in obj) if (Array.isArray(obj[k])) cur[k] = (cur[k] || []).concat(obj[k]).slice(0, 8); try { localStorage.setItem("office.staff.v1", JSON.stringify(cur)); } catch(e){} };
+  try {
+    if (o && o.format === "calltracker-backup" && o.data && typeof o.data === "object"){
+      const keep = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (k && !BK_SKIP.test(k)) keep.push(k); }
+      keep.forEach(k => localStorage.removeItem(k));
+      for (const k in o.data) if (!BK_SKIP.test(k) && typeof o.data[k] === "string") localStorage.setItem(k, o.data[k]);
+      const m = bkMeta(); m.at = bkToday(); bkSetMeta(m);
+      return {ok:true, msg:"Restored everything from the backup of " + new Date(o.savedAt).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"}) + "."};
+    }
+    if (o && Array.isArray(o.doctors)){ mergeStaff(o.staff); delete o.staff; delete o.notes; localStorage.setItem("callplan.tracker.v1", JSON.stringify(o)); return {ok:true, msg:`Restored ${o.doctors.length} HCPs from an older Call Tracker backup.`}; }
+    if (o && o.settings){ mergeStaff(o.staff); delete o.staff; delete o.sharedNotes; delete o.notes; localStorage.setItem("weekrouter.v1", JSON.stringify(o)); return {ok:true, msg:"Restored an older Plan my week backup."}; }
+  } catch(e){ return {ok:false, msg:"This iPad is out of space for the backup."}; }
+  return {ok:false, msg:"That file isn't a backup from this app."};
+}
+
+/*__DATA_END__*/
 /*__BOOK_START__*/
 /* ---------- book lunches, coffees, breakfasts and snacks (shared by the Call Tracker and Plan my week) ----------
    Builds one calendar file (.ics) with every date you pick. Opened in Outlook, "Add all" puts them on your
@@ -519,7 +576,7 @@ const bEmail = s => { s = String(s||"").trim().toLowerCase(); return /^[^\s@<>,;
 function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || {}; return {me: bEmail(v.me) || "", people: (v.people || []).map(p => ({name: staffName(p.name).trim(), email: bEmail(p.email), cp: !!p.cp})).filter(p => p.email)}; } catch(e){ return {me:"", people:[]}; } }
 function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
 function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
-function bTracker(){ try { return JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; } catch(e){ return {}; } }
+function bTracker(){ try { const o = JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; if (!o.doctors && o.HCPs) o.doctors = o.HCPs; return o; } catch(e){ return {}; } }
 function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
 function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
 function bookingsAll(){ try { return JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){ return []; } }
@@ -700,7 +757,10 @@ async function bShare(ics, name, n){
 }
 
 /*__BOOK_END__*/
-function loadLocal(){ try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; } }
+function loadLocal(){ try { const s = localStorage.getItem(KEY); const o = s ? JSON.parse(s) : null;
+  // a list loaded with the Nov 4 version was saved under the wrong name; put it back
+  if (o && Array.isArray(o.HCPs) && !Array.isArray(o.doctors)){ o.doctors = o.HCPs; delete o.HCPs; try { localStorage.setItem(KEY, JSON.stringify(o)); } catch(e){} }
+  return o; } catch(e){ return null; } }
 let state = loadLocal() || {doctors:[], source:"", updatedAt:0};
 let logDay = todayISO();
 let ui = {q:"", hq:"", city:"", f:"all", sort:"lastAZ", flash:null};
@@ -813,8 +873,8 @@ function openPace(){
     <p><b style="color:var(--ink)">${p.left} field day${p.left === 1 ? "" : "s"} left</b> through ${longDate(p.end)}, counting today. Weekends, holidays and your time off don't count.</p>
     ${p.toGo ? `<p>To finish, that's about <b style="color:var(--ink)">${perDayTxt(p.need)} calls a day</b>. You plan ${p.perDay} HCPs a day in Plan my week.</p>` : ""}
     <p><b style="color:var(--ink)">${esc(p.say)}.</b> ${!p.toGo ? "Calls from here are extra." : p.tone === "ok" ? "Your usual days get you there." : p.need <= p.perDay * 1.25 ? `Your usual ${p.perDay} a day comes up a little short, so plan about ${p.extraWk} more call${p.extraWk === 1 ? "" : "s"} each week.` : "That's more than your usual days fit. Plan my week won't cram your weeks to catch up; you can lower your goal in its settings."}</p>
-    <p class="small">Your goal, HCPs per day and time off are set in Plan my week settings. ${state.planEnd ? "" : "The quarter ends on the last day of " + fromISO(p.end).toLocaleDateString(undefined,{month:"long"}) + " unless you set a quarter end date in Settings."}</p>
-    <div class="foot"><a class="btn" href="route/?settings">Plan my week settings</a><button class="btn primary" id="closeS">Close</button></div>`);
+    <p class="small">Your goal, HCPs per day and time off are in Settings. ${state.planEnd ? "" : "The quarter ends on the last day of " + fromISO(p.end).toLocaleDateString(undefined,{month:"long"}) + " unless you set a quarter end date in Settings."}</p>
+    <div class="foot"><a class="btn" href="route/?settings&back=home">Settings</a><button class="btn primary" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
 }
 
@@ -825,7 +885,7 @@ function setupSteps(){
     {ok: standalone, t:"Put it on your Home Screen", p: standalone ? "Done. Always open it from that icon." : "In Safari, tap Share, then Add to Home Screen. From then on, open it from the new icon."},
     {ok: state.doctors.some(d => !d.added), t:"Load your Assigned calls report", p:"The Excel file with your HCPs and how many calls each one needs this quarter.", b:"Choose file", go:() => openReports()},
     {ok: !!state.attainAt || state.doctors.some(d => d.c0 > 0), t:"Load your Attainment report", p:"Brings in the calls you've already made this quarter. Screenshots or the file.", b:"Load", go:() => openReports()},
-    {ok: !!(st.home && states.length), t:"Tell it about you", p:"The state you work in, the town you start your day from, and how many HCPs you see a day.", b:"Set up", go:() => { location.href = "route/?settings"; }},
+    {ok: !!(st.home && states.length), t:"Tell it about you", p:"The state you work in, the town you start your day from, and how many HCPs you see a day.", b:"Set up", go:() => { location.href = "route/?settings&back=home"; }},
     {opt:true, ok: !!(r.sheet || Object.keys(r.docInfo || {}).length), t:"Offices and days", p:"Without them, Plan my week places each HCP by the address on your Assigned calls report (or their town) on any day. Load a best-times spreadsheet if you have one, or add days as you go.", b:"Open Plan my week", go:() => { location.href = "route/"; }}
   ];
 }
@@ -834,9 +894,10 @@ function setupHtml(inSheet){
   const L = setupSteps(); let cur = L.findIndex(x => !x.ok && x.go);
   return `<div class="setup">${inSheet ? "" : `<div class="shd"><h2>${state.doctors.length ? "Finish setting up" : "Welcome to Call Tracker"}</h2><p class="small" style="margin:2px 0 10px">A few steps, about ten minutes. Everything stays on this iPad.</p></div>`}
     ${L.map((x, i) => `<div class="step${x.ok ? " ok" : i === cur ? " now" : ""}"><div class="num">${x.ok ? "✓" : i + 1}</div><div class="stx"><h3>${x.t}${x.opt ? ` <span class="opt">· optional</span>` : ""}</h3><p>${x.p}</p></div>${!x.ok && x.go ? `<button class="btn${i === cur ? " primary" : ""}" data-step="${i}">${x.b}</button>` : ""}</div>`).join("")}
-    ${inSheet ? "" : `<div class="sft"><span>You can come back to this any time under More.</span>${state.doctors.length ? `<button class="linkbtn" id="setupHide">Hide this list</button>` : ""}</div>`}</div>`;
+    ${inSheet ? "" : `<div class="sft"><span>${state.doctors.length ? "You can come back to this any time under More." : `Reinstalling? <label class="linkbtn" for="bkLoadT" style="cursor:pointer">Restore from a backup</label><input type="file" id="bkLoadT" accept=".json,application/json,text/plain" hidden>`}</span>${state.doctors.length ? `<button class="linkbtn" id="setupHide">Hide this list</button>` : ""}</div>`}</div>`;
 }
-function wireSetup(root){ const L = setupSteps(); root.querySelectorAll("[data-step]").forEach(b => b.onclick = () => L[+b.dataset.step].go()); }
+function wireSetup(root){ const L = setupSteps(); root.querySelectorAll("[data-step]").forEach(b => b.onclick = () => L[+b.dataset.step].go());
+  const inp = root.querySelector("#bkLoadT"); if (inp) inp.onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) restoreFromFile(f); }; }
 function openSetup(){
   openSheet(`<h2>Setup checklist</h2><p>The steps for getting started. Done steps have a check.</p>${setupHtml(true)}<div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
   wireSetup($("sheet")); $("closeS").onclick = closeSheet;
@@ -947,7 +1008,7 @@ function renderList(){
   $("list").innerHTML = rows.map(d => docRow(d, ctx)).join("");
   ui.flash = null;
 }
-function render(){ renderHeader(); if (view === "home") renderHome(); else if (view === "docs") renderList(); try { mapsTile(); } catch(e){} }
+function render(){ renderHeader(); if (view === "home") renderHome(); else if (view === "docs"){ renderList(); renderDocFoot(); } try { mapsTile(); renderBackup(); renderNewQuarter(); } catch(e){} }
 
 /* ---------- actions ---------- */
 let toastT;
@@ -984,7 +1045,7 @@ addClears($("hFind"));
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => setView(b.dataset.tab));
 $("paceBtn").onclick = () => openPace();
 $("setupBtn").onclick = () => openSetup();
-$("settingsRow").onclick = () => $("moreBtn").click();
+$("settingsRow").onclick = () => { location.href = "route/?settings&back=more"; };
 
 let lastSeenDay = todayISO();
 function dayCheck(){ const t = todayISO(); if (t !== lastSeenDay){ if (logDay === lastSeenDay) logDay = t; lastSeenDay = t; render(); } }
@@ -1357,53 +1418,65 @@ function openAddProvider(editId, pre){
 }
 
 /* ---------- backup (stays on the device: Files, or AirDrop to your own iPhone) ---------- */
-$("moreBtn").onclick = async () => {
-  const ready = await ocrReady();
-  const end = state.planEnd && state.planEnd >= todayISO() ? state.planEnd : null;
-  const R = state.doctors.reduce((n,d)=>n+rem(d),0);
-  const wl = end ? Math.max(1, Math.ceil((Math.round((fromISO(end)-fromISO(todayISO()))/864e5)+1)/7)) : null;
-  let me = ""; try { me = (JSON.parse(localStorage.getItem("weekrouter.v1")) || {}).settings?.myName || ""; } catch(e){}
-  openSheet(`<h2>Settings</h2>
-    <div class="logday" style="margin-top:4px">
-      <label for="planEnd"><b style="color:var(--ink)">Quarter end date</b></label>
-      <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
-    </div>
-    <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the HCPs furthest behind first."}</p>
-    <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your pod's.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
-    <p class="sechd">HCPs</p>
-    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add an HCP not on my call plan</button><button class="btn" id="findMiss">Find a missing HCP${missingCands().length ? " (" + missingCands().length + ")" : ""}</button>${(state.removedDocs || []).length ? `<button class="btn" id="remList">Removed HCPs (${state.removedDocs.length})</button>` : ""}</div>
-    <p class="sechd">Lunches and coffees</p>
-    <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
-    <p class="sechd">Plan my week</p>
-    <div class="foot" style="justify-content:flex-start"><a class="btn" href="route/?settings">Plan my week settings</a></div>
-    <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:14px"><input type="checkbox" id="ddShow" ${state.hideDD ? "" : "checked"}> Show the DoorDash button</label>
-    <p class="sechd">Your data</p>
-    <p>Everything you enter stays in this app on this iPad. Nothing is uploaded, and there's no export to Files or iCloud. Deleting the app's icon from the Home Screen deletes its data.</p>
-    <div class="foot" style="justify-content:flex-start">
-      <label class="btn small ghost" for="restoreF">Restore from an older backup file</label>
-      <input type="file" id="restoreF" accept=".json,application/json,text/plain,*/*" hidden>
-    </div>
-    <p class="small" id="bMsg"></p>
-    <p class="small" style="margin-top:14px">${ready ? '<span class="okline">✓ Screenshot reading is ready to work offline.</span>' : 'Screenshot reading downloads its reading engine the first time you use it (needs internet once). After that it works offline.'}</p>
-    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
-  const keepMe = () => { const n = staffName($("meName").value).trim(); let r = {}; try { r = JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){}
-    if ((r.settings && r.settings.myName || "") !== n){ r.settings = Object.assign(r.settings || {}, {myName:n}); try { localStorage.setItem("weekrouter.v1", JSON.stringify(r)); } catch(e){} } };
-  $("meName").onchange = keepMe;
-  $("closeS").onclick = () => { keepMe(); closeSheet(); };
-  $("addProv").onclick = () => { keepMe(); openAddProvider(); };
-  $("findMiss").onclick = () => { keepMe(); openMissing(); };
-  if ($("remList")) $("remList").onclick = () => { keepMe(); openRemovedDocs(() => $("moreBtn").click()); };
-  $("invBtn").onclick = () => { keepMe(); openInvitees(() => $("moreBtn").click()); };
-  $("ddShow").onchange = e => { state.hideDD = !e.target.checked; save(); render(); };
-  $("planEnd").onchange = e => { state.planEnd = e.target.value || null; save(); render(); $("moreBtn").click(); };
-  $("restoreF").onchange = async e => {
-    const f = e.target.files[0]; if (!f) return;
-    try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
-      if (s.staff) staffMerge(s.staff); delete s.staff; delete s.notes;
-      state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} HCPs`); }
-    catch(_){ $("bMsg").textContent = "That file isn't a call plan backup."; }
+/* ---------- Settings live in one place (Plan my week opens them and comes back here) ---------- */
+$("moreBtn").onclick = () => { location.href = "route/?settings&back=" + view; };
+
+/* ---------- backups (Home reminder, More, and restoring on a fresh install) ---------- */
+function renderBackup(){
+  $("bkRowSub").textContent = bkWhen() + " · saves everything to one file in Files";
+  const due = view === "home" && bkDue();
+  $("bkBox").innerHTML = due ? `<div class="remind"><div><b>${bkMeta().at ? `It's been ${bkDays(bkMeta().at, bkToday())} days since your last backup` : "Save your first backup"}</b><span>One file with everything, in case you ever reinstall the app. When Files opens, keep it on this iPad.</span></div><button class="btn small" id="bkLater">Later</button><button class="btn small primary" id="bkGo">Back up now</button></div>` : "";
+  if (due){ $("bkLater").onclick = () => { bkSnooze(); render(); }; $("bkGo").onclick = () => backupNow(); }
+}
+function backupNow(){ const n = bkSave(); render(); toast("Saved “" + n + "” to Downloads in Files"); }
+$("bkRow").onclick = () => backupNow();
+function restoreFromFile(file){
+  file.text().then(text => {
+    openSheet(`<h2>Restore from a backup</h2><p>Replace everything on this iPad with <b style="color:var(--ink)">${esc(file.name)}</b>? This brings back your HCPs and calls, offices, office staff, people you invite, time off and settings as they were in the backup.</p>
+      <p class="small" id="rsMsg"></p><div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn primary" id="rsGo">Replace</button></div>`);
+    $("closeS").onclick = closeSheet;
+    $("rsGo").onclick = () => { const r = bkRestore(text); if (!r.ok){ $("rsMsg").textContent = r.msg; return; } try { sessionStorage.setItem("restored.msg", r.msg); } catch(e){} location.replace(location.pathname); };
+  });
+}
+
+/* ---------- a new quarter ---------- */
+if (state.doctors.length && !state.quarterOf){ state.quarterOf = qEndOf(state.importedAt || todayISO()); save(); }
+const quarterOver = () => state.doctors.length > 0 && todayISO() > (state.planEnd || state.quarterOf || qEndOf(todayISO()));
+function renderNewQuarter(){
+  const due = view === "home" && quarterOver();
+  $("nqBox").innerHTML = due ? `<div class="remind nq"><div><b>A new quarter has started</b><span>Wrap up the last one and load your new Assigned calls report.</span></div><button class="btn small primary" id="nqGo">Start the new quarter</button></div>` : "";
+  if (due) $("nqGo").onclick = () => openNewQuarter();
+}
+function openNewQuarter(){
+  const {C, A} = totals(), over = quarterOver(), endIso = state.planEnd || state.quarterOf || qEndOf(todayISO());
+  const r = routerRaw(), st = r.settings || {}, past = (st.timeOff || []).filter(x => (x.to || x.from) < todayISO()).length;
+  openSheet(`<h2>Start a new quarter</h2>
+    ${A ? `<p><b style="color:var(--ink)">${over ? "Last quarter" : "This quarter so far"}: ${C} of ${A} calls done (${Math.round(C / A * 100)}%).</b> This is saved so you can look back on it.</p>` : ""}
+    ${over ? "" : `<p class="small" style="color:var(--red-ink)">This quarter doesn't end until ${longDate(endIso)}. Only start the new one early if your new Assigned calls report is already out.</p>`}
+    <p style="color:var(--ink)">Starting the new quarter:</p>
+    <ul class="small" style="margin:4px 0 0 18px;padding:0;line-height:1.5"><li>clears your quarter end date${past ? ` and the ${past} time-off entr${past === 1 ? "y" : "ies"} already behind you` : ""}</li><li>sets your goal back to 100%</li><li>asks for your new Assigned calls report, which brings in the new HCPs and assigned calls</li></ul>
+    <p class="small">Your offices and days, office staff, people you invite, blitzes and settings all stay.</p>
+    <div class="foot"><button class="btn" id="closeS">Cancel</button><button class="btn" id="nqBk">Back up first</button><button class="btn primary" id="nqDo">Start the new quarter</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("nqBk").onclick = () => { const n = bkSave(); $("nqBk").textContent = "✓ Backed up"; $("nqBk").disabled = true; toast("Saved “" + n + "” to Downloads in Files"); };
+  $("nqDo").onclick = () => {
+    state.quarters = (state.quarters || []).concat({end: endIso, done: C, assigned: A}).slice(-8);
+    state.planEnd = null; state.quarterOf = qEndOf(todayISO()); save();
+    const rr = routerRaw(); rr.settings = rr.settings || {}; rr.settings.goal = 100; rr.settings.timeOff = (rr.settings.timeOff || []).filter(x => (x.to || x.from) >= todayISO());
+    try { localStorage.setItem("weekrouter.v1", JSON.stringify(rr)); } catch(e){}
+    render(); openReports(); toast("New quarter started. Now load your new Assigned calls report.");
   };
-};
+}
+$("nqRow").onclick = () => openNewQuarter();
+
+/* ---------- HCPs tab: adding, finding and bringing back HCPs ---------- */
+function renderDocFoot(){
+  if (!state.doctors.length){ $("docFoot").innerHTML = ""; return; }
+  const nMiss = missingCands().length, nRm = (state.removedDocs || []).length;
+  $("docFoot").innerHTML = `<button class="btn" id="dfAdd">+ Add an HCP not on my call plan</button><button class="btn" id="dfMiss">Find a missing HCP${nMiss ? " (" + nMiss + ")" : ""}</button>${nRm ? `<button class="btn" id="dfRm">Removed HCPs (${nRm})</button>` : ""}`;
+  $("dfAdd").onclick = () => openAddProvider(); $("dfMiss").onclick = () => openMissing();
+  if ($("dfRm")) $("dfRm").onclick = () => openRemovedDocs(closeSheet);
+}
 
 /* ---------- saving files (share sheet → Save to Files / AirDrop; never uploaded) ---------- */
 async function saveFile(){ return null; } // no data exports: everything stays in this app
@@ -1900,7 +1973,7 @@ function renderReview(){
     const keepAdded = state.doctors.filter(d => d.added && !parsed.some(p => p.id === d.id));
     const dropped = state.doctors.filter(d => !d.added && !parsed.some(p => p.id === d.id)).map(d => ({id:d.id, name:d.name, city:d.city, a:d.a, c0:done(d)}));
     const removedDocs = state.removedDocs || [], gone = new Set(removedDocs.map(x => x.id));
-    state = {HCPs: parsed.filter(p => !gone.has(p.id)).map(clean).concat(keepAdded), dropped, removedDocs, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    state = {doctors: parsed.filter(p => !gone.has(p.id)).map(clean).concat(keepAdded), dropped, removedDocs, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
     save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} HCPs`);
   };
   $("replI").onclick = () => {
@@ -2027,7 +2100,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v53";
+const APP_SHELL = "calltracker-shell-v54";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ask iPadOS to keep this app's data even when the iPad is low on space
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
@@ -2045,6 +2118,8 @@ if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.co
 // a Home Screen app is often just brought back, not reopened: look for a newer version then too
 if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}), 4000); }); }
 
+if (location.hash === "#newq"){ view = "home"; try { history.replaceState(null, "", "#home"); } catch(e){} setTimeout(() => openNewQuarter(), 50); }
+try { const rm = sessionStorage.getItem("restored.msg"); if (rm){ sessionStorage.removeItem("restored.msg"); setTimeout(() => toast(rm), 300); } } catch(e){}
 render();
 geoLoad(applyGeo);
 // "Add Doe" from Plan my week's build check
