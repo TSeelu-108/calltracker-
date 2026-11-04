@@ -354,8 +354,8 @@ header.top{border-bottom:0;padding-bottom:6px}
     </div>
     <div class="grp" id="todayHd" hidden><h2>Today's plan</h2><span class="small" id="todaySub"></span></div>
     <div class="cardlist" id="todayList" hidden></div>
-    <div class="grp" id="findHd" hidden><h2>Find a doctor</h2></div>
-    <div class="hfind" id="hFind" hidden><input type="search" id="hq" placeholder="Name or city" aria-label="Find a doctor"></div>
+    <div class="grp" id="findHd" hidden><h2>Find an HCP</h2></div>
+    <div class="hfind" id="hFind" hidden><input type="search" id="hq" placeholder="Name or city" aria-label="Find an HCP"></div>
     <div class="list" id="hResults"></div>
     <div class="otherday" id="otherDay" hidden><button class="linkbtn" id="otherDayBtn">Logging calls for a different day?</button>
       <span id="otherDayPick" hidden><label for="logDate">Log calls on</label> <input type="date" id="logDate"></span></div>
@@ -363,7 +363,7 @@ header.top{border-bottom:0;padding-bottom:6px}
 
   <section class="view" id="vDocs" hidden>
     <div class="tools">
-      <input type="search" id="q" placeholder="Find a doctor or city" aria-label="Find a doctor or city">
+      <input type="search" id="q" placeholder="Find an HCP or city" aria-label="Find an HCP or city">
       <select id="city" aria-label="City"></select>
       <div class="seg" role="group" aria-label="Call completion status">
         <button data-f="all" aria-pressed="true">All</button>
@@ -390,14 +390,14 @@ header.top{border-bottom:0;padding-bottom:6px}
     </div>
     <div class="mlist">
       <button class="mrow" id="setupBtn"><span class="mic t-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span><span class="mtx"><b>Setup checklist</b><span>The steps for getting started</span></span><span class="mchev" aria-hidden="true">›</span></button>
-      <button class="mrow" id="settingsRow"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="mtx"><b>Settings</b><span>Quarter end, your name, providers and your data</span></span><span class="mchev" aria-hidden="true">›</span></button>
-      <a class="mrow" href="route/?settings"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><span class="mtx"><b>Plan my week settings</b><span>Your state, start town, doctors per day, goal and time off</span></span><span class="mchev" aria-hidden="true">›</span></a>
+      <button class="mrow" id="settingsRow"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="mtx"><b>Settings</b><span>Quarter end, your name, HCPs and your data</span></span><span class="mchev" aria-hidden="true">›</span></button>
+      <a class="mrow" href="route/?settings"><span class="mic t-slate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg></span><span class="mtx"><b>Plan my week settings</b><span>Your state, start town, HCPs per day, goal and time off</span></span><span class="mchev" aria-hidden="true">›</span></a>
     </div>
   </section>
 </div>
 <nav class="tabbar" aria-label="Main">
   <button class="tab" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
-  <button class="tab" data-tab="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>Doctors</span></button>
+  <button class="tab" data-tab="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>HCPs</span></button>
   <a class="tab" href="route/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span>Plan my week</span></a>
   <button class="tab" data-tab="more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg><span>More</span></button>
 </nav>
@@ -538,9 +538,9 @@ function openInvitees(back){
       <button type="button" class="staffx" data-ivx style="grid-row:auto;grid-column:auto" aria-label="Remove">×</button>
       <label class="small" style="grid-column:1 / -1;display:flex;gap:8px;align-items:center;justify-content:flex-start;text-align:left;font-weight:400;margin:2px 0 6px"><input type="checkbox" data-ivc ${p.cp ? "checked" : ""} style="width:20px;height:20px;min-height:0;flex:none;margin:0;padding:0"> <span>Invite to lunches and coffees automatically</span></label></div>`;
   openSheet(`<h2>People I invite</h2>
-    <p>Saved on this iPad only. Tick the ones (like your counterparts) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
+    <p>Saved on this iPad only. Tick the ones (like your pod members) who should be invited to every lunch and coffee automatically. Others, like your manager, you can pick when you need them.</p>
     <label class="fld" style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-weight:600">Your work email<span class="small" style="font-weight:400">You're the organizer of the invites.</span><input id="ivMe" value="${bEsc(v.me)}" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>
-    <p style="margin-top:22px"><b style="color:var(--ink)">Invitees</b><br><span class="small">The people you invite, like your counterparts and your manager. Not you.</span></p>
+    <p style="margin-top:22px"><b style="color:var(--ink)">Invitees</b><br><span class="small">The people you invite, like your pod members and your manager. Not you.</span></p>
     <div id="ivList" style="margin-top:6px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
     <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add an invitee</button>
     <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
@@ -560,7 +560,7 @@ function openInvitees(back){
 }
 
 /* the booking sheet. docId: the doctor you're with. Each date can be a different kind (lunch, coffee...) at a different
-   one of their offices. Other doctors at those offices can be added. */
+   one of their offices. Other HCPs at those offices can be added. */
 function openBook(docId, back){
   const offs = bOffices(docId), all = bAllOffices();
   const offOf = k => offs.find(o => o.k === k) || offs[0] || null;
@@ -589,7 +589,7 @@ function openBook(docId, back){
         ${offs.length > 1 ? `<select data-boff aria-label="Office" style="flex-basis:100%;max-width:100%">${offs.map(o => `<option value="${bEsc(o.k)}"${o.k === r.k ? " selected" : ""}>${bEsc(townOf(o))} · ${bEsc(o.a)}</option>`).join("")}</select>` : ""}</div>`).join("")}
       <button type="button" class="btn small ghost" id="bAddDate" style="margin-top:6px">+ Add another date</button>
       <p style="margin-top:12px"><b style="color:var(--ink)">Invite</b> <button type="button" class="btn small ghost" id="bPeople" style="min-height:30px;padding:2px 8px">${v.people.length ? "Edit people" : "+ Add people"}</button></p>
-      ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your counterparts (and anyone else you sometimes invite) once, and they'll be here.</p>`}
+      ${v.people.length ? `<div class="chips">${v.people.map(p => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bw="${bEsc(p.email)}" ${st.who.includes(p.email) ? "checked" : ""}> ${bEsc(p.name)}</label>`).join("")}</div>` : `<p class="small">No one saved yet. Add your pod members (and anyone else you sometimes invite) once, and they'll be here.</p>`}
       <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px">Reminder <select id="bRem"><option value="">None</option><option value="PT0M"${st.remind==="PT0M"?" selected":""}>When it starts</option><option value="PT1H"${st.remind==="PT1H"?" selected":""}>1 hour before</option><option value="P1D"${st.remind==="P1D"?" selected":""}>1 day before</option><option value="P2D"${st.remind==="P2D"?" selected":""}>2 days before</option></select></label>
       ${askName ? `<label class="small" style="display:flex;flex-direction:column;gap:4px;margin-top:12px"><span><b style="color:var(--ink)">Your name</b> · finishes the title. Saved for next time.</span><input id="bMe" value="${bEsc(me)}" placeholder="First and last name" autocomplete="off" autocapitalize="words" spellcheck="false" style="border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"></label>` : ""}
       <label class="small" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="bTown" ${st.town ? "checked" : ""}> Show the city in the title${towns.length > 1 ? ` <span class="small">(${bEsc(towns.join(", "))})</span>` : ""}</label>
@@ -627,7 +627,7 @@ function openBook(docId, back){
     $("bGo").onclick = () => {
       sync();
       if (!me) return draw("Add your name so the title reads the right way.");
-      if (!st.docs.length) return draw("Pick at least one doctor.");
+      if (!st.docs.length) return draw("Pick at least one HCP.");
       if (st.rows.some(r => !r.date || !r.time)) return draw("Every date needs a day and a time.");
       const nv = invAll(); const ppl = nv.people.filter(p => st.who.includes(p.email));
       const rows = st.rows.map(r => { const o = offOf(r.k); return {date:r.date, time:r.time, mins:r.mins, kind:r.kind, title: titleFor(r), loc: o ? o.a : ""}; });
@@ -742,9 +742,9 @@ function renderHeader(){
   const t = todayISO();
   $("ddBtn").hidden = !!state.hideDD;
   $("todayLbl").textContent = fromISO(t).toLocaleDateString(undefined,{weekday:"long", month:"long", day:"numeric"});
-  $("vTitle").textContent = view === "home" ? greet() : view === "docs" ? "Doctors" : "More";
+  $("vTitle").textContent = view === "home" ? greet() : view === "docs" ? "HCPs" : "More";
   const nRm = (state.removedDocs || []).length, T = totals();
-  $("planLbl").textContent = view !== "docs" ? "" : state.doctors.length ? `${state.doctors.length} doctors · ${T.g} of ${T.n} finished · ${state.source || "loaded from screenshots"}` + (nRm ? ` · ${nRm} removed` : "") : "No call plan loaded yet";
+  $("planLbl").textContent = view !== "docs" ? "" : state.doctors.length ? `${state.doctors.length} HCPs · ${T.g} of ${T.n} finished · ${state.source || "loaded from screenshots"}` + (nRm ? ` · ${nRm} removed` : "") : "No call plan loaded yet";
   $("logDate").value = logDay; $("logDate").max = t;
   const off = logDay !== t;
   $("offDay").hidden = !off || view === "more";
@@ -811,9 +811,9 @@ function openPace(){
   openSheet(`<h2>Your pace</h2>
     <p><b style="color:var(--ink)">${p.C} of ${p.T} calls done.</b> ${p.goal < 1 ? `Your goal is ${Math.round(p.goal*100)}% of your ${p.A} assigned calls.` : `That's all ${p.A} of your assigned calls.`}</p>
     <p><b style="color:var(--ink)">${p.left} field day${p.left === 1 ? "" : "s"} left</b> through ${longDate(p.end)}, counting today. Weekends, holidays and your time off don't count.</p>
-    ${p.toGo ? `<p>To finish, that's about <b style="color:var(--ink)">${perDayTxt(p.need)} calls a day</b>. You plan ${p.perDay} doctors a day in Plan my week.</p>` : ""}
+    ${p.toGo ? `<p>To finish, that's about <b style="color:var(--ink)">${perDayTxt(p.need)} calls a day</b>. You plan ${p.perDay} HCPs a day in Plan my week.</p>` : ""}
     <p><b style="color:var(--ink)">${esc(p.say)}.</b> ${!p.toGo ? "Calls from here are extra." : p.tone === "ok" ? "Your usual days get you there." : p.need <= p.perDay * 1.25 ? `Your usual ${p.perDay} a day comes up a little short, so plan about ${p.extraWk} more call${p.extraWk === 1 ? "" : "s"} each week.` : "That's more than your usual days fit. Plan my week won't cram your weeks to catch up; you can lower your goal in its settings."}</p>
-    <p class="small">Your goal, doctors per day and time off are set in Plan my week settings. ${state.planEnd ? "" : "The quarter ends on the last day of " + fromISO(p.end).toLocaleDateString(undefined,{month:"long"}) + " unless you set a quarter end date in Settings."}</p>
+    <p class="small">Your goal, HCPs per day and time off are set in Plan my week settings. ${state.planEnd ? "" : "The quarter ends on the last day of " + fromISO(p.end).toLocaleDateString(undefined,{month:"long"}) + " unless you set a quarter end date in Settings."}</p>
     <div class="foot"><a class="btn" href="route/?settings">Plan my week settings</a><button class="btn primary" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
 }
@@ -823,10 +823,10 @@ function setupSteps(){
   const r = routerRaw(), st = r.settings || {}; let states = []; try { states = JSON.parse(localStorage.getItem("geo.states.v1")) || []; } catch(e){}
   return [
     {ok: standalone, t:"Put it on your Home Screen", p: standalone ? "Done. Always open it from that icon." : "In Safari, tap Share, then Add to Home Screen. From then on, open it from the new icon."},
-    {ok: state.doctors.some(d => !d.added), t:"Load your Assigned calls report", p:"The Excel file with your doctors and how many calls each one needs this quarter.", b:"Choose file", go:() => openReports()},
+    {ok: state.doctors.some(d => !d.added), t:"Load your Assigned calls report", p:"The Excel file with your HCPs and how many calls each one needs this quarter.", b:"Choose file", go:() => openReports()},
     {ok: !!state.attainAt || state.doctors.some(d => d.c0 > 0), t:"Load your Attainment report", p:"Brings in the calls you've already made this quarter. Screenshots or the file.", b:"Load", go:() => openReports()},
-    {ok: !!(st.home && states.length), t:"Tell it about you", p:"The state you work in, the town you start your day from, and how many doctors you see a day.", b:"Set up", go:() => { location.href = "route/?settings"; }},
-    {opt:true, ok: !!(r.sheet || Object.keys(r.docInfo || {}).length), t:"Offices and days", p:"Without them, Plan my week places each doctor in their town on any day. Load a best-times spreadsheet if you have one, or fill them in as you go.", b:"Open Plan my week", go:() => { location.href = "route/"; }}
+    {ok: !!(st.home && states.length), t:"Tell it about you", p:"The state you work in, the town you start your day from, and how many HCPs you see a day.", b:"Set up", go:() => { location.href = "route/?settings"; }},
+    {opt:true, ok: !!(r.sheet || Object.keys(r.docInfo || {}).length), t:"Offices and days", p:"Without them, Plan my week places each HCP by the address on your Assigned calls report (or their town) on any day. Load a best-times spreadsheet if you have one, or add days as you go.", b:"Open Plan my week", go:() => { location.href = "route/"; }}
   ];
 }
 const setupNeeded = () => setupSteps().some(x => !x.ok && !x.opt);
@@ -872,7 +872,7 @@ function renderHome(){
   const q = norm(ui.hq || "");
   if (!q){ $("hResults").innerHTML = ""; return; }
   const ctx = rowCtx(); const hits = state.doctors.filter(d => d.id.includes(q) || norm(d.city).includes(q)).sort(byLastName);
-  $("hResults").innerHTML = hits.slice(0, 8).map(d => docRow(d, ctx)).join("") + (hits.length > 8 ? `<button class="btn" id="hMore" style="margin-top:4px">See all ${hits.length} in Doctors</button>` : "") + (!hits.length ? `<div class="empty"><p>No one called “${esc(ui.hq.trim())}” on your list.</p></div>` : "");
+  $("hResults").innerHTML = hits.slice(0, 8).map(d => docRow(d, ctx)).join("") + (hits.length > 8 ? `<button class="btn" id="hMore" style="margin-top:4px">See all ${hits.length} in HCPs</button>` : "") + (!hits.length ? `<div class="empty"><p>No one called “${esc(ui.hq.trim())}” on your list.</p></div>` : "");
   if ($("hMore")) $("hMore").onclick = () => { ui.q = ui.hq; $("q").value = ui.hq; setView("docs"); };
 }
 /* blitzes are set up in Plan my week; the tracker shows them and lets you take a doctor off one */
@@ -909,7 +909,7 @@ function docRow(d, ctx){
 function renderList(){
   if (!state.doctors.length){
     $("list").innerHTML = `<div class="empty">
-      <p>Your doctors show up here once your Assigned calls report is loaded.</p>
+      <p>Your HCPs show up here once your Assigned calls report is loaded.</p>
       <button class="btn primary" id="emptyImport">Load my call plan</button></div>`;
     $("emptyImport").onclick = () => openReports();
     return;
@@ -933,10 +933,10 @@ function renderList(){
     const looksName = q && words.length && words.length <= 3 && !CITY_NAMES.includes(String(ui.q).trim().toLowerCase());
     const who = words.map(titleCase).join(" ");
     $("list").innerHTML = `<div class="empty">
-      <p>${elsewhere ? `“${esc(ui.q.trim())}” is on your list, but hidden by the filters above.` : q ? `No one called “${esc(ui.q.trim())}” on your list.` : "No doctors match these filters."}</p>
+      <p>${elsewhere ? `“${esc(ui.q.trim())}” is on your list, but hidden by the filters above.` : q ? `No one called “${esc(ui.q.trim())}” on your list.` : "No HCPs match these filters."}</p>
       <div class="actions" style="justify-content:center;flex-wrap:wrap;margin-top:10px">
         ${elsewhere || (!q && filtered) ? `<button class="btn primary" id="emShowAll">Show everyone</button>` : ""}
-        ${looksName && !elsewhere ? `<button class="btn primary" id="emAdd">+ Add ${esc(who)} as a provider</button>` : ""}
+        ${looksName && !elsewhere ? `<button class="btn primary" id="emAdd">+ Add ${esc(who)} as an HCP</button>` : ""}
         ${q ? `<button class="btn" id="emClear">Clear search</button>` : ""}
       </div></div>`;
     if ($("emShowAll")) $("emShowAll").onclick = () => { ui.city = ""; ui.f = "all"; $("city").value = ""; document.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.f === "all"))); render(); };
@@ -1021,13 +1021,13 @@ function closeSheet(){ if (importCtl) importCtl.abort(); $("scrim").hidden = tru
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy) sheetLeave(); });
 
 /* taking a call plan doctor off your list (moved, retired, left the territory...). They're kept aside, not deleted:
-   not shown, not planned, and their calls don't count in your totals. Settings → Removed doctors brings them back. */
+   not shown, not planned, and their calls don't count in your totals. Settings → Removed HCPs brings them back. */
 const RM_WHY = ["Moved away", "Left the territory", "Retired", "Passed away", "Other"];
 function openRemoveDoc(id){
   const d = find(id); if (!d) return; let why = "";
   const draw = () => openSheet(`<h2>Remove ${esc(titleCase(d.name))}?</h2>
     <p>They come off your list and won't be planned in Plan my week. Their calls stop counting in your totals here${d.a ? ` (${d.a} assigned, ${rem(d)} left)` : ""}.</p>
-    <p class="small">Nothing is deleted: Settings → Providers → Removed doctors brings them back. If they still appear in a newer report, they stay off your list until you bring them back.</p>
+    <p class="small">Nothing is deleted: Settings → HCPs → Removed HCPs brings them back. If they still appear in a newer report, they stay off your list until you bring them back.</p>
     <div class="fld" style="margin-top:10px">Why <span class="small" style="font-weight:400">(optional, just for you)</span><div class="chips" style="margin-top:6px">${RM_WHY.map(w => `<button type="button" class="chip" data-why="${esc(w)}" aria-pressed="${why === w}" style="min-height:38px;padding-right:12px;${why === w ? "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700" : ""}">${esc(w)}</button>`).join("")}</div></div>
     <div class="foot"><button class="btn" id="rmNo">Cancel</button><button class="btn primary" id="rmYes" style="background:var(--red-ink);border-color:var(--red-ink)">Remove</button></div>`);
   draw();
@@ -1037,14 +1037,14 @@ function openRemoveDoc(id){
     $("rmYes").onclick = () => {
       state.removedDocs = (state.removedDocs || []).filter(x => x.id !== id).concat({...d, removed:{at: todayISO(), why}});
       state.doctors = state.doctors.filter(x => x.id !== id);
-      save(); render(); closeSheet(); toast(`Removed ${titleCase(d.name)}. Settings → Removed doctors brings them back.`);
+      save(); render(); closeSheet(); toast(`Removed ${titleCase(d.name)}. Settings → Removed HCPs brings them back.`);
     };
   };
   wire();
 }
 function openRemovedDocs(back){
   const list = (state.removedDocs || []).slice().sort((a,b) => a.name.localeCompare(b.name));
-  openSheet(`<h2>Removed doctors</h2>
+  openSheet(`<h2>Removed HCPs</h2>
     <p class="small">Not on your list, not planned, and not counted in your totals.</p>
     <ul class="hist">${list.map(d => `<li><span><b>${esc(titleCase(d.name))}</b> <span class="small">${esc(titleCase(d.city || ""))} · removed ${shortDate(d.removed.at)}${d.removed.why ? " · " + esc(d.removed.why) : ""}</span></span><button data-restore="${esc(d.id)}">Bring back</button></li>`).join("") || "<li>None.</li>"}</ul>
     <div class="foot"><button class="btn primary" id="closeS">Close</button></div>`);
@@ -1060,7 +1060,7 @@ function openHistory(id){
   const d = find(id); const days = d.log.slice().sort().reverse();
   const lc = lastCall(d);
   openSheet(`<h2>${esc(titleCase(d.name))}</h2>
-    <p>${esc(titleCase(d.city||"No city listed"))} · ${d.added ? `${esc(KIND_LBL[d.kind] || "Provider")} you added · not on your call plan` : d.a ? `${Math.min(done(d), d.a)} of ${d.a} calls done · ${rem(d)} left` : "No calls assigned this quarter"}${lc ? " · last call " + shortDate(lc) : ""}</p>
+    <p>${esc(titleCase(d.city||"No city listed"))} · ${d.added ? `${esc(KIND_LBL[d.kind] || "HCP")} you added · not on your call plan` : d.a ? `${Math.min(done(d), d.a)} of ${d.a} calls done · ${rem(d)} left` : "No calls assigned this quarter"}${lc ? " · last call " + shortDate(lc) : ""}</p>
     ${d.prof ? `<div class="chips" style="margin:6px 0 4px">${(d.prof.prios || []).map(x => `<span class="chip" style="padding-right:10px">${esc(x.label)}: ${esc(x.value)}</span>`).join("")}${d.prof.type ? `<span class="chip" style="padding-right:10px">${esc(d.prof.type)}</span>` : ""}${d.prof.spec ? `<span class="chip" style="padding-right:10px">${esc(d.prof.spec)}</span>` : ""}</div>${d.prof.address ? `<p class="small">${esc(d.prof.address)}, ${esc(d.prof.city)} ${esc(d.prof.zip)} <span class="small">(assigned calls report)</span></p>` : ""}` : ""}
     <div class="foot" style="justify-content:flex-start;margin-top:10px;flex-wrap:wrap"><button class="btn" id="hBook">🍽 Book lunch / coffee</button><button class="btn" id="hPin">📌 Plan on a day</button><button class="btn" id="hInfo">Office and days${d.added && (routerInfo(d.id) || {locs:[]}).locs.length > 1 ? " (" + routerInfo(d.id).locs.length + " offices)" : ""}</button></div>
     <div id="staffArea"></div>
@@ -1103,7 +1103,7 @@ function renderStaff(d){
   }).join("");
   box.querySelectorAll("[data-sedit]").forEach(b => b.onclick = () => {
     const o = offs[+b.dataset.sedit], wrap = b.parentElement;
-    wrap.innerHTML = `<div class="small">${esc(o.a)}</div>${staffEditorHtml(staffFor(o.k))}<p class="small">Title, name and phone number only. Shared by every doctor at this office.</p><div class="foot" style="margin-top:8px"><button class="btn small" data-scancel>Cancel</button><button class="btn small primary" data-ssave>Save</button></div>`;
+    wrap.innerHTML = `<div class="small">${esc(o.a)}</div>${staffEditorHtml(staffFor(o.k))}<p class="small">Title, name and phone number only. Shared by every HCP at this office.</p><div class="foot" style="margin-top:8px"><button class="btn small" data-scancel>Cancel</button><button class="btn small primary" data-ssave>Save</button></div>`;
     staffWire(wrap);
     wrap.querySelector("[data-scancel]").onclick = () => renderStaff(d);
     wrap.querySelector("[data-ssave]").onclick = () => { staffSet(o.k, staffRead(wrap)); renderStaff(d); toast("Saved"); };
@@ -1300,13 +1300,13 @@ function openAddProvider(editId, pre){
   const WD = ["","Mon","Tue","Wed","Thu","Fri"];
   const sync = () => { v.first = cleanPerson($("apF").value); v.last = cleanPerson($("apL").value); v.street = String($("apS").value).replace(/[^\p{L}\d\s.,#'\-\/&]/gu,"").replace(/\s+/g," ").trim().slice(0,80); v.city = cleanPerson($("apC").value); v.zip = String($("apZ").value).replace(/\D/g, "").slice(0, 5); v.appt = $("apA").checked; };
   const draw = () => {
-    openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add a provider"}</h2>
-      <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the doctors on your plan.</p>
+    openSheet(`<h2>${ed ? "Edit " + esc(titleCase(ed.name)) : "Add an HCP"}</h2>
+      <p>For someone who isn't on your call plan yet. They're added to your list and planned into your weeks after the HCPs on your plan.</p>
       ${note ? `<p class="offbox" style="margin-top:8px">${esc(note)}</p>` : ""}
-      <div class="fld">Provider type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
+      <div class="fld">HCP type<div class="seg" role="group">${["md","np","pa"].map(k => `<button type="button" data-kind="${k}" aria-pressed="${v.kind===k}">${{md:"Physician",np:"NP",pa:"PA"}[k]}</button>`).join("")}</div></div>
       <label class="fld">First name<input id="apF" value="${esc(v.first)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
       <label class="fld">Last name<input id="apL" value="${esc(v.last)}" autocomplete="off" autocapitalize="words" ${ed ? "disabled" : ""}></label>
-      <label class="fld">Office street address<span class="small" style="font-weight:400">Type the street or another doctor's name to reuse an office you already have.</span><input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
+      <label class="fld">Office street address<span class="small" style="font-weight:400">Type the street or another HCP's name to reuse an office you already have.</span><input id="apS" value="${esc(v.street)}" placeholder="e.g. 2222 East St, Suite 300" autocomplete="off"></label>
       <div id="apSug" class="chips" style="margin-top:-4px"></div>
       <div style="display:flex;gap:10px"><label class="fld" style="flex:1">City<input id="apC" list="apCities" value="${esc(v.city)}" autocomplete="off"></label><label class="fld" style="width:110px">ZIP<input id="apZ" value="${esc(v.zip)}" inputmode="numeric" maxlength="5" autocomplete="off"></label></div>
       <datalist id="apCities">${CITY_NAMES.map(c => `<option value="${esc(titleCase(c))}">`).join("")}</datalist>
@@ -1324,7 +1324,7 @@ function openAddProvider(editId, pre){
       const q = $("apS").value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
       const hits = q.length < 2 ? [] : known.filter(o => q.split(" ").every(w => o.hay.includes(w))).slice(0, 5);
       $("apSug").innerHTML = hits.map((o,i) => `<button type="button" class="chip" data-sug="${i}" style="display:block;text-align:left;line-height:1.35;padding:8px 12px;border-radius:12px;height:auto">${esc(o.street)}, ${esc(o.city)}<br><span class="small">Same office as ${esc(o.names.slice(0,3).join(", "))}${o.names.length > 3 ? " +" + (o.names.length - 3) : ""}</span></button>`).join("");
-      $("apSug").querySelectorAll("[data-sug]").forEach(b => b.onclick = () => { const o = hits[+b.dataset.sug]; $("apS").value = o.street; $("apC").value = o.city; $("apSug").innerHTML = `<span class="small" style="color:var(--grn-ink, #1d6a33)">✓ Same office as ${esc(o.names.slice(0,3).join(", "))}. Office staff saved there will show for this provider too.</span>`; });
+      $("apSug").querySelectorAll("[data-sug]").forEach(b => b.onclick = () => { const o = hits[+b.dataset.sug]; $("apS").value = o.street; $("apC").value = o.city; $("apSug").innerHTML = `<span class="small" style="color:var(--grn-ink, #1d6a33)">✓ Same office as ${esc(o.names.slice(0,3).join(", "))}. Office staff saved there will show for this HCP too.</span>`; });
     };
     $("apS").addEventListener("input", sug);
     cityAhead($("apC"), () => CITY_NAMES.map(titleCase), () => state.doctors.map(d => d.city));
@@ -1368,10 +1368,10 @@ $("moreBtn").onclick = async () => {
       <label for="planEnd"><b style="color:var(--ink)">Quarter end date</b></label>
       <input type="date" id="planEnd" value="${state.planEnd||""}" min="${todayISO()}">
     </div>
-    <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the doctors furthest behind first."}</p>
-    <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your counterparts'.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
-    <p class="sechd">Providers</p>
-    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add a provider not on my call plan</button><button class="btn" id="findMiss">Find a missing doctor${missingCands().length ? " (" + missingCands().length + ")" : ""}</button>${(state.removedDocs || []).length ? `<button class="btn" id="remList">Removed doctors (${state.removedDocs.length})</button>` : ""}</div>
+    <p class="small">${end ? `${wl} week${wl>1?"s":""} left · about ${Math.ceil(R/wl)} calls a week to finish.` : "Optional. With an end date, Plan my week puts the HCPs furthest behind first."}</p>
+    <label class="fld">Your name<span class="small" style="font-weight:400">First and last, as it appears in your Outlook calendar. Plan my week uses it to tell your lunches and visits from your pod's.</span><input id="meName" value="${esc(me)}" placeholder="e.g. Jordan Smith" autocomplete="off" autocapitalize="words"></label>
+    <p class="sechd">HCPs</p>
+    <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" id="addProv">Add an HCP not on my call plan</button><button class="btn" id="findMiss">Find a missing HCP${missingCands().length ? " (" + missingCands().length + ")" : ""}</button>${(state.removedDocs || []).length ? `<button class="btn" id="remList">Removed HCPs (${state.removedDocs.length})</button>` : ""}</div>
     <p class="sechd">Lunches and coffees</p>
     <div class="foot" style="justify-content:flex-start"><button class="btn" id="invBtn">People I invite</button></div>
     <p class="sechd">Plan my week</p>
@@ -1400,7 +1400,7 @@ $("moreBtn").onclick = async () => {
     const f = e.target.files[0]; if (!f) return;
     try { const s = JSON.parse(await f.text()); if (!Array.isArray(s.doctors)) throw 0;
       if (s.staff) staffMerge(s.staff); delete s.staff; delete s.notes;
-      state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} doctors`); }
+      state = s; save(); render(); closeSheet(); toast(`Restored ${state.doctors.length} HCPs`); }
     catch(_){ $("bMsg").textContent = "That file isn't a call plan backup."; }
   };
 };
@@ -1567,9 +1567,9 @@ async function getWorker(onProgress){
 }
 
 /* ---------- your two reports ----------
-   1. The assigned calls report (Excel): each doctor's assigned calls for the quarter (Pre Calls), priorities, type, specialty, office.
-   2. The attainment report (as often as you like): the percent of each doctor's assigned calls done. Done = percent × assigned; left = assigned − done.
-   Attainment never goes over 100%, so no doctor counts for more than their assigned calls. */
+   1. The assigned calls report (Excel): each HCP's assigned calls for the quarter (Pre Calls), priorities, type, specialty, office.
+   2. The attainment report (as often as you like): the percent of each HCP's assigned calls done. Done = percent × assigned; left = assigned − done.
+   Attainment never goes over 100%, so no HCP counts for more than their assigned calls. */
 async function xInflateRaw(u8){ if (typeof DecompressionStream === "undefined") throw new Error("This iPad's software is too old to open .xlsx files (it needs iPadOS 16.4 or newer). Update the iPad, or save the spreadsheet as a .csv file and load that instead.");
   const ds = new DecompressionStream("deflate-raw"); return new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer(); }
 async function readXlsxT(buf){
@@ -1653,8 +1653,8 @@ function openReports(){
       <p class="small" style="margin:4px 0 8px">Your assigned calls for the quarter. Load it at the start of the quarter or whenever it changes.</p>
       <label class="btn${hasPlan ? "" : " primary"}" for="planX">Choose the Excel file</label><input type="file" id="planX" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></div>
     <div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">2. Attainment report</b>
-      <p class="small" style="margin:4px 0 8px">The percent done for each doctor. Load it as a file or as screenshots, as often as you like. Screenshots need to be taken with the device's buttons, not photos of a screen.</p>
-      ${hasPlan ? `<label class="btn primary" for="attF">Choose screenshots or file</label><input type="file" id="attF" accept="image/*,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>` : `<p class="small"><b>Load the assigned calls report first</b>, so the app knows each doctor's assigned calls.</p>`}</div>
+      <p class="small" style="margin:4px 0 8px">The percent done for each HCP. Load it as a file or as screenshots, as often as you like. Screenshots need to be taken with the device's buttons, not photos of a screen.</p>
+      ${hasPlan ? `<label class="btn primary" for="attF">Choose screenshots or file</label><input type="file" id="attF" accept="image/*,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>` : `<p class="small"><b>Load the assigned calls report first</b>, so the app knows each HCP's assigned calls.</p>`}</div>
     <p class="small" id="rpMsg" style="margin-top:10px"></p>
     <p class="small" style="margin-top:14px"><a href="#" id="oldShots">Older format: screenshots with C, A and R columns</a></p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
@@ -1675,12 +1675,12 @@ function reviewPlan(rows, fname){
   const A = rows.reduce((t, r) => t + r.a, 0), zero = rows.filter(r => !r.a).length;
   const li = arr => `<ul class="hist">${arr.map(x => `<li><span>${x}</span></li>`).join("")}</ul>`;
   openSheet(`<h2>Assigned calls report</h2>
-    <p><b style="color:var(--ink)">${rows.length} doctors · ${A} assigned calls</b>${zero ? ` · ${zero} with no calls assigned (kept on your list)` : ""}</p>
+    <p><b style="color:var(--ink)">${rows.length} HCPs · ${A} assigned calls</b>${zero ? ` · ${zero} with no calls assigned (kept on your list)` : ""}</p>
     ${fixes.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Names corrected (${fixes.length})</b> <span class="small">their calls, offices and notes carry over</span></p>${li(fixes.map(([a,b]) => esc(titleName(a)) + " → <b>" + esc(titleName(b)) + "</b>"))}` : ""}
     ${changed.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Assigned calls changed (${changed.length})</b></p>${li(changed.map(([n,a,b]) => esc(titleName(n)) + ": " + a + " → <b>" + b + "</b>"))}` : ""}
     ${fresh.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">New on your call plan (${fresh.length})</b></p>${li(fresh.map(n => esc(titleName(n))))}` : ""}
-    ${gone.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Not on this report (${gone.length})</b> <span class="small">taken off your list; Settings → Removed doctors brings them back</span></p>${li(gone.map(d => esc(titleName(d.name))))}` : ""}
-    <p class="small" style="margin-top:12px">Calls already counted stay. Load today's attainment next to bring every doctor's calls up to date.</p>
+    ${gone.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Not on this report (${gone.length})</b> <span class="small">taken off your list; Settings → Removed HCPs brings them back</span></p>${li(gone.map(d => esc(titleName(d.name))))}` : ""}
+    <p class="small" style="margin-top:12px">Calls already counted stay. Load today's attainment next to bring every HCP's calls up to date.</p>
     <div class="foot"><button class="btn" id="rpBack">Back</button><button class="btn primary" id="rpGo">Use these assigned calls</button></div>`);
   $("rpBack").onclick = openReports;
   $("rpGo").onclick = () => {
@@ -1694,7 +1694,7 @@ function reviewPlan(rows, fname){
     state.doctors = nextDocs.concat(state.doctors.filter(d => d.added));
     state.planReport = {name: fname, at: todayISO(), assigned: A};
     state.source = "assigned calls " + shortDate(todayISO());
-    save(); render(); closeSheet(); toast(`Assigned calls loaded: ${rows.length} doctors, ${A} calls`);
+    save(); render(); closeSheet(); toast(`Assigned calls loaded: ${rows.length} HCPs, ${A} calls`);
   };
 }
 // attainment: "ALEX DIAZ (1) ... 67%" per doctor (the Subtotal rows and the total at the top are skipped)
@@ -1750,17 +1750,17 @@ function reviewAttainment(got){
   const nowOf = new Map(items.map(x => [x.d.id, x.doneNow]));
   const C = pool.reduce((t, d) => t + (nowOf.has(d.id) ? nowOf.get(d.id) : Math.min(done(d), d.a)), 0), A = pool.reduce((t, d) => t + d.a, 0);
   openSheet(`<h2>Attainment report</h2>
-    <p><b style="color:var(--ink)">${items.length} of ${pool.length} doctors read · ${C} of ${A} calls done · ${A - C} left</b></p>
+    <p><b style="color:var(--ink)">${items.length} of ${pool.length} HCPs read · ${C} of ${A} calls done · ${A - C} left</b></p>
     ${ch.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Changed since last time (${ch.length})</b></p><ul class="hist">${ch.map(x => `<li><span>${esc(titleName(x.d.name))} <span class="small">${x.pct}% of ${x.d.a}</span></span><span>${x.before} → <b>${x.doneNow}</b> done · ${x.d.a - x.doneNow} left</span></li>`).join("")}</ul>` : `<p class="small">No changes since your last update.</p>`}
     ${notSeen.length ? `<p class="small" style="margin-top:10px"><b>Not in these screenshots (${notSeen.length}), left as they were:</b> ${esc(notSeen.slice(0, 12).map(d => titleName(d.name)).join(", "))}${notSeen.length > 12 ? "…" : ""}. Add the screenshots that show them if you meant to include them.</p>` : ""}
     ${miss.length ? `<p class="small" style="margin-top:10px;color:var(--red-ink)"><b>Couldn't match (${miss.length}):</b> ${esc(miss.map(titleName).join(", "))}</p>` : ""}
     <p class="small" style="margin-top:10px">Calls you logged here are now counted by the report.</p>
-    <div class="foot"><button class="btn" id="atBack">Back</button><button class="btn primary" id="atGo">Update ${items.length} doctor${items.length === 1 ? "" : "s"}</button></div>`);
+    <div class="foot"><button class="btn" id="atBack">Back</button><button class="btn primary" id="atGo">Update ${items.length} HCP${items.length === 1 ? "" : "s"}</button></div>`);
   $("atBack").onclick = openReports;
   $("atGo").onclick = () => {
     items.forEach(({d, doneNow}) => { d.hist = (d.hist || []).concat(d.log); d.log = []; d.c0 = doneNow; d.r0 = d.a - doneNow; });
     state.source = "updated " + shortDate(todayISO()); state.attainAt = todayISO();
-    save(); render(); closeSheet(); toast(`Updated ${items.length} doctors · ${A - C} calls left`);
+    save(); render(); closeSheet(); toast(`Updated ${items.length} HCPs · ${A - C} calls left`);
   };
 }
 
@@ -1787,7 +1787,7 @@ async function runImport(files){
   if (!files.length) return;
   busy = true; importCtl = new AbortController(); const sig = importCtl.signal;
   const shots = files.map(f => ({f, url:URL.createObjectURL(f), st:"wait", n:0}));
-  const drawThumbs = () => $("thumbs").innerHTML = shots.map(s=>`<div class="thumb ${s.st}"><img src="${s.url}" alt=""><div>${s.st==="ok"?s.n+" doctors":s.st==="bad"?"Couldn't read":s.st==="busy"?"Reading…":"Waiting"}</div></div>`).join("");
+  const drawThumbs = () => $("thumbs").innerHTML = shots.map(s=>`<div class="thumb ${s.st}"><img src="${s.url}" alt=""><div>${s.st==="ok"?s.n+" HCPs":s.st==="bad"?"Couldn't read":s.st==="busy"?"Reading…":"Waiting"}</div></div>`).join("");
   drawThumbs();
   $("iFoot").innerHTML = `<button class="btn" id="stopI">Stop</button>`;
   $("stopI").onclick = () => importCtl.abort();
@@ -1828,8 +1828,8 @@ async function runImport(files){
   busy = false; $("iProg").hidden = true;
   const bad = shots.filter(s=>s.st==="bad").length;
   $("iStat").textContent = parsed.length
-    ? `Found ${parsed.length} doctors.` + (bad ? ` ${bad} screenshot${bad>1?"s":""} couldn't be read. Retake ${bad>1?"them":"it"} with the iPad's screenshot buttons and add again.` : "")
-    : "No doctors found. Make sure the screenshots show the Call Plan Target table clearly.";
+    ? `Found ${parsed.length} HCPs.` + (bad ? ` ${bad} screenshot${bad>1?"s":""} couldn't be read. Retake ${bad>1?"them":"it"} with the iPad's screenshot buttons and add again.` : "")
+    : "No HCPs found. Make sure the screenshots show the Call Plan Target table clearly.";
   renderReview();
 }
 
@@ -1844,7 +1844,7 @@ function whatChanged(){
 }
 function whatChangedHtml(){
   const w = whatChanged(); if (!w) return "";
-  if (!w.missing.length && !w.isNew.length && !w.changed.length) return `<p class="small okline" style="margin-top:8px">✓ Same doctors and assigned calls as your current list.</p>`;
+  if (!w.missing.length && !w.isNew.length && !w.changed.length) return `<p class="small okline" style="margin-top:8px">✓ Same HCPs and assigned calls as your current list.</p>`;
   const nm = d => esc(titleCase(d.name)) + (d.city ? ` <span class="small">${esc(titleCase(d.city))}</span>` : "");
   return `<div class="offbox" style="margin-top:10px"><b style="color:var(--ink)">What changed</b> <span class="small">· compared with your current list</span>
     ${w.missing.length ? `<p style="margin-top:6px;color:var(--red-ink)"><b>Not in these screenshots (${w.missing.length}):</b> ${w.missing.map(d => nm(d) + ` · ${d.a} assigned`).join("; ")}</p><p class="small">A screenshot may be missing a row. If they're really off your plan, that's fine. <b>Update my numbers</b> keeps them as they are, <b>Start a fresh plan</b> drops them (you can add them back from Settings).</p>` : ""}
@@ -1861,13 +1861,13 @@ function renderReview(){
   const flagged = parsed.filter(d => d.guess || d.c0 + d.r0 !== d.a).length;
   $("review").innerHTML = `
     <div class="summary">
-      <span>${parsed.length} doctors · C ${sum.c} · A ${sum.a} · R ${sum.r}</span>
-      ${T ? `<span class="${match?"good":"bad"}">${match ? "✓ Matches the report's total row" : `Report's total row: ${T.count?T.count+" doctors · ":""}C ${T.c} · A ${T.a} · R ${T.r}`}</span>` : `<span class="small">Add the last page (with the total row) to double-check the count.</span>`}
+      <span>${parsed.length} HCPs · C ${sum.c} · A ${sum.a} · R ${sum.r}</span>
+      ${T ? `<span class="${match?"good":"bad"}">${match ? "✓ Matches the report's total row" : `Report's total row: ${T.count?T.count+" HCPs · ":""}C ${T.c} · A ${T.a} · R ${T.r}`}</span>` : `<span class="small">Add the last page (with the total row) to double-check the count.</span>`}
     </div>
     ${whatChangedHtml()}
     ${T && !match ? `<p class="small">The numbers don't match yet. A page may be missing, or a number was misread. Check the highlighted rows against your report.</p>` : ""}
     ${flagged ? `<p class="small">${flagged} highlighted row${flagged>1?"s":""}: the reader wasn't sure of the numbers. Compare with your report and tap a number to fix it.</p>` : ""}
-    <div class="rtable"><table><thead><tr><th>Doctor</th><th>City</th><th>C</th><th>A</th><th>R</th><th></th></tr></thead><tbody>
+    <div class="rtable"><table><thead><tr><th>HCP</th><th>City</th><th>C</th><th>A</th><th>R</th><th></th></tr></thead><tbody>
     ${parsed.map((d,i)=>`<tr class="${(d.guess || d.c0+d.r0!==d.a)?"check":""}"><td>${esc(d.name)}${d.readAs ? `<br><span class="small">read as ${esc(d.readAs)}</span>` : ""}</td><td>${esc(d.city)}</td>
       <td class="num"><input id="pc${i}" type="number" inputmode="numeric" min="0" value="${d.c0}" data-i="${i}" data-k="c0" aria-label="Completed"></td>
       <td class="num"><input id="pa${i}" type="number" inputmode="numeric" min="0" value="${d.a}" data-i="${i}" data-k="a" aria-label="Assigned"></td>
@@ -1882,7 +1882,7 @@ function renderReview(){
     <label class="btn" for="moreF">Add more screenshots</label>
     <input type="file" id="moreF" accept="image/*" multiple hidden>
     ${state.doctors.length ? `<button class="btn" id="updI">Update my numbers</button>` : ""}
-    <button class="btn primary" id="replI">${state.doctors.length ? "Start a fresh plan with these" : `Use these ${parsed.length} doctors`}</button>`;
+    <button class="btn primary" id="replI">${state.doctors.length ? "Start a fresh plan with these" : `Use these ${parsed.length} HCPs`}</button>`;
   $("moreF").onchange = e => runImport([...e.target.files]);
   if ($("updI")) $("updI").onclick = () => {
     // Numbers come from the newer report; calls logged here are kept as dates (already counted in the report)
@@ -1894,19 +1894,19 @@ function renderReview(){
       else { state.doctors.push(clean(p)); add++; }
     }
     state.source = "updated " + shortDate(todayISO()); save(); render(); closeSheet();
-    toast(`Updated ${upd} doctor${upd===1?"":"s"}` + (add ? `, added ${add} new` : "") + (kept ? `. ${kept} you removed stayed off your list` : ""));
+    toast(`Updated ${upd} HCP${upd===1?"":"s"}` + (add ? `, added ${add} new` : "") + (kept ? `. ${kept} you removed stayed off your list` : ""));
   };
   const replace = () => {
     const keepAdded = state.doctors.filter(d => d.added && !parsed.some(p => p.id === d.id));
     const dropped = state.doctors.filter(d => !d.added && !parsed.some(p => p.id === d.id)).map(d => ({id:d.id, name:d.name, city:d.city, a:d.a, c0:done(d)}));
     const removedDocs = state.removedDocs || [], gone = new Set(removedDocs.map(x => x.id));
-    state = {doctors: parsed.filter(p => !gone.has(p.id)).map(clean).concat(keepAdded), dropped, removedDocs, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
-    save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} doctors`);
+    state = {HCPs: parsed.filter(p => !gone.has(p.id)).map(clean).concat(keepAdded), dropped, removedDocs, hideDD: state.hideDD, planEnd: state.planEnd, source:"loaded " + shortDate(todayISO()), importedAt: todayISO(), updatedAt:0};
+    save(); ui = {q:"",city:"",f:"all",sort:"lastAZ",flash:null}; $("q").value=""; render(); closeSheet(); toast(`Loaded ${state.doctors.length} HCPs`);
   };
   $("replI").onclick = () => {
     if (!state.doctors.length) return replace();
     const logged = state.doctors.reduce((n,d)=>n+d.log.length,0);
-    $("confirmBox").innerHTML = `<div class="confirm"><b>Replace your current list?</b><p style="color:inherit">This swaps in these ${parsed.length} doctors${logged ? ` and clears the ${logged} call${logged>1?"s":""} you've logged` : ""}. Save a backup first if you might want them.</p>
+    $("confirmBox").innerHTML = `<div class="confirm"><b>Replace your current list?</b><p style="color:inherit">This swaps in these ${parsed.length} HCPs${logged ? ` and clears the ${logged} call${logged>1?"s":""} you've logged` : ""}. Save a backup first if you might want them.</p>
       <div class="foot"><button class="btn" id="noR">Keep my list</button><button class="btn primary" id="yesR">Replace</button></div></div>`;
     $("confirmBox").scrollIntoView({block:"nearest"});
     $("noR").onclick = () => $("confirmBox").innerHTML = "";
@@ -1960,10 +1960,10 @@ function missingCands(){
 }
 function openMissing(){
   const list = missingCands();
-  openSheet(`<h2>Find a missing doctor</h2>
-    <p>Doctors who were on your call plan before but aren't on your list now. They come from your last fresh load and from what Plan my week remembers on this iPad.</p>
+  openSheet(`<h2>Find a missing HCP</h2>
+    <p>HCPs who were on your call plan before but aren't on your list now. They come from your last fresh load and from what Plan my week remembers on this iPad.</p>
     ${list.length ? `<div class="cands" style="margin-top:8px">${list.map((d,i) => `<div class="cand" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>${esc(titleCase(d.name))}</b>${d.city ? ` <span class="small">· ${esc(titleCase(d.city))}</span>` : ""}${d.a ? `<br><span class="small">${d.a} assigned${d.c0 ? ", " + d.c0 + " completed" : ""} when it dropped off</span>` : ""}</span><button class="btn small" data-mb="${i}">Add back</button></div>`).join("")}</div>`
-      : `<p style="margin-top:8px"><b>No one found.</b> Compare the doctor count with your report, or load the call plan screenshots again with <b>Update my numbers</b>. It adds anyone missing without touching your logged calls.</p>`}
+      : `<p style="margin-top:8px"><b>No one found.</b> Compare the HCP count with your report, or load the call plan screenshots again with <b>Update my numbers</b>. It adds anyone missing without touching your logged calls.</p>`}
     <p class="small" style="margin-top:10px">The easiest fix is often to load your call plan screenshots again and tap <b>Update my numbers</b>: the What changed box shows who was missing, and anyone missing is added back.</p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
@@ -2017,7 +2017,7 @@ function openMaps(){
     ${st.length ? `<p style="margin-top:14px"><b style="color:var(--ink)">Today's route</b></p><div class="cands">${st.map(x => x.addr && !x.done ? `<a class="cand" style="text-decoration:none;color:inherit;display:flex;justify-content:space-between;gap:8px" href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}><span><b>${esc(titleCase(x.name))}</b><br><span class="small">${esc(x.addr)}</span></span><span class="small" style="align-self:center">Directions ›</span></a>` : `<div class="cand" style="opacity:.6"><b>${esc(titleCase(x.name))}</b> <span class="small">· ${x.done ? "✓ logged today" : esc(x.city) + " · no address yet"}</span></div>`).join("")}</div>` : `<p class="small">No route for today. Build your week in Plan my week to get directions to each stop here.</p>`}
     <p style="margin-top:14px"><b style="color:var(--ink)">Near me</b></p>
     <div class="foot" style="justify-content:flex-start;flex-wrap:wrap"><a class="btn" href="${esc(searchUrl("restaurants"))}"${tgt(searchUrl("x"))}>🍴 Food</a><a class="btn" href="${esc(searchUrl("coffee"))}"${tgt(searchUrl("x"))}>☕ Coffee</a><a class="btn" href="${esc(searchUrl("gas station"))}"${tgt(searchUrl("x"))}>⛽ Gas</a><a class="btn" href="${mapsHome()}"${tgt(mapsHome())}>Open the Maps app</a></div>
-    <p class="small" style="margin-top:12px">Opens ${isAndroid() ? "Google" : "Apple"} Maps. Only an office address or your search goes to Maps, never a doctor's name.</p>
+    <p class="small" style="margin-top:12px">Opens ${isAndroid() ? "Google" : "Apple"} Maps. Only an office address or your search goes to Maps, never an HCP's name.</p>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
 }
@@ -2027,7 +2027,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v52";
+const APP_SHELL = "calltracker-shell-v53";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ask iPadOS to keep this app's data even when the iPad is low on space
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
