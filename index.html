@@ -351,6 +351,13 @@ header.top{border-bottom:0;padding-bottom:6px}
 .ldt{flex:1;min-width:0;display:flex;flex-direction:column}
 .ldok{flex:none;color:var(--grn-ink);font-size:13px;font-weight:650}
 .ldone.open{background:var(--bg)}
+.stop.next{background:var(--accent-soft)}
+.nextpill{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent);border-radius:99px;padding:2px 8px;vertical-align:3px;margin-right:2px}
+.stop .mt.info{margin-top:2px;color:var(--muted);font-size:12.5px}
+.stop .mt.info a{color:var(--accent);font-weight:600}
+.smore{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-width:40px;min-height:46px;font-size:18px;color:var(--muted)}
+.dirbtn{white-space:nowrap}
+.cand.smenu{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;cursor:pointer}
 </style>
 </head>
 <body>
@@ -603,8 +610,26 @@ function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || 
 function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
 function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
 function bTracker(){ try { const o = JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; if (!o.doctors && o.HCPs) o.doctors = o.HCPs; return o; } catch(e){ return {}; } }
-function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
-function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
+function bOffices(id){ return bAllOffices()[id] || []; }
+// the same office key Plan my week uses ("5860 owens|pleasanton"), so HCPs at one address line up
+function bCityKey(s){ return String(s||"").toLowerCase().replace(/[^a-z ]+/g," ").replace(/\s+/g," ").trim(); }
+function bAddrKey(addr, city){
+  let a = String(addr||"").toLowerCase().split(",")[0];
+  a = a.replace(/\b(ste|suite|unit|bldg|building|fl|floor|rm|room)\b.*$/,"").replace(/#.*$/,"").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
+  const t = a.split(" "); let key = a;
+  if (/^\d+$/.test(t[0]||"")){ let i = 1; while (i < t.length && /^(n|s|e|w|north|south|east|west)$/.test(t[i])) i++; key = t[0] + " " + (t[i]||""); }
+  return key + "|" + bCityKey(city);
+}
+// offices as Plan my week last worked them out, plus any HCP whose office was set in the app since (like one you just added)
+function bAllOffices(){
+  let o = {}; try { o = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  const info = bRouter().docInfo || {};
+  for (const id in info){ const locs = (info[id] && info[id].locs) || []; if (!locs.length) continue;
+    const have = (o[id] || []).filter(x => !/^doc\|/.test(x.k));
+    const add = locs.filter(l => l.address || l.city).map(l => ({k: bAddrKey(l.address || l.city, l.city), a: [l.address, l.city].filter(Boolean).join(", ")}));
+    o[id] = have.concat(add.filter(x => !have.some(h => h.k === x.k))); }
+  return o;
+}
 function bookingsAll(){ let l = []; try { l = JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){}
   if (l.some(b => !b.id)){ l.forEach(b => { if (!b.id) b.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }); try { localStorage.setItem(BOOK_KEY, JSON.stringify(l)); } catch(e){} }
   return l; }
@@ -1051,14 +1076,39 @@ function renderLunches(){
 function showLunchesTab(note){ lunchNote = note || ""; if (view !== "lunch") setView("lunch"); else render(); window.scrollTo(0, 0); }
 let lunchNote = "";
 function renderLunchTab(){ lunchesPanel($("lunchTab"), {note: lunchNote, onChange: () => { renderHeader(); }}); lunchNote = ""; }
-function stopRow(x, i){
+// a phone number in a note or staff line, tappable
+const telLinks = t => esc(t).replace(/\(?\b(\d{3})\)?[\s.\-]*(\d{3})[\s.\-]*(\d{4})\b/g, (m, a, b, c) => `<a href="tel:${a}${b}${c}">${m}</a>`);
+function stopInfo(x){
+  const st = x.k ? staffFor(x.k) : [];
+  if (st.length){ const c = st[0]; return [c.t, c.n, c.p ? staffFmtPhone(c.p) : ""].filter(Boolean).join(" · ") + (st.length > 1 ? ` · +${st.length - 1} more` : ""); }
+  return x.note || "";
+}
+function stopRow(x, i, isNext){
   const d = find(x.id); const left = d ? (d.added || !d.a ? "" : rem(d) ? rem(d) + " left" : "done for the quarter") : "";
   const logged = d && allDates(d).includes(logDay);
   const lt = bUpcoming().filter(b => b.date === todayISO() && (b.docs || []).includes(x.id));
-  return `<div class="stop${logged ? " done" : ""}"><div class="sn">${logged ? "✓" : i + 1}</div>
-    <div style="min-width:0"><button class="nm" data-h="${esc(x.id)}">${esc(titleCase(x.name))}</button>${lt.map(b => ` <span class="ltag">🍽 ${esc(b.kind)} ${esc(b.time)}</span>`).join("")}
-      <div class="mt">${esc(x.city || "")}${left ? " · " + left : ""}${x.addr ? ` · <a href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}>Directions</a>` : ""}</div></div>
-    <div class="act">${d ? (logged ? `<span class="donepill">Logged</span><button class="undo" data-u="${esc(d.id)}" aria-label="Undo">↶</button>` : `<button class="call" data-c="${esc(d.id)}">+ Call</button>`) : ""}</div></div>`;
+  const info = stopInfo(x);
+  return `<div class="stop${logged ? " done" : ""}${isNext ? " next" : ""}"><div class="sn">${logged ? "✓" : i + 1}</div>
+    <div style="min-width:0">${isNext ? `<span class="nextpill">Next</span> ` : ""}<button class="nm" data-h="${esc(x.id)}">${esc(titleCase(x.name))}</button>${lt.map(b => ` <span class="ltag">🍽 ${esc(b.kind)} ${esc(b.time)}</span>`).join("")}
+      <div class="mt">${esc(x.city || "")}${left ? " · " + left : ""}${x.addr && !isNext ? ` · <a href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}>Directions</a>` : ""}</div>
+      ${info && !logged ? `<div class="mt info">${telLinks(info)}</div>` : ""}</div>
+    <div class="act">${d ? (logged ? `<span class="donepill">Logged</span><button class="undo" data-u="${esc(d.id)}" aria-label="Undo">↶</button>` : `${isNext && x.addr ? `<a class="btn small dirbtn" href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}>➜ Directions</a>` : ""}<button class="call" data-c="${esc(d.id)}">+ Call</button><button class="smore" data-smore="${esc(x.id)}" aria-label="More for ${esc(titleCase(x.name))}">⋯</button>`) : ""}</div></div>`;
+}
+// the "…" on a stop: the change happens in Plan my week, which then comes straight back here
+function openStopMore(id){
+  const x = stopsToday().find(y => y.id === id); if (!x) return; const nm = titleCase(x.name);
+  const go = act => { try { localStorage.setItem("pending.routerOpen", JSON.stringify({act, id, iso: todayISO()})); } catch(e){} location.href = "route/"; };
+  openSheet(`<h2>${esc(nm)}</h2><p>${esc(x.addr || x.city || "")}</p>
+    <div class="cands">
+      <button class="cand smenu" id="smSkip"><b>Didn't see them</b><span class="small">Comes off today and stays on your list for another day.</span></button>
+      <button class="cand smenu" id="smSub"><b>Swap in someone nearby</b><span class="small">Someone close by who's in this ${x.slot === "am" ? "morning" : "afternoon"}.</span></button>
+      <button class="cand smenu" id="smMove"><b>Move to another day</b><span class="small">This week, on a day they're in.</span></button>
+      <button class="cand smenu" id="smBook"><b>🍽 Book lunch or coffee</b><span class="small">With them, and anyone else at this office.</span></button>
+    </div>
+    <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
+  $("closeS").onclick = closeSheet;
+  $("smSkip").onclick = () => go("skip"); $("smSub").onclick = () => go("sub"); $("smMove").onclick = () => go("move");
+  $("smBook").onclick = () => openBook(id, closeSheet);
 }
 function renderHome(){
   const has = state.doctors.length > 0;
@@ -1076,8 +1126,9 @@ function renderHome(){
   } else {
     const nDone = st.filter(x => { const d = find(x.id); return d && allDates(d).includes(t); }).length;
     $("todaySub").textContent = `${nDone} of ${st.length} logged · from Plan my week`;
-    const am = st.filter(x => x.slot === "am"), pm = st.filter(x => x.slot !== "am");
-    $("todayList").innerHTML = (am.length && pm.length ? `<div class="slot">Morning</div>` : "") + am.map(stopRow).join("") + (am.length && pm.length ? `<div class="slot">Afternoon</div>` : "") + pm.map((x, i) => stopRow(x, i + am.length)).join("");
+    const am = st.filter(x => x.slot === "am"), pm = st.filter(x => x.slot !== "am"), ord = am.concat(pm);
+    const nx = ord.find(x => { const d = find(x.id); return d && !allDates(d).includes(t); }), isN = x => nx && x.id === nx.id;
+    $("todayList").innerHTML = (am.length && pm.length ? `<div class="slot">Morning</div>` : "") + am.map((x, i) => stopRow(x, i, isN(x))).join("") + (am.length && pm.length ? `<div class="slot">Afternoon</div>` : "") + pm.map((x, i) => stopRow(x, i + am.length, isN(x))).join("");
   }
   const q = norm(ui.hq || "");
   if (!q){ $("hResults").innerHTML = ""; return; }
@@ -1166,6 +1217,7 @@ function toast(msg, act){ const t=$("toast"); t.textContent=msg; if (act){ const
 const find = id => state.doctors.find(d => d.id === id);
 
 function onRowClick(e){
+  const sm = e.target.closest("[data-smore]"); if (sm){ openStopMore(sm.dataset.smore); return; }
   const c = e.target.closest("[data-c]"), u = e.target.closest("[data-u]"), h = e.target.closest("[data-h]");
   if (c){ const d = find(c.dataset.c);
     // a call already logged for this doctor on this day: ask before adding a second one
@@ -2232,7 +2284,7 @@ function stopsToday(){
     const am = day.stops.filter(s => s.slot === "am"), pm = day.stops.filter(s => s.slot !== "am");
     return am.concat(pm).map(s => { const doc = find(s.id); const o = (offs[s.id] || []).find(x => x.k === s.addrKey) || (offs[s.id] || [])[0];
       const addr = o && o.a && !/not set yet/.test(o.a) ? o.a : "";
-      return {id: s.id, slot: s.slot, name: doc ? doc.name : s.id, city: addr ? addr.split(", ").pop() : titleCase((doc && doc.city) || ""), addr, done: !!s.done || !!(doc && doc.log.includes(t))}; });
+      return {id: s.id, slot: s.slot, k: (o && o.k) || s.addrKey || "", note: (o && o.n) || "", name: doc ? doc.name : s.id, city: addr ? addr.split(", ").pop() : titleCase((doc && doc.city) || ""), addr, done: !!s.done || !!(doc && doc.log.includes(t))}; });
   } catch(e){ return []; }
 }
 function mapsTile(){ const nx = stopsToday().find(x => !x.done); $("mapNext").textContent = nx ? "Next: " + titleCase(nx.name.split(" ").pop()) : ""; }
@@ -2254,7 +2306,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v57";
+const APP_SHELL = "calltracker-shell-v59";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ask iPadOS to keep this app's data even when the iPad is low on space
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
@@ -2273,6 +2325,7 @@ if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.co
 if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}), 4000); }); }
 
 if (location.hash === "#newq"){ view = "home"; try { history.replaceState(null, "", "#home"); } catch(e){} setTimeout(() => openNewQuarter(), 50); }
+try { const hm = sessionStorage.getItem("home.msg"); if (hm){ sessionStorage.removeItem("home.msg"); setTimeout(() => toast(hm), 300); } } catch(e){}
 try { const rm = sessionStorage.getItem("restored.msg"); if (rm){ sessionStorage.removeItem("restored.msg"); setTimeout(() => toast(rm), 300); } } catch(e){}
 render();
 geoLoad(applyGeo);
