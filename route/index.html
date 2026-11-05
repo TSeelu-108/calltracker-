@@ -534,8 +534,26 @@ function invAll(){ try { const v = JSON.parse(localStorage.getItem(INV_KEY)) || 
 function invSave(v){ try { localStorage.setItem(INV_KEY, JSON.stringify(v)); } catch(e){} }
 function bRouter(){ try { return JSON.parse(localStorage.getItem("weekrouter.v1")) || {}; } catch(e){ return {}; } }
 function bTracker(){ try { const o = JSON.parse(localStorage.getItem("callplan.tracker.v1")) || {}; if (!o.doctors && o.HCPs) o.doctors = o.HCPs; return o; } catch(e){ return {}; } }
-function bOffices(id){ try { return (JSON.parse(localStorage.getItem("doctor.offices.v1")) || {})[id] || []; } catch(e){ return []; } }
-function bAllOffices(){ try { return JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){ return {}; } }
+function bOffices(id){ return bAllOffices()[id] || []; }
+// the same office key Plan my week uses ("5860 owens|pleasanton"), so HCPs at one address line up
+function bCityKey(s){ return String(s||"").toLowerCase().replace(/[^a-z ]+/g," ").replace(/\s+/g," ").trim(); }
+function bAddrKey(addr, city){
+  let a = String(addr||"").toLowerCase().split(",")[0];
+  a = a.replace(/\b(ste|suite|unit|bldg|building|fl|floor|rm|room)\b.*$/,"").replace(/#.*$/,"").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
+  const t = a.split(" "); let key = a;
+  if (/^\d+$/.test(t[0]||"")){ let i = 1; while (i < t.length && /^(n|s|e|w|north|south|east|west)$/.test(t[i])) i++; key = t[0] + " " + (t[i]||""); }
+  return key + "|" + bCityKey(city);
+}
+// offices as Plan my week last worked them out, plus any HCP whose office was set in the app since (like one you just added)
+function bAllOffices(){
+  let o = {}; try { o = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+  const info = bRouter().docInfo || {};
+  for (const id in info){ const locs = (info[id] && info[id].locs) || []; if (!locs.length) continue;
+    const have = (o[id] || []).filter(x => !/^doc\|/.test(x.k));
+    const add = locs.filter(l => l.address || l.city).map(l => ({k: bAddrKey(l.address || l.city, l.city), a: [l.address, l.city].filter(Boolean).join(", ")}));
+    o[id] = have.concat(add.filter(x => !have.some(h => h.k === x.k))); }
+  return o;
+}
 function bookingsAll(){ let l = []; try { l = JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){}
   if (l.some(b => !b.id)){ l.forEach(b => { if (!b.id) b.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }); try { localStorage.setItem(BOOK_KEY, JSON.stringify(l)); } catch(e){} }
   return l; }
@@ -978,7 +996,7 @@ function derive(){
     // staff saved before the address was known follow the doctor to the real office
     if (D.src[d.id] !== "city" && offs.length){ const old = staffFor("doc|" + d.id); if (old.length){ staffSet(offs[0].addrKey, staffFor(offs[0].addrKey).concat(old)); staffSet("doc|" + d.id, []); } }
     const seen = new Set();
-    docOff[d.id] = offs.filter(o => !seen.has(o.addrKey) && seen.add(o.addrKey)).map(o => ({k:o.addrKey, a: o.address ? o.address + (o.city ? ", " + o.city : "") : (o.city ? o.city + " (address not set yet)" : "Address not set yet")}));
+    docOff[d.id] = offs.filter(o => !seen.has(o.addrKey) && seen.add(o.addrKey)).map(o => ({k:o.addrKey, a: o.address ? o.address + (o.city ? ", " + o.city : "") : (o.city ? o.city + " (address not set yet)" : "Address not set yet"), n: String(o.notes || "").replace(/\s+/g, " ").trim().slice(0, 160)}));
   }
   try { const js = JSON.stringify(docOff); if (localStorage.getItem(DOCOFF_KEY) !== js) localStorage.setItem(DOCOFF_KEY, js); } catch(e){}
   D.names = L.buildNameIndex(D.docs, D.offices, D.match);
@@ -1650,14 +1668,15 @@ $("routeArea").addEventListener("click", e => {
 });
 function openSubstitute(iso, i){
   const W = currentPlan(); const cur = W.plan.days[iso].stops[i];
-  const all = L.substitutes(C, W.plan, iso, i, 40);
+  const gone = new Set((W.plan.days[iso].removed || []).filter(r => r.skipped).map(r => r.id));   // didn't see them today: not offered back
+  const all = L.substitutes(C, W.plan, iso, i, 40).filter(c => !gone.has(c.id));
   const sameL = all.filter(c => c.sameOffice);
   const rest = all.filter(c => !c.sameOffice);
   const nearL = sameL.concat(rest.filter(c => L.miles(c.near) <= 25).slice(0, 10)), farL = rest.filter(c => L.miles(c.near) > 25).slice(0, nearL.length >= 4 ? 4 : 8);
   const list = nearL.concat(farL);
   const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
   const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div><div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
-  openSheet(`<h2>Substitute for ${esc(docName(cur.id))}</h2>
+  openSheet(`<h2>Swap in someone for ${esc(docName(cur.id))}</h2>
     <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, isn't at an office you're visiting this week, and isn't being seen by ${esc(cpList(" or "))} that day. Most behind and closest first.</p>
     ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
     ${sameL.length ? `<p style="margin-top:14px"><b>Also at this office today</b></p><div class="cands">${sameL.map((c,j) => card(c,j)).join("")}</div>` : ""}
@@ -1666,7 +1685,9 @@ function openSubstitute(iso, i){
     <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
-    const c = list[+b.dataset.pick]; L.applySubstitute(C, W.plan, iso, i, c); save(); closeSheet(); render();
+    const c = list[+b.dataset.pick]; L.applySubstitute(C, W.plan, iso, i, c); save();
+    if (homeAfter){ backHome(`Swapped in ${docName(c.id)} for ${docName(cur.id)}.`); return; }
+    closeSheet(); render();
     toast(`Swapped in ${docName(c.id)}. Tap Undo to bring back ${docName(cur.id)}.`);
   });
 }
@@ -2253,7 +2274,7 @@ function openStopMenu(iso, i){
   openSheet(`<h2>${esc(docName(s.id))}</h2>
     ${o ? `<p>${esc(addr)}</p>` : ""}
     <div class="cands">
-      ${!s.done ? `<button class="btn" id="mSkip" style="flex-direction:column;gap:2px">Skip<span class="sub" style="display:block;font-weight:500">Didn't see them. They stay on your list for another day.</span></button><button class="btn" id="mSub" style="flex-direction:column;gap:2px">Substitute<span class="sub" style="display:block;font-weight:500">Swap in someone nearby who's in that ${s.slot === "am" ? "morning" : "afternoon"}.</span></button>` : ""}
+      ${!s.done ? `<button class="btn" id="mSkip" style="flex-direction:column;gap:2px">Didn't see them<span class="sub" style="display:block;font-weight:500">Comes off today and stays on your list for another day.</span></button><button class="btn" id="mSub" style="flex-direction:column;gap:2px">Swap in someone nearby<span class="sub" style="display:block;font-weight:500">Swap in someone nearby who's in that ${s.slot === "am" ? "morning" : "afternoon"}.</span></button>` : ""}
       ${s.anchor ? `<button class="btn" id="mUnpin">Unpin from ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : !s.fixed && !s.done ? `<button class="btn" id="mPin">📌 Anchor to ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})}</button>` : ""}
       ${!s.done && !s.fixed ? `<button class="btn" id="mMove">Move to another day</button>` : ""}
       ${!s.done && (!s.fixed || s.anchor) ? `<button class="btn" id="mSlot">Move to the ${s.slot === "am" ? "afternoon" : "morning"}</button>` : ""}
@@ -2267,7 +2288,7 @@ function openStopMenu(iso, i){
     </div>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
-  if ($("mSkip")) $("mSkip").onclick = () => { closeSheet(); const r = L.removeStop(C, currentPlan().plan, iso, i, true); save(); render(); toast(`Skipped ${docName(r.id)}. They stay on your list for another day.`); };
+  if ($("mSkip")) $("mSkip").onclick = () => { closeSheet(); const r = L.removeStop(C, currentPlan().plan, iso, i, true); save(); render(); toast(`${docName(r.id)} is off today and stays on your list for another day.`); };
   if ($("mSub")) $("mSub").onclick = () => openSubstitute(iso, i);
   $("mStaff").onclick = () => openStaff(s.addrKey, s.id, () => openStopMenu(iso, i));
   $("mInfo").onclick = () => openDocInfo(s.id, () => openStopMenu(iso, i));
@@ -2300,7 +2321,7 @@ function openMove(iso, i){
     <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-mv]").forEach(b => b.onclick = () => {
-    const x = ok.find(y => y.iso === b.dataset.mv); L.moveStop(C, W.plan, iso, i, x.iso, x.opt); save(); closeSheet(); render();
+    const x = ok.find(y => y.iso === b.dataset.mv); L.moveStop(C, W.plan, iso, i, x.iso, x.opt); save(); if (homeAfter){ backHome(`Moved ${docName(s.id)} to ${L.fromISO(x.iso).toLocaleDateString(undefined,{weekday:"long"})}.`); return; } closeSheet(); render();
     toast(`Moved ${docName(s.id)} to ${L.fromISO(x.iso).toLocaleDateString(undefined,{weekday:"long"})}`);
   });
 }
@@ -2779,7 +2800,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v80";
+const APP_SHELL = "weekrouter-shell-v82";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
@@ -2801,9 +2822,19 @@ geoLoad(L.loadGeo).then(() => { geoReady = true; render(); afterStart(); });
 function afterStart(){
 placePendingLunch();
 // opened from a doctor in the Call Tracker: Office and days, or anchor them to a day this week
+// a change asked for from the Call Tracker's Home: done here, then straight back there
+window.homeAfter = false;
+window.backHome = function(msg){ try { if (msg) sessionStorage.setItem("home.msg", msg); } catch(e){} location.href = "../#home"; };
 const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getItem("pending.routerOpen")); localStorage.removeItem("pending.routerOpen"); } catch(e){}
   if (!p || !p.id) return false; derive();
   if (p.act === "info") openDocInfo(p.id, () => { closeSheet(); setTimeout(() => { location.href = "../"; }, 250); });
+  else if (p.act === "skip" || p.act === "sub" || p.act === "move"){
+    render(); const W = currentPlan(), day = W && W.plan.days[p.iso], i = day ? day.stops.findIndex(x => x.id === p.id && !x.done) : -1;
+    if (i < 0){ backHome("That stop isn't in today's plan anymore."); return true; }
+    if (p.act === "skip"){ const r = L.removeStop(C, W.plan, p.iso, i, true); save(); backHome(`${docName(r.id)} is off today and stays on your list for another day.`); return true; }
+    homeAfter = true; if (p.act === "sub") openSubstitute(p.iso, i); else openMove(p.iso, i);
+    const x = $("closeS"); if (x) x.onclick = () => backHome("");
+  }
   else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That HCP isn't in your list here yet"); return true; } openAnchorAdd(closeSheet, p.id); }
   return true;
 })();
