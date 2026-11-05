@@ -358,6 +358,19 @@ header.top{border-bottom:0;padding-bottom:6px}
 .smore{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-width:40px;min-height:46px;font-size:18px;color:var(--muted)}
 .dirbtn{white-space:nowrap}
 .cand.smenu{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%;cursor:pointer}
+/* phone: keep scrolled content out from under the clock, and fit the tab labels */
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+.tl-short{display:none}
+@media (max-width:520px){.tl-long{display:none}.tl-short{display:inline}}
+/* phone: a stop's buttons go on their own row under the name, so nothing gets squeezed */
+@media (max-width:600px){
+  .stop.next{grid-template-columns:30px minmax(0,1fr);row-gap:10px}
+  .stop.next .act{grid-column:2;justify-content:flex-start}
+  .stop.next .act .call{flex:1;max-width:170px}
+  .stop .call{padding:0 12px}
+  .stop .sn{width:28px;height:28px;font-size:13px}
+  .stop{padding:12px}
+}
 </style>
 </head>
 <body>
@@ -439,7 +452,7 @@ header.top{border-bottom:0;padding-bottom:6px}
 <nav class="tabbar" aria-label="Main">
   <button class="tab" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
   <button class="tab" data-tab="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>HCPs</span></button>
-  <a class="tab" href="route/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span>Plan my week</span></a>
+  <a class="tab" href="route/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span class="tl-long">Plan my week</span><span class="tl-short">Plan</span></a>
   <button class="tab" data-tab="lunch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M9 13v8M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg><span>Lunches</span></button>
   <button class="tab" data-tab="more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg><span>More</span></button>
 </nav>
@@ -1084,7 +1097,7 @@ function stopInfo(x){
   return x.note || "";
 }
 function stopRow(x, i, isNext){
-  const d = find(x.id); const left = d ? (d.added || !d.a ? "" : rem(d) ? rem(d) + " left" : "done for the quarter") : "";
+  const d = find(x.id); const left = d ? (d.added || !d.a ? "" : rem(d) ? rem(d) + " left" : "all calls done") : "";
   const logged = d && allDates(d).includes(logDay);
   const lt = bUpcoming().filter(b => b.date === todayISO() && (b.docs || []).includes(x.id));
   const info = stopInfo(x);
@@ -1127,7 +1140,7 @@ function renderHome(){
     const nDone = st.filter(x => { const d = find(x.id); return d && allDates(d).includes(t); }).length;
     $("todaySub").textContent = `${nDone} of ${st.length} logged · from Plan my week`;
     const am = st.filter(x => x.slot === "am"), pm = st.filter(x => x.slot !== "am"), ord = am.concat(pm);
-    const nx = ord.find(x => { const d = find(x.id); return d && !allDates(d).includes(t); }), isN = x => nx && x.id === nx.id;
+    const isN = () => false;   // every stop looks the same
     $("todayList").innerHTML = (am.length && pm.length ? `<div class="slot">Morning</div>` : "") + am.map((x, i) => stopRow(x, i, isN(x))).join("") + (am.length && pm.length ? `<div class="slot">Afternoon</div>` : "") + pm.map((x, i) => stopRow(x, i + am.length, isN(x))).join("");
   }
   const q = norm(ui.hq || "");
@@ -2306,7 +2319,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v59";
+const APP_SHELL = "calltracker-shell-v62";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ask iPadOS to keep this app's data even when the iPad is low on space
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
