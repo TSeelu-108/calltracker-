@@ -1039,8 +1039,20 @@ const docName = id => { const d = D.docs.find(x => x.id === id); return d ? titl
 function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone]); }
 
 /* ---------- render ---------- */
+// a call logged in the Call Tracker (+ Call) marks that day's stop done here too, and taking the call back there undoes it
+function syncTrackerDone(){
+  const W = currentPlan(); if (!W) return; let ch = false; const t = todayISO();
+  for (const iso in W.plan.days){ if (iso > t) continue;
+    for (const s of W.plan.days[iso].stops){
+      const has = trackerHasCall(s.id, iso);
+      if (!s.done && has && !s.noSync){ s.done = iso; s.logged = true; s.auto = true; ch = true; }
+      else if (s.done && s.auto && !has){ s.done = null; s.logged = false; s.auto = false; ch = true; }
+    } }
+  if (ch) save();
+}
 function render(){
   derive();
+  syncTrackerDone();
   const end = D.days[4];
   $("weekLbl").textContent = fmtShort(D.days[0]) + " – " + (L.fromISO(end).getMonth() === L.fromISO(D.days[0]).getMonth() ? L.fromISO(end).getDate() : fmtShort(end));
   // inputs
@@ -1601,8 +1613,8 @@ $("routeArea").addEventListener("click", e => {
     return;
   }
   if ((x = at("data-undone"))){
-    const un = x.s.logged ? logToTracker(x.s.id, x.s.done, true) : false;
-    x.s.done = null; x.s.logged = false; save(); render();
+    const day = x.s.done, un = x.s.logged ? logToTracker(x.s.id, day, true) : false;
+    x.s.done = null; x.s.logged = false; x.s.auto = false; x.s.noSync = trackerHasCall(x.s.id, day); save(); render();
     toast(un ? "Removed that call from your Call Tracker" : "Marked not done"); return;
   }
   // Skip: you didn't see them today (out, or no time). No one is swapped in; they stay on your list for another day.
@@ -2767,7 +2779,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v79";
+const APP_SHELL = "weekrouter-shell-v80";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
