@@ -287,6 +287,10 @@ button.cand{background:var(--surface);color:var(--ink);font:inherit}
 .ldt{flex:1;min-width:0;display:flex;flex-direction:column}
 .ldok{flex:none;color:var(--grn-ink);font-size:13px;font-weight:650}
 .ldone.open{background:var(--bg)}
+/* phone: keep scrolled content out from under the clock, and fit the tab labels */
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+.tl-short{display:none}
+@media (max-width:520px){.tl-long{display:none}.tl-short{display:inline}}
 </style>
 </head>
 <body>
@@ -360,7 +364,7 @@ button.cand{background:var(--surface);color:var(--ink);font:inherit}
 <nav class="tabbar" aria-label="Main">
   <a class="tab" href="../#home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Home</span></a>
   <a class="tab" href="../#docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.7 2.7 2.3 3 4.7"/></svg><span>HCPs</span></a>
-  <a class="tab" href="./" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span>Plan my week</span></a>
+  <a class="tab" href="./" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8.2 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.8"/></svg><span class="tl-long">Plan my week</span><span class="tl-short">Plan</span></a>
   <a class="tab" href="../#lunch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M9 13v8M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/></svg><span>Lunches</span></a>
   <a class="tab" href="../#more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg><span>More</span></a>
 </nav>
@@ -2800,7 +2804,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v82";
+const APP_SHELL = "weekrouter-shell-v83";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
