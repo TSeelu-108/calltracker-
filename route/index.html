@@ -290,9 +290,20 @@ button.cand{background:var(--surface);color:var(--ink);font:inherit}
 /* phone: keep scrolled content out from under the clock, and fit the tab labels */
 body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
 .tl-short{display:none}
+@media (max-width:520px){.tiles{grid-template-columns:1fr 1fr}.tiles .tile.primary{grid-column:1/-1}.tiles .tile{min-height:56px;padding:10px 12px;gap:10px}.tiles .tile .ic{width:30px;height:30px;flex:none}.tiles .tile .ttx{min-width:0}}
 @media (max-width:520px){.tl-long{display:none}.tl-short{display:inline}}
 .lfold{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;font:inherit;text-align:left;cursor:pointer}
 .lfoldtx{font-weight:600;font-size:14px;opacity:.8}
+/* booked lunches: date + status on one line, the lunch under it; nothing squeezed on a phone */
+.ldhead{display:grid !important;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"d s" "t t";row-gap:4px;column-gap:10px;align-items:center}
+.ldhead .ldd{grid-area:d;width:auto;font-size:14px;color:var(--muted)}
+.ldhead .ldok{grid-area:s;font-size:13px;white-space:nowrap}
+.ldhead .ldok.warn{color:var(--yel-ink);background:var(--yel-fill);border-radius:99px;padding:2px 8px}
+.ldhead .ldhow{display:block;margin-top:2px}
+.ldhead .ldt{grid-area:t}
+.ldhead .ldt b{font-size:16px}
+.lnote{margin:0 12px 6px;color:var(--ink)}
+.lwarn{border-color:var(--yel-edge);background:var(--yel-fill)}
 </style>
 </head>
 <body>
@@ -305,8 +316,8 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area
     </div>
     <nav class="tiles" aria-label="Plan">
       <button class="tile primary" id="buildBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span><span class="ttx"><span id="buildLbl">Build my week</span><small>Plans your days from your calls left</small></span></button>
-      <button class="tile t-green" id="whoBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.8 14.3A4.8 4.8 0 0 1 21 19"/></svg></span><span class="ttx">Who's in<small>HCPs who are in on a given day</small></span></button>
-      <button class="tile t-amber" id="blitzBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.3"/></svg></span><span class="ttx">Blitzes<small>A group of HCPs to see every week or two</small></span></button>
+      <button class="tile t-green" id="whoBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.8 14.3A4.8 4.8 0 0 1 21 19"/></svg></span><span class="ttx">Who's in<small><span class="tl-long">HCPs who are in on a given day</span><span class="tl-short">HCPs in on a day</span></small></span></button>
+      <button class="tile t-amber" id="blitzBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.3"/></svg></span><span class="ttx">Blitzes<small><span class="tl-long">A group of HCPs to see every week or two</span><span class="tl-short">HCPs to see often</span></small></span></button>
     </nav>
     <div class="summary" id="summary"></div>
   </header>
@@ -563,7 +574,7 @@ function bAllOffices(){
 function bookingsAll(){ let l = []; try { l = JSON.parse(localStorage.getItem(BOOK_KEY)) || []; } catch(e){}
   if (l.some(b => !b.id)){ l.forEach(b => { if (!b.id) b.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }); try { localStorage.setItem(BOOK_KEY, JSON.stringify(l)); } catch(e){} }
   return l; }
-function bookingsSet(id, patch){ const all = bookingsAll(), b = all.find(x => x.id === id); if (!b) return; if (patch) Object.assign(b, patch); else all.splice(all.indexOf(b), 1); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
+function bookingsSet(id, patch){ const all = bookingsAll(), b = all.find(x => x.id === id); if (!b) return; if (patch){ if ("sent" in patch) patch.sentAt = patch.sent ? new Date().toISOString().slice(0,10) : null; Object.assign(b, patch); } else all.splice(all.indexOf(b), 1); try { localStorage.setItem(BOOK_KEY, JSON.stringify(all)); } catch(e){} }
 const bUpcoming = () => { const t = bIso(new Date()); return bookingsAll().filter(b => b.date >= t).sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time)); };
 const bToSend = () => bUpcoming().filter(b => !b.sent);
 const bWhenTxt = b => new Date(b.date + "T12:00").toLocaleDateString(undefined,{weekday:"short", month:"short", day:"numeric"});
@@ -644,7 +655,7 @@ function openBook(docId, back, opt){
     const titleFor = r => `${r.kind} ${st.docs.map(bLast).join(" & ")}${me ? " - " + me.split(" ")[0] : ""}${st.town && townOf(offOf(r.k)) ? " (" + townOf(offOf(r.k)) + ")" : ""}`;
     const here = hereNow(); st.docs = st.docs.filter(id => here.includes(id));
     const kinds = [...new Set(st.rows.map(r => r.kind))];
-    openSheet(`${ed ? `<h2>Change this ${bEsc(kinds[0].toLowerCase())}</h2>${ed.sent ? `<p class="small" style="color:var(--yel-ink);font-weight:600">This one was already sent. Saving moves it back to “To send”: send the new one from Outlook, and cancel the old invite there.</p>` : ""}` : `<h2>Book ${kinds.length === 1 ? (/s$/i.test(kinds[0]) ? "" : "a ") + kinds[0].toLowerCase() : "lunches and coffees"}</h2>`}
+    openSheet(`${ed ? `<h2>Change this ${bEsc(kinds[0].toLowerCase())}</h2>${ed.sent ? `<p class="small" style="color:var(--yel-ink);font-weight:600">This one was already sent. Saving moves it back to “Not sent yet”: send the new one from Outlook, and cancel the old invite there.</p>` : ""}` : `<h2>Book ${kinds.length === 1 ? (/s$/i.test(kinds[0]) ? "" : "a ") + kinds[0].toLowerCase() : "lunches and coffees"}</h2>`}
       ${offs.length ? (offs.length > 1 ? `<p class="small">${offs.length} offices. Pick the one for each date below.</p>` : `<p>${bEsc(offs[0].a)}</p>`) : `<p>Office address not known yet. Open Plan my week once to set it.</p>`}
       <p style="margin-top:12px"><b style="color:var(--ink)">With</b> <span class="small">· tick everyone the ${bEsc((st.rows[0].kind || "lunch").toLowerCase())} is for</span></p><div class="chips">${here.map(id => `<label class="chip" style="padding-right:10px"><input type="checkbox" data-bd="${bEsc(id)}" ${st.docs.includes(id) ? "checked" : ""}> ${bEsc(bTitle(bDocName(id)))}</label>`).join("")}</div>
       <div style="position:relative;margin-top:8px"><input type="search" id="bAddHcp" placeholder="+ Add another HCP" autocomplete="off" style="width:100%;max-width:360px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:42px"><div id="bAddSug" class="cands" style="max-width:360px"></div></div>
@@ -813,33 +824,44 @@ function lunchesPanel(root, o){
         <div style="min-width:0"><b style="color:var(--ink)">${bEsc(b.title || b.kind)}</b><br><span class="small">${bEsc(bWhenTxt(b))} · ${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}</span>
           ${pplOf(b).length ? `<br><span class="small">Invite: ${bEsc(pplOf(b).map(p => p.name).join(", "))}</span>` : ""}</div>
         <div class="lact"><a class="btn small primary" data-lapp="${bEsc(b.id)}" href="${bEsc(bOutlookAppLink(rowOf(b), pplOf(b)))}">Open in Outlook app</a><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Outlook on the web</a><button class="btn small" data-lsent="${bEsc(b.id)}">Already sent</button><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`;
-    const done = b => lunchOpen.has(b.id) ? `<div class="ldone open"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}${pplOf(b).length ? " · Invite: " + bEsc(pplOf(b).map(p => p.name).join(", ")) : ""}</span></span><span class="ldok">${b.sent === "link" ? "Link emailed · tap it in Outlook, then ✓" : b.sent === "file" ? "On your calendar · in Outlook tap ✏️ then Done to send invites" : "✓ " + (b.sent === "app" ? "Opened in the Outlook app" : "Sent")}</span></button>
-        <div class="lact" style="padding:4px 12px 12px">${b.sent === "file" || b.sent === "link" ? `<button class="btn small primary" data-lconf="${bEsc(b.id)}">Invites sent ✓</button>` : ""}<button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open again</a><button class="btn small ghost" data-lunsent="${bEsc(b.id)}">Not sent</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`
-      : `<div class="ldone"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(String(b.loc).split(",").pop().trim()) : ""}</span></span><span class="ldok">${b.sent === "link" ? "Link emailed" : b.sent === "file" ? "On calendar ✏️" : "✓ Sent"}</span></button></div>`;
+    // one booked lunch: date and a short status on top, the lunch below; tap to open its buttons
+    // the app can't see Outlook, so it only says how each lunch was handed over. Only the calendar-file route gets a reminder,
+    // because Outlook's Add all puts lunches on the calendar without sending the invitations.
+    const pendingB = b => b.sent === "file";
+    const howB = b => ({app:"Opened in the Outlook app", outlook:"Opened in Outlook on the web", link:"Emailed to you as a link", file:"Added from a calendar file", manual:"Marked as sent"})[b.sent] || "";
+    const onB = b => b.sentAt ? " on " + bEsc(new Date(b.sentAt + "T12:00").toLocaleDateString(undefined, {month:"short", day:"numeric"})) : "";
+    const chip = b => pendingB(b) ? `<span class="ldok warn">Check Outlook</span>` : "";
+    const done = b => { const open = lunchOpen.has(b.id), p = pplOf(b);
+      return `<div class="ldone${open ? " open" : ""}"><button class="ldhead" data-ltog="${bEsc(b.id)}" aria-expanded="${open}">
+          <span class="ldd">${bEsc(bWhenTxt(b))} · ${bEsc(b.time)}</span>${chip(b)}
+          <span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(open ? (b.loc || "") : String(b.loc || "").split(",").pop().trim())}${open && p.length ? " · Invite: " + bEsc(p.map(x => x.name).join(", ")) : ""}</span><span class="small ldhow">${bEsc(howB(b))}${onB(b)}</span></span></button>
+        ${open ? `${pendingB(b) ? `<p class="small lnote">Outlook's Add all doesn't send invitations. If you haven't sent this one yet, open it in Outlook, tap the pencil, then ✓.</p>` : ""}
+          <div class="lact" style="padding:4px 12px 12px">${pendingB(b) ? `<button class="btn small primary" data-lconf="${bEsc(b.id)}">Mark sent</button>` : ""}<button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), p))}" target="_blank" rel="noopener">Open again</a><button class="btn small ghost" data-lunsent="${bEsc(b.id)}">Back to Not sent yet</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div>` : ""}</div>`; };
     root.innerHTML = `${o.inSheet ? `<h2>Lunches and coffees</h2>` : ""}
       ${o.note ? `<p class="okline" style="margin-top:4px">${bEsc(o.note)}</p>` : ""}
       <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn primary" data-lbook>+ Book a lunch or coffee</button></div>
-      <p class="sechd">To send${todo.length ? " (" + todo.length + ")" : ""}</p>
+      <p class="sechd">Not sent yet${todo.length ? " (" + todo.length + ")" : ""}</p>
       ${todo.length ? todo.map(full).join("") + `<p class="small" style="margin-top:10px"><b style="color:var(--ink)">Open in Outlook app</b> opens each one as a new event in the Outlook app with the time, place and invitees filled in. Tap ✓ there and the invitations go out. It needs the Outlook app on this device (your iPad). <b style="color:var(--ink)">Outlook on the web</b> does the same in Safari, if you're signed in there.</p>
         <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">No Outlook app on this device (your iPhone)?</b><br><span class="small">Email yourself one link per lunch. On your iPad, open the email in the Outlook app and tap each link: the lunch opens as a new event with everything filled in, and tapping ✓ sends the invitations. No searching your calendar. This sends HCP names through the email you pick.</span>
           <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small primary" data-lmail>Email me the ${todo.length} invite link${todo.length === 1 ? "" : "s"}</button></div></div>
-        <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">Or as one calendar file</b><br><span class="small">Send all ${todo.length} as one calendar file instead: pick Mail and send it to your work email. In Outlook, open the attachment and tap <b>Add all</b>. That puts them on your calendar with the invitees listed, but <b>doesn't send the invitations yet</b>: open each lunch in your Outlook calendar, tap the pencil ✏️, then <b>Done</b>, and Outlook sends them. This sends HCP names through the email you pick.</span>
+        <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">Or as one calendar file</b><br><span class="small">Send all ${todo.length} as one calendar file instead: pick Mail and send it to your work email. In Outlook, open the attachment and tap <b>Add all</b>. That puts them on your calendar with the invitees listed, but <b>doesn't send the invitations yet</b>: open each lunch in your Outlook calendar, tap the pencil, then ✓, and Outlook sends them. This sends HCP names through the email you pick.</span>
           <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small" data-lfile>Send all ${todo.length} as one file</button></div></div>`
-        : `<p class="small">Nothing to send. You're all caught up.</p>`}
-      ${(() => { if (!sent.length) return `<p class="sechd">Sent · coming up</p><p class="small">Sent lunches wait here until their day, then drop off by themselves.</p>`;
-        const pend = sent.filter(b => b.sent === "file" || b.sent === "link");
-        return `<button class="sechd lfold" data-lfold aria-expanded="${lunchSentOpen}"><span>Sent · coming up (${sent.length})</span><span class="lfoldtx">${lunchSentOpen ? "Hide" : "Show"}</span></button>
-          ${pend.length ? `<div class="offbox" style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="small" style="flex:1 1 220px">${pend.length} still need the ✏️ then ✓ step in Outlook (or the link tapped). Done that already?</span><button class="btn small primary" data-lconfall>Mark ${pend.length === 1 ? "it" : "all " + pend.length} as sent</button></div>` : ""}
-          ${lunchSentOpen ? `<div class="ldlist" style="margin-top:8px">${sent.map(done).join("")}</div><p class="small" style="margin-top:8px">Each one drops off by itself the day after it happens. Tap one to change it or remove it.</p>` : ""}`; })()}
+        : `<p class="small">Nothing waiting. Every lunch you've booked has gone to Outlook.</p>`}
+      ${(() => { if (!sent.length) return `<p class="sechd">Booked</p><p class="small">Lunches you've sent to Outlook show here until their day. Past ones clear away by themselves.</p>`;
+        const pend = sent.filter(pendingB);
+        return `<button class="sechd lfold" data-lfold aria-expanded="${lunchSentOpen}"><span>Booked (${sent.length})</span><span class="lfoldtx">${lunchSentOpen ? "Hide" : "Show"}</span></button>
+          ${pend.length ? `<div class="offbox lwarn" style="margin-top:8px"><span class="small" style="color:var(--ink)">Outlook's Add all doesn't send invitations. <b>${pend.length} ${pend.length === 1 ? "lunch" : "lunches"}</b> from a calendar file may still need sending: in Outlook, open each one, tap the pencil, then ✓.</span>
+            <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small" data-lconfall>Mark ${pend.length === 1 ? "it" : "all " + pend.length} sent</button></div></div>` : ""}
+          ${lunchSentOpen ? `<div class="ldlist" style="margin-top:8px">${sent.map(done).join("")}</div><p class="small" style="margin-top:8px">Tap a lunch to change or remove it. Past lunches clear away by themselves.</p>` : ""}`; })()}
       ${msg ? `<p class="small" style="color:var(--ink)">${bEsc(msg)}</p>` : ""}
-      <p class="small" style="margin-top:12px">Removing a booking takes it out of the app and Plan my week only. If it was already sent, cancel it in Outlook too.</p>
+      <p class="small" style="margin-top:12px">Removing a lunch here doesn't cancel it in Outlook. If it was sent, cancel it there too.</p>
       ${o.inSheet ? `<div class="foot"><button class="btn primary" data-ldone>Done</button></div>` : ""}`;
     const q = sel => root.querySelectorAll(sel);
     q("[data-ldone]").forEach(b => b.onclick = () => o.back ? o.back() : closeSheet());
     q("[data-lbook]").forEach(b => b.onclick = () => openBookStart(again()));
     q("[data-lfold]").forEach(b => b.onclick = () => { lunchSentOpen = !lunchSentOpen; draw(); });
     q("[data-lconf]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lconf, {sent:"manual"}); draw(); if (o.onChange) o.onChange(); });
-    q("[data-lconfall]").forEach(b => b.onclick = () => { bUpcoming().filter(x => x.sent === "file" || x.sent === "link").forEach(x => bookingsSet(x.id, {sent:"manual"})); draw(); if (o.onChange) o.onChange(); });
+    q("[data-lconfall]").forEach(b => b.onclick = () => { bUpcoming().filter(x => x.sent === "file").forEach(x => bookingsSet(x.id, {sent:"manual"})); draw(); if (o.onChange) o.onChange(); });
     q("[data-ltog]").forEach(b => b.onclick = () => { const id = b.dataset.ltog; lunchOpen.has(id) ? lunchOpen.delete(id) : lunchOpen.add(id); draw(); });
     q("[data-lapp]").forEach(a => a.addEventListener("click", () => { const id = a.dataset.lapp; setTimeout(() => { const bk = bookingsAll().find(x => x.id === id); if (bk && !bk.sent) bookingsSet(id, {sent:"app"}); draw(); if (o.onChange) o.onChange(); }, 600); }));
     q("[data-lopen]").forEach(a => a.addEventListener("click", () => { const id = a.dataset.lopen; setTimeout(() => { const bk = bookingsAll().find(x => x.id === id); if (bk && !bk.sent) bookingsSet(id, {sent:"outlook"}); draw(); if (o.onChange) o.onChange(); }, 300); }));
@@ -2848,7 +2870,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v90";
+const APP_SHELL = "weekrouter-shell-v93";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
