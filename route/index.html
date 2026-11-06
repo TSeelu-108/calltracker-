@@ -731,8 +731,9 @@ function bOutlookLink(r, ppl){
 function bOutlookAppLink(r, ppl){
   const [y,m,d] = r.date.split("-").map(Number), [hh,mm] = r.time.split(":").map(Number);
   const s = new Date(y, m-1, d, hh, mm), en = new Date(s.getTime() + (r.mins || 60) * 60000);
-  const loc = dt => bIso(dt) + "T" + String(dt.getHours()).padStart(2,"0") + ":" + String(dt.getMinutes()).padStart(2,"0") + ":00";
-  const q = [["title", r.title || r.kind || "Lunch"], ["start", loc(s)], ["end", loc(en)], ["location", r.loc || ""]];
+  // the Outlook app reads these times as UTC, so send UTC (12:00 in California goes as 20:00Z and shows as 12:00)
+  const utc = dt => dt.toISOString().replace(/\.\d+Z$/, "Z");
+  const q = [["title", r.title || r.kind || "Lunch"], ["start", utc(s)], ["end", utc(en)], ["location", r.loc || ""]];
   if (ppl.length) q.push(["attendees", ppl.map(p => p.email).join(",")]);
   // keep : , @ readable, the way the examples people have used write them
   const enc = v => encodeURIComponent(v).replace(/%3A/gi, ":").replace(/%40/gi, "@").replace(/%2C/gi, ",");
@@ -2825,7 +2826,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v85";
+const APP_SHELL = "weekrouter-shell-v86";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
