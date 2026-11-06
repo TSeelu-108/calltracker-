@@ -590,7 +590,7 @@ function openInvitees(back){
     <div id="ivList" style="margin-top:6px">${(v.people.length ? v.people : [{name:"", email:"", cp:true}]).map(row).join("")}</div>
     <button type="button" class="btn small ghost" id="ivAdd" style="margin-top:8px">+ Add an invitee</button>
     <p class="small" id="ivErr" style="color:var(--red-ink)"></p>
-    <div class="offbox" style="margin-top:16px"><b style="color:var(--ink)">Test: open a lunch in the Outlook app</b><br><span class="small">On a device with the Outlook app. This opens a made-up event, “Test lunch – delete me”, tomorrow at 12:00 with the invitees above, so you can see whether Outlook fills it in. Close it in Outlook without saving and nothing is sent. (To try a real send, put only your own personal email as an invitee first.)</span>
+    <div class="offbox" style="margin-top:16px"><b style="color:var(--ink)">Check the Outlook app link</b><br><span class="small">On a device with the Outlook app. This opens a made-up event, “Test lunch – delete me”, tomorrow at 12:00 with the invitees above, so you can see whether Outlook fills it in. Close it in Outlook without saving and nothing is sent. (To try a real send, put only your own personal email as an invitee first.)</span>
       <div class="foot" style="justify-content:flex-start;margin-top:8px"><button type="button" class="btn small" id="ivTest">Open test lunch in Outlook app</button></div></div>
     <div class="foot"><button class="btn" id="ivX">Cancel</button><button class="btn primary" id="ivOk">Save</button></div>`);
   const wire = el => { el.querySelector("[data-ivx]").onclick = () => el.remove(); const n = el.querySelector("[data-ivn]"); n.oninput = () => { const s = staffName(n.value); if (s !== n.value) n.value = s; }; };
@@ -726,6 +726,11 @@ function bOutlookLink(r, ppl){
   if (ppl.length) q.set("to", ppl.map(p => p.email).join(","));
   return "https://outlook.office.com/calendar/0/deeplink/compose?" + q.toString().replace(/\+/g, "%20");
 }
+// a web link to this app that hands one lunch to the Outlook app; the lunch rides after the # so it never reaches a server
+function bOutlookRelay(r, ppl){
+  const app = bOutlookAppLink(r, ppl), q = app.slice(app.indexOf("?") + 1);
+  return location.origin + location.pathname.replace(/route\/(index\.html)?$/, "").replace(/index\.html$/, "") + "#ol=" + q;
+}
 // a new event in the Outlook app, filled in (time, place, invitees); tapping ✓ there sends real invitations.
 // This link isn't officially documented by Microsoft, so it's offered as a test until we see it fill in on the iPad.
 function bOutlookAppLink(r, ppl){
@@ -805,16 +810,18 @@ function lunchesPanel(root, o){
     const full = b => `<div class="offbox lrow" style="margin-top:8px">
         <div style="min-width:0"><b style="color:var(--ink)">${bEsc(b.title || b.kind)}</b><br><span class="small">${bEsc(bWhenTxt(b))} · ${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}</span>
           ${pplOf(b).length ? `<br><span class="small">Invite: ${bEsc(pplOf(b).map(p => p.name).join(", "))}</span>` : ""}</div>
-        <div class="lact"><a class="btn small primary" data-lapp="${bEsc(b.id)}" href="${bEsc(bOutlookAppLink(rowOf(b), pplOf(b)))}">Outlook app (test)</a><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Outlook on the web</a><button class="btn small" data-lsent="${bEsc(b.id)}">Already sent</button><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`;
-    const done = b => lunchOpen.has(b.id) ? `<div class="ldone open"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}${pplOf(b).length ? " · Invite: " + bEsc(pplOf(b).map(p => p.name).join(", ")) : ""}</span></span><span class="ldok">${b.sent === "file" ? "On your calendar · in Outlook tap ✏️ then Done to send invites" : "✓ " + (b.sent === "manual" ? "Marked sent" : b.sent === "app" ? "Opened in the Outlook app" : "Sent")}</span></button>
+        <div class="lact"><a class="btn small primary" data-lapp="${bEsc(b.id)}" href="${bEsc(bOutlookAppLink(rowOf(b), pplOf(b)))}">Open in Outlook app</a><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Outlook on the web</a><button class="btn small" data-lsent="${bEsc(b.id)}">Already sent</button><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`;
+    const done = b => lunchOpen.has(b.id) ? `<div class="ldone open"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(b.loc) : ""}${pplOf(b).length ? " · Invite: " + bEsc(pplOf(b).map(p => p.name).join(", ")) : ""}</span></span><span class="ldok">${b.sent === "link" ? "Link emailed · tap it in Outlook, then ✓" : b.sent === "file" ? "On your calendar · in Outlook tap ✏️ then Done to send invites" : "✓ " + (b.sent === "manual" ? "Marked sent" : b.sent === "app" ? "Opened in the Outlook app" : "Sent")}</span></button>
         <div class="lact" style="padding:4px 12px 12px"><button class="btn small" data-ledit="${bEsc(b.id)}">Change</button><a class="btn small" data-lopen="${bEsc(b.id)}" href="${bEsc(bOutlookLink(rowOf(b), pplOf(b)))}" target="_blank" rel="noopener">Open again</a><button class="btn small ghost" data-lunsent="${bEsc(b.id)}">Not sent</button><button class="btn small ghost" data-ldel="${bEsc(b.id)}">Remove</button></div></div>`
-      : `<div class="ldone"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(String(b.loc).split(",").pop().trim()) : ""}</span></span><span class="ldok">${b.sent === "file" ? "On calendar ✏️" : "✓ Sent"}</span></button></div>`;
+      : `<div class="ldone"><button class="ldhead" data-ltog="${bEsc(b.id)}"><span class="ldd">${bEsc(bWhenTxt(b))}</span><span class="ldt"><b>${bEsc(b.title || b.kind)}</b><span class="small">${bEsc(b.time)}${b.loc ? " · " + bEsc(String(b.loc).split(",").pop().trim()) : ""}</span></span><span class="ldok">${b.sent === "link" ? "Link emailed" : b.sent === "file" ? "On calendar ✏️" : "✓ Sent"}</span></button></div>`;
     root.innerHTML = `${o.inSheet ? `<h2>Lunches and coffees</h2>` : ""}
       ${o.note ? `<p class="okline" style="margin-top:4px">${bEsc(o.note)}</p>` : ""}
       <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn primary" data-lbook>+ Book a lunch or coffee</button></div>
       <p class="sechd">To send${todo.length ? " (" + todo.length + ")" : ""}</p>
-      ${todo.length ? todo.map(full).join("") + `<p class="small" style="margin-top:10px"><b style="color:var(--ink)">Outlook app (test)</b> opens each one as a new event in the Outlook app with the time, place and invitees filled in: tap ✓ there and the invitations go out. It needs the Outlook app on this device. <b style="color:var(--ink)">Outlook on the web</b> does the same in Safari, if you're signed in there.</p>
-        <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">Not signed in to work Outlook on this device?</b><br><span class="small">Send all ${todo.length} as one calendar file instead: pick Mail and send it to your work email. In Outlook, open the attachment and tap <b>Add all</b>. That puts them on your calendar with the invitees listed, but <b>doesn't send the invitations yet</b>: open each lunch in your Outlook calendar, tap the pencil ✏️, then <b>Done</b>, and Outlook sends them. This sends HCP names through the email you pick.</span>
+      ${todo.length ? todo.map(full).join("") + `<p class="small" style="margin-top:10px"><b style="color:var(--ink)">Open in Outlook app</b> opens each one as a new event in the Outlook app with the time, place and invitees filled in. Tap ✓ there and the invitations go out. It needs the Outlook app on this device (your iPad). <b style="color:var(--ink)">Outlook on the web</b> does the same in Safari, if you're signed in there.</p>
+        <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">No Outlook app on this device (your iPhone)?</b><br><span class="small">Email yourself one link per lunch. On your iPad, open the email in the Outlook app and tap each link: the lunch opens as a new event with everything filled in, and tapping ✓ sends the invitations. No searching your calendar. This sends HCP names through the email you pick.</span>
+          <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small primary" data-lmail>Email me the ${todo.length} invite link${todo.length === 1 ? "" : "s"}</button></div></div>
+        <div class="offbox" style="margin-top:8px"><b style="color:var(--ink)">Or as one calendar file</b><br><span class="small">Send all ${todo.length} as one calendar file instead: pick Mail and send it to your work email. In Outlook, open the attachment and tap <b>Add all</b>. That puts them on your calendar with the invitees listed, but <b>doesn't send the invitations yet</b>: open each lunch in your Outlook calendar, tap the pencil ✏️, then <b>Done</b>, and Outlook sends them. This sends HCP names through the email you pick.</span>
           <div class="foot" style="justify-content:flex-start;margin-top:8px"><button class="btn small" data-lfile>Send all ${todo.length} as one file</button></div></div>`
         : `<p class="small">Nothing to send. You're all caught up.</p>`}
       <p class="sechd">Sent · coming up${sent.length ? " (" + sent.length + ")" : ""}</p>
@@ -832,6 +839,13 @@ function lunchesPanel(root, o){
     q("[data-lsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lsent, {sent:"manual"}); draw(); if (o.onChange) o.onChange(); });
     q("[data-lunsent]").forEach(b => b.onclick = () => { bookingsSet(b.dataset.lunsent, {sent:null}); lunchOpen.delete(b.dataset.lunsent); draw(); if (o.onChange) o.onChange(); });
     q("[data-ldel]").forEach(b => b.onclick = () => { if (!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Tap again to remove"; return; } bookingsSet(b.dataset.ldel, null); draw(); if (o.onChange) o.onChange(); });
+    q("[data-lmail]").forEach(btn => btn.onclick = () => {
+      const list = bToSend(); if (!list.length) return;
+      if (!nv.me){ draw("Add your work email first: Settings → Lunches and coffees → People I invite."); return; }
+      const body = "Tap each link on your iPad, then tap ✓ in Outlook to send the invitations.\n\n" + list.map(b => `${b.title || b.kind}\n${bWhenTxt(b)} · ${b.time}\n${bOutlookRelay(rowOf(b), pplOf(b))}`).join("\n\n");
+      location.href = "mailto:" + encodeURIComponent(nv.me) + "?subject=" + encodeURIComponent(`Lunches to send (${list.length})`) + "&body=" + encodeURIComponent(body);
+      setTimeout(() => { list.forEach(b => bookingsSet(b.id, {sent:"link"})); draw(`Emailed ${list.length} link${list.length === 1 ? "" : "s"} to ${nv.me}. On your iPad, tap each one in the Outlook app, then ✓.`); if (o.onChange) o.onChange(); }, 800);
+    });
     q("[data-lfile]").forEach(btn => btn.onclick = async () => {
       const list = bToSend(); if (!list.length) return;
       const ics = list.map(b => bookingICS([rowOf(b)], null, null, pplOf(b), nv.me, me, b.remind || "P1D")).map((t, i) => { const L = t.split("\r\n"); return i === 0 ? L.slice(0, -1) : L.slice(5, -1); }).flat().concat("END:VCALENDAR").join("\r\n");
@@ -2826,7 +2840,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v86";
+const APP_SHELL = "weekrouter-shell-v88";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 // a newer version was just downloaded in the background: offer it (the app opens instantly from the saved copy)
