@@ -8,7 +8,14 @@
 (function(){
   var h = location.hash;
   if (h.indexOf("#ol=") !== 0) return;
-  var url = "ms-outlook://events/new?" + h.slice(4);
+  // keep only the five known parts, and only clean email addresses, in case a mail filter added anything on the way
+  var keep = {title:1, start:1, end:1, location:1, attendees:1}, parts = [];
+  h.slice(4).split("&").forEach(function(kv){ var i = kv.indexOf("="), k = kv.slice(0, i), v = kv.slice(i + 1); if (!keep[k] || i < 0) return;
+    if (k === "attendees"){ var d = v; try { d = decodeURIComponent(v); } catch(e){}
+      var em = d.match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g) || [];
+      em = em.map(function(e){ return e.replace(/[._-]+$/, ""); }); if (!em.length) return; v = em.join(","); }
+    parts.push(k + "=" + v); keep[k] = 0; });
+  var url = "ms-outlook://events/new?" + parts.join("&");
   try { window.stop(); } catch(e){}   // stop loading the rest of the app
   document.documentElement.innerHTML = '<head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Open in Outlook</title></head>'
     + '<body style="margin:0;font-family:-apple-system,system-ui,sans-serif;background:#f3f5f7;color:#17202b;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:24px">'
@@ -859,7 +866,7 @@ function bOutlookLink(r, ppl){
 // a web link to this app that hands one lunch to the Outlook app; the lunch rides after the # so it never reaches a server
 function bOutlookRelay(r, ppl){
   const app = bOutlookAppLink(r, ppl), q = app.slice(app.indexOf("?") + 1);
-  return location.origin + location.pathname.replace(/route\/(index\.html)?$/, "").replace(/index\.html$/, "") + "#ol=" + q;
+  return location.origin + location.pathname.replace(/route\/(index\.html)?$/, "").replace(/index\.html$/, "") + "#ol=" + q + "&ok=1";   // a spare last part, so anything a mail filter adds can't stick to the last invitee's address
 }
 // a new event in the Outlook app, filled in (time, place, invitees); tapping ✓ there sends real invitations.
 // This link isn't officially documented by Microsoft, so it's offered as a test until we see it fill in on the iPad.
@@ -1377,7 +1384,9 @@ function confirmSecondCall(d){
 }
 /* ---------- sheets ---------- */
 let busy = false, importCtl = null;
-function openSheet(html){ const fresh = $("scrim").hidden; $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); sheetShowError(); }
+// a different screen (new heading) starts with nothing changed; redrawing the same screen keeps what you changed
+function openSheet(html){ const m = /<h2[^>]*>([\s\S]*?)<\/h2>/.exec(html), t = document.createElement("div"); t.innerHTML = m ? m[1] : "";
+  const was = $("sheet").querySelector("h2"), fresh = $("scrim").hidden || !was || was.textContent.trim() !== t.textContent.trim(); $("sheet").innerHTML = html; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); sheetShowError(); }
 /* a clear (×) button for every search box */
 function addClears(root){
   root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
@@ -1584,7 +1593,7 @@ function sheetX(fresh){
   const sh = document.getElementById("sheet"); if (!sh) return;
   if (fresh) sheetDirty = false;
   if (!sh.dataset.watch){ sh.dataset.watch = "1";
-    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty]")) sheetDirty = true; };
+    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty], input[type=search]")) sheetDirty = true; };
     sh.addEventListener("input", mark); sh.addEventListener("change", mark);
     sh.addEventListener("click", e => { const b = e.target.closest("button[aria-pressed]"); if (b && !b.closest("[data-nodirty]")) sheetDirty = true; }, true);
   }
@@ -2418,7 +2427,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v74";
+const APP_SHELL = "calltracker-shell-v76";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
