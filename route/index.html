@@ -758,7 +758,7 @@ function bOutlookLink(r, ppl){
 // a web link to this app that hands one lunch to the Outlook app; the lunch rides after the # so it never reaches a server
 function bOutlookRelay(r, ppl){
   const app = bOutlookAppLink(r, ppl), q = app.slice(app.indexOf("?") + 1);
-  return location.origin + location.pathname.replace(/route\/(index\.html)?$/, "").replace(/index\.html$/, "") + "#ol=" + q;
+  return location.origin + location.pathname.replace(/route\/(index\.html)?$/, "").replace(/index\.html$/, "") + "#ol=" + q + "&ok=1";   // a spare last part, so anything a mail filter adds can't stick to the last invitee's address
 }
 // a new event in the Outlook app, filled in (time, place, invitees); tapping ✓ there sends real invitations.
 // This link isn't officially documented by Microsoft, so it's offered as a test until we see it fill in on the iPad.
@@ -1008,7 +1008,7 @@ function sheetX(fresh){
   const sh = document.getElementById("sheet"); if (!sh) return;
   if (fresh) sheetDirty = false;
   if (!sh.dataset.watch){ sh.dataset.watch = "1";
-    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty]")) sheetDirty = true; };
+    const mark = e => { if (!e.target.closest(".cityahead, [data-nodirty], input[type=search]")) sheetDirty = true; };
     sh.addEventListener("input", mark); sh.addEventListener("change", mark);
     sh.addEventListener("click", e => { const b = e.target.closest("button[aria-pressed]"); if (b && !b.closest("[data-nodirty]")) sheetDirty = true; }, true);
   }
@@ -1225,7 +1225,7 @@ function render(){
 // doctors without a sure spreadsheet match or entered office/days
 /* ---------- anchors: doctors pinned to a day of this week, planned around and kept on rebuild ---------- */
 const anchorsNow = () => (S.anchors[weekMon] = S.anchors[weekMon] || []);
-function setAnchor(id, iso, slot, addrKey){ const l = anchorsNow().filter(a => a.id !== id); l.push({id, iso, slot: slot || "", addrKey: addrKey || ""}); S.anchors[weekMon] = l; Object.keys(S.anchors).filter(k => k < L.addDays(L.mondayOf(todayISO()), -28)).forEach(k => delete S.anchors[k]); }
+function setAnchor(id, iso, slot, addrKey){ const wk = L.mondayOf(iso); const l = (S.anchors[wk] || []).filter(a => a.id !== id); l.push({id, iso, slot: slot || "", addrKey: addrKey || ""}); S.anchors[wk] = l; Object.keys(S.anchors).filter(k => k < L.addDays(L.mondayOf(todayISO()), -28)).forEach(k => delete S.anchors[k]); }
 function dropAnchor(id){ S.anchors[weekMon] = anchorsNow().filter(a => a.id !== id); }
 function anchorWarn(id, iso, slot){
   const dn = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}); const out = [];
@@ -1235,7 +1235,7 @@ function anchorWarn(id, iso, slot){
   if (awayNow(id, iso)) out.push(`Marked out of office on ${dn}`);
   const here = offs[0] && offs[0].coords;
   if (here){
-    const others = anchorsNow().filter(a => a.iso === iso && a.id !== id).map(a => a.id).concat(D.cal.filter(e => e.kind === "mine" && L.isoDay(e.start) === iso).flatMap(e => e.docs.filter(x => x.sure !== false).map(x => x.id)));
+    const others = (S.anchors[L.mondayOf(iso)] || []).filter(a => a.iso === iso && a.id !== id).map(a => a.id).concat(D.cal.filter(e => e.kind === "mine" && L.isoDay(e.start) === iso).flatMap(e => e.docs.filter(x => x.sure !== false).map(x => x.id)));
     for (const oid of others){ const o2 = (D.match.byDoc[oid] || []).map(i => D.offices[i]).find(o => o.coords); if (o2 && L.miles(L.km(here, o2.coords)) > 40){ out.push(`About ${Math.round(L.miles(L.km(here, o2.coords)))} miles from ${docName(oid)} (${o2.city}), who's also set for ${dn}`); break; } }
   }
   return out;
@@ -1251,12 +1251,24 @@ function openAnchors(back){
   $("sheet").querySelectorAll("[data-anrm]").forEach(b => b.onclick = () => { dropAnchor(b.dataset.anrm); save(); render(); openAnchors(back); });
 }
 function openAnchorAdd(back, presetId){
-  const days = D.days.filter(iso => iso >= todayISO()); let pick = {id: presetId || null, iso: days[0] || D.days[0], slot:""}, q = "";
+  // this week (from today), next week, or any later date: an HCP who's out today can be pinned to the day they're in next week
+  const t0 = todayISO(), m0 = L.mondayOf(t0), wk = m => [0,1,2,3,4].map(k => L.addDays(m, k));
+  const thisWk = wk(m0).filter(d => d >= t0), nextWk = wk(L.addDays(m0, 7));
+  const days = thisWk.concat(nextWk);
+  let pick = {id: presetId || null, iso: D.days.find(d => d >= t0 && days.includes(d)) || days[0], slot:""}, q = "";
+  const inOn = (id, iso) => (D.match.byDoc[id] || []).map(i => D.offices[i]).some(o => o && L.availableOn(Object.assign({}, o, {coords: o.coords || 1}), iso));
+  // start on the first day they're usually in
+  const firstIn = id => days.find(d => inOn(id, d));
+  if (pick.id && !inOn(pick.id, pick.iso) && firstIn(pick.id)) pick.iso = firstIn(pick.id);
+  const dayBtn = d => `<button data-and="${d}" aria-pressed="${d===pick.iso}" style="line-height:1.15">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}${pick.id && inOn(pick.id, d) ? `<br><span style="font-size:11px;color:var(--grn-ink)">● in</span>` : ""}</button>`;
   const draw = () => {
     const w = pick.id ? anchorWarn(pick.id, pick.iso, pick.slot) : [];
     const list = D.docs.slice().sort((a,b) => a.name.split(" ").pop().localeCompare(b.name.split(" ").pop()));
     openSheet(`<h2>Add an anchor</h2>
-      <div class="field">Day<div class="seg" role="group">${days.map(d => `<button data-and="${d}" aria-pressed="${d===pick.iso}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}</button>`).join("")}</div></div>
+      <div class="field">Day${pick.id ? `<span class="sub" style="font-weight:400"><span style="color:var(--grn-ink)">● in</span> = usually in that day</span>` : ""}
+        ${thisWk.length ? `<div class="sub" style="margin:4px 0 2px">This week</div><div class="seg" role="group">${thisWk.map(dayBtn).join("")}</div>` : ""}
+        <div class="sub" style="margin:8px 0 2px">Next week</div><div class="seg" role="group">${nextWk.map(dayBtn).join("")}</div>
+        <label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:8px">Later date <input type="date" id="anDate" data-nodirty min="${L.addDays(m0, 14)}" value="${days.includes(pick.iso) ? "" : pick.iso}" style="flex:1"></label></div>
       <div class="field">Time<div class="seg" role="group"><button data-ans="" aria-pressed="${!pick.slot}">Either</button><button data-ans="am" aria-pressed="${pick.slot==="am"}">Morning</button><button data-ans="pm" aria-pressed="${pick.slot==="pm"}">Afternoon</button></div></div>
       <div class="field">HCP${pick.id ? `: <b>${esc(docName(pick.id))}</b>` : ""}<input type="search" id="anQ" placeholder="Search an HCP or city" value="${esc(q)}"></div>
       <div class="cands" id="anList" style="max-height:260px;overflow:auto">${list.map(d => `<button class="cand" style="text-align:left;${d.id===pick.id ? "border-color:var(--accent);background:var(--accent-soft)" : ""}" data-anp="${esc(d.id)}" data-ann="${esc((d.name + " " + d.city).toLowerCase())}"><div><div class="n">${esc(title(d.name))}</div><div class="sub">${esc(title(d.city))}</div></div></button>`).join("")}</div>
@@ -1265,10 +1277,12 @@ function openAnchorAdd(back, presetId){
     const filt = () => { q = $("anQ").value.trim().toLowerCase(); $("anList").querySelectorAll("[data-ann]").forEach(el => el.hidden = !!q && !el.dataset.ann.includes(q)); };
     $("anQ").oninput = filt; filt();
     $("sheet").querySelectorAll("[data-and]").forEach(b => b.onclick = () => { pick.iso = b.dataset.and; draw(); });
+    $("anDate").onchange = () => { const v = $("anDate").value; if (!v) return; const dw = L.fromISO(v).getDay(); if (dw === 0 || dw === 6){ toast("Pick a weekday"); return; } pick.iso = v; draw(); };
     $("sheet").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => { pick.slot = b.dataset.ans; draw(); });
-    $("sheet").querySelectorAll("[data-anp]").forEach(b => b.onclick = () => { pick.id = b.dataset.anp; q = ""; draw(); });
+    $("sheet").querySelectorAll("[data-anp]").forEach(b => b.onclick = () => { pick.id = b.dataset.anp; q = ""; if (!inOn(pick.id, pick.iso) && firstIn(pick.id)) pick.iso = firstIn(pick.id); draw(); });
     $("anX").onclick = back;
-    $("anOk").onclick = () => { setAnchor(pick.id, pick.iso, pick.slot); save(); render(); toast(`Anchored ${docName(pick.id)} to ${L.fromISO(pick.iso).toLocaleDateString(undefined,{weekday:"long"})}. ${currentPlan() ? "Rebuild to plan around it." : ""}`); back(); };
+    $("anOk").onclick = () => { setAnchor(pick.id, pick.iso, pick.slot); save(); render(); const thisOne = L.mondayOf(pick.iso) === weekMon;
+      toast(`Anchored ${docName(pick.id)} to ${L.fromISO(pick.iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"})}. ${thisOne ? (currentPlan() ? "Rebuild to plan around it." : "") : "That week's plan will be built around it."}`); back(); };
   };
   draw();
 }
@@ -1537,7 +1551,9 @@ const digits = s => String(s).replace(/\D/g,"");
 function linkPhones(text){ return esc(text).replace(PHONE, m => `<a href="tel:${digits(m)}">${m}</a>`); }
 /* ---------- actions ---------- */
 let toastT; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2800); }
-function openSheet(h){ const fresh = $("scrim").hidden; $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); sheetShowError(); }
+// a different screen (new heading) starts with nothing changed; redrawing the same screen keeps what you changed
+function openSheet(h){ const m = /<h2[^>]*>([\s\S]*?)<\/h2>/.exec(h), t = document.createElement("div"); t.innerHTML = m ? m[1] : "";
+  const was = $("sheet").querySelector("h2"), fresh = $("scrim").hidden || !was || was.textContent.trim() !== t.textContent.trim(); $("sheet").innerHTML = h; $("scrim").hidden = false; $("sheet").scrollTop = 0; addClears($("sheet")); sheetX(fresh); sheetShowError(); }
 /* a clear (×) button for every search box */
 function addClears(root){
   root.querySelectorAll('input[type=search]:not([data-x]), input[data-clear]:not([data-x])').forEach(inp => {
@@ -2887,7 +2903,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v95";
+const APP_SHELL = "weekrouter-shell-v97";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
