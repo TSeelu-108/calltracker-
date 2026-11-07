@@ -1281,12 +1281,30 @@ function openAnchorAdd(back, presetId){
     $("sheet").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => { pick.slot = b.dataset.ans; draw(); });
     $("sheet").querySelectorAll("[data-anp]").forEach(b => b.onclick = () => { pick.id = b.dataset.anp; q = ""; if (!inOn(pick.id, pick.iso) && firstIn(pick.id)) pick.iso = firstIn(pick.id); draw(); });
     $("anX").onclick = back;
-    $("anOk").onclick = () => { setAnchor(pick.id, pick.iso, pick.slot); save(); render(); const thisOne = L.mondayOf(pick.iso) === weekMon;
-      toast(`Anchored ${docName(pick.id)} to ${L.fromISO(pick.iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"})}. ${thisOne ? (currentPlan() ? "Rebuild to plan around it." : "") : "That week's plan will be built around it."}`); back(); };
+    $("anOk").onclick = () => { setAnchor(pick.id, pick.iso, pick.slot); const thisOne = L.mondayOf(pick.iso) === weekMon, W = currentPlan();
+      const placed = thisOne && W && W.plan.days[pick.iso] ? placeAnchorNow(W, pick) : false; save(); render();
+      const day = L.fromISO(pick.iso).toLocaleDateString(undefined,{weekday:"long", month:"short", day:"numeric"});
+      const noOff = !(D.match.byDoc[pick.id] || []).length;
+      const msg = noOff ? `${docName(pick.id)} is pinned to ${day}, but there's no office address for them yet, so they can't go on the plan. Add it under Offices and days.` : placed ? `Added ${docName(pick.id)} to ${pick.iso === todayISO() ? "today's plan" : day}.` : `Anchored ${docName(pick.id)} to ${day}. ${thisOne ? (W ? "Rebuild to plan around it." : "") : "That week's plan will be built around it."}`;
+      if (homeAfter){ backHome(msg); return; }
+      toast(msg); back(); };
   };
   draw();
 }
 
+// put an anchored HCP straight into a week that's already planned (no rebuild needed); if they were planned another day that week, they move
+function placeAnchorNow(W, a){
+  const plan = W.plan, day = plan.days[a.iso]; if (!day) return false;
+  C = L.buildContext(contextInput());
+  if (day.stops.some(s => s.id === a.id)){ const s = day.stops.find(s => s.id === a.id); s.fixed = true; s.anchor = true; W.stamp = stamp(); return true; }
+  const i = (C.match.byDoc[a.id] || []).find(j => !a.addrKey || C.offices[j].addrKey === a.addrKey) ?? (C.match.byDoc[a.id] || [])[0];
+  if (i == null) return false;
+  for (const iso in plan.days){ if (iso === a.iso) continue; const st = plan.days[iso].stops; const k = st.findIndex(s => s.id === a.id && !s.done); if (k >= 0){ st.splice(k, 1); L.finishDay(C, plan, iso); } }
+  const of = C.offices[i], av = L.availableOn(Object.assign({}, of, {coords: of.coords || 1}), a.iso);
+  const slot = a.slot || (av && !av.am && av.pm ? "pm" : "am");
+  day.stops.push({id:a.id, office:i, slot, am: slot === "am", pm: slot === "pm", coords:of.coords, addrKey:of.addrKey, fixed:true, anchor:true, history:[]});
+  L.finishDay(C, plan, a.iso); W.stamp = stamp(); return true;
+}
 /* ---------- out of office: date ranges per doctor; never planned on those days ---------- */
 (function tidyAway(){ const cut = L.addDays(todayISO(), -14); let ch = false; for (const id in S.away){ const l = S.away[id].filter(r => r.to >= cut); if (l.length !== S.away[id].length){ ch = true; if (l.length) S.away[id] = l; else delete S.away[id]; } } if (ch) save(); })();
 function awayNow(id, iso){ return (S.away[id] || []).find(r => iso >= r.from && iso <= r.to) || null; }
@@ -2903,7 +2921,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v97";
+const APP_SHELL = "weekrouter-shell-v98";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -2942,7 +2960,7 @@ const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getIt
     homeAfter = true; if (p.act === "sub") openSubstitute(p.iso, i); else openMove(p.iso, i);
     const x = $("closeS"); if (x) x.onclick = () => backHome("");
   }
-  else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That HCP isn't in your list here yet"); return true; } openAnchorAdd(closeSheet, p.id); }
+  else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That HCP isn't in your list here yet"); return true; } homeAfter = true; openAnchorAdd(() => { homeAfter = false; closeSheet(); }, p.id); }
   return true;
 })();
 if (/[?&]settings\b/.test(location.search)) { const m = location.search.match(/[?&]back=(\w+)/); settingsBack = m ? m[1] : null; history.replaceState(null, "", location.pathname); openSettings(); }
