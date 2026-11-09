@@ -1464,7 +1464,8 @@ function openHistory(id){
   $("hBook").onclick = () => openBook(d.id, () => openHistory(d.id));
   $("sheet").querySelectorAll("[data-hlunch]").forEach(b => b.onclick = () => openBook(d.id, () => openHistory(d.id), {edit: b.dataset.hlunch}));
   // these live in Plan my week: hand the doctor over on this iPad (never in the web address) and open it there
-  const toRouter = act => { try { localStorage.setItem("pending.routerOpen", JSON.stringify({act, id: d.id})); } catch(e){} location.href = "route/"; };
+  const view = (location.hash || "#home").slice(1).split("&")[0] || "home";
+  const toRouter = act => { try { localStorage.setItem("pending.routerOpen", JSON.stringify({act, id: d.id, back: view, reopen: d.id})); } catch(e){} location.href = "route/"; };
   if ($("hInfo")) $("hInfo").onclick = () => toRouter("info");
   $("hPin").onclick = () => toRouter("anchor");
   $("sheet").querySelectorAll("[data-awrm]").forEach(b => b.onclick = () => { const l = awayOf(d.id); l.splice(+b.dataset.awrm, 1); awaySet(d.id, l); render(); openHistory(d.id); });
@@ -2427,7 +2428,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v81";
+const APP_SHELL = "calltracker-shell-v84";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -2451,6 +2452,8 @@ if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventL
 
 if (location.hash === "#newq"){ view = "home"; try { history.replaceState(null, "", "#home"); } catch(e){} setTimeout(() => openNewQuarter(), 50); }
 try { const hm = sessionStorage.getItem("home.msg"); if (hm){ sessionStorage.removeItem("home.msg"); setTimeout(() => toast(hm), 300); } } catch(e){}
+// coming back from Plan my week to an HCP's card: open it again, where you were
+try { const ro = sessionStorage.getItem("tracker.reopen"); if (ro){ sessionStorage.removeItem("tracker.reopen"); if (state.doctors.some(x => x.id === ro)) openHistory(ro); } } catch(e){}
 try { const rm = sessionStorage.getItem("restored.msg"); if (rm){ sessionStorage.removeItem("restored.msg"); setTimeout(() => toast(rm), 300); } } catch(e){}
 render();
 geoLoad(applyGeo);
