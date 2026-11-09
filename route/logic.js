@@ -660,6 +660,11 @@ function buildContext(input){
   C.allDocs = input.docs; C.docs = input.docs.filter(d => !d.noAuto);
   C.blocked = new Set(input.counterpartVisits.map(v => v.date + "|" + v.id));
   C.cpSet = new Set(C.blocked);
+  // HCPs your pod already has twice this week (both pod members, say): yours would be the third visit, so never.
+  // One pod visit is fine: two of you in a week is normal
+  C.podWeek = {}; C.pod3 = new Set();
+  input.counterpartVisits.forEach(v => { (C.podWeek[v.id] = C.podWeek[v.id] || new Set()).add(v.date + "|" + v.who); });
+  for (const id in C.podWeek) if (C.podWeek[id].size >= 2) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])){ C.pod3.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
   for (const iso in (input.skip || {})) input.skip[iso].forEach(s => C.blocked.add(iso + "|" + s.id));
   // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
   C.away = new Set();
@@ -738,6 +743,7 @@ function whyShort(C, plan, iso, radiusKm){
     else if (C.seen[d.id]) { r.code = "seen"; r.iso = C.seen[d.id]; }
     else if (C.away.has(k)) r.code = "away";
     else if (C.streak.has(k)) r.code = "streak";
+    else if (C.pod3.has(k)) r.code = "pod3";
     else if (C.blocked.has(k)) r.code = C.cpSet && C.cpSet.has(k) ? "pod" : "skip";
     else if (!auto.has(d.id)) r.code = d.remaining > 0 ? "notTurn" : "quota";
     else if (!inOffs.length) r.code = "notIn";
@@ -754,7 +760,7 @@ function whyShort(C, plan, iso, radiusKm){
     }
     out.push(r);
   }
-  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
+  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, pod3:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
   return out.sort((a,b) => order[a.code] - order[b.code] || a.km - b.km);
 }
 function feasibleDays(C, id){ return C.days.filter(d => !C.blocked.has(d + "|" + id) && optionsFor(C, id, d).length); }

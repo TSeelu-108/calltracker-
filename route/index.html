@@ -2464,12 +2464,13 @@ function openWhy(iso){
     ["notIn", `Not usually in on ${dn}`, ""],
     ["pod", `A pod member has them ${dn}`, ""],
     ["streak", "Pod members see them the days around it", "Planning them would make three visits in a row."],
+    ["pod3", "Your pod already has them twice this week", "Yours would be the third visit."],
     ["away", "Out of office", ""], ["skip", `You marked "Didn't see them" ${dn}`, ""],
     ["seen", "Already called this week", ""], ["planned", "Already planned another day this week", ""],
     ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""]];
   const why = r => r.code === "planned" ? `planned ${wd(r.iso)}` : r.code === "seen" ? `called ${wd(r.iso)}` : r.code === "office" ? `same office as ${esc(docName(r.other))} (${wd(r.iso)})` : r.code === "pod" ? `${esc(pod(r.id))}` : r.code === "half" ? `only in the ${r.half}` : "";
   const row = r => { const o = D.offices[r.office]; const w = why(r); return `<div class="cand"><div><div class="n">${esc(docName(r.id))}</div><div class="sub">${esc(o ? o.city || "" : "")} · ${Math.max(1, Math.round(r.km / 1.609))} mi from ${dn}'s stops${w ? " · " + w : ""}</div></div></div>`; };
-  const main = ["fit","far","half","office","notIn","pod","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
+  const main = ["fit","far","half","office","notIn","pod","pod3","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
   const sec = g => { const l = list.filter(r => r.code === g[0]); return l.length ? `<p style="margin-top:14px"><b>${g[1]}</b> (${l.length})${g[2] ? `<br><span class="sub">${g[2]}</span>` : ""}</p><div class="cands">${l.map(row).join("")}</div>` : ""; };
   const restN = list.filter(r => rest.some(g => g[0] === r.code)).length;
   openSheet(`<h2>Why only ${day.stops.length} on ${dn}?</h2>
@@ -2952,7 +2953,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v100";
+const APP_SHELL = "weekrouter-shell-v102";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
