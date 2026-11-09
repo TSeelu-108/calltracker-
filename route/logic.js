@@ -659,6 +659,7 @@ function buildContext(input){
   // doctors with no calls left are still known (for calendar visits and adding by hand) but aren't planned on their own
   C.allDocs = input.docs; C.docs = input.docs.filter(d => !d.noAuto);
   C.blocked = new Set(input.counterpartVisits.map(v => v.date + "|" + v.id));
+  C.cpSet = new Set(C.blocked);
   for (const iso in (input.skip || {})) input.skip[iso].forEach(s => C.blocked.add(iso + "|" + s.id));
   // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
   C.away = new Set();
@@ -715,6 +716,46 @@ function optionsFor(C, id, iso){
     if (a) res.push({id, office:i, am:a.am, pm:a.pm, coords:o.coords, addrKey:o.addrKey});
   });
   return res;
+}
+// Why a day came up short: every HCP with an office near that day's stops, and the first rule that kept them off it
+function whyShort(C, plan, iso, radiusKm){
+  const day = plan.days[iso]; if (!day) return [];
+  const pts = day.stops.filter(s => s.coords).map(s => s.coords); if (!pts.length) return [];
+  const R = radiusKm || 32, near = c => c ? Math.min(...pts.map(p => km(p, c))) : Infinity;
+  const where = {}, addrAt = {};
+  for (const k in plan.days) plan.days[k].stops.forEach(s => { where[s.id] = where[s.id] || k; if (!s.manual && (C.addrRule !== "day" || k === iso) && !addrAt[s.addrKey]) addrAt[s.addrKey] = {iso:k, id:s.id}; });
+  const left = {am: C.caps[iso].am - day.stops.filter(s => s.slot === "am").length, pm: C.caps[iso].pm - day.stops.filter(s => s.slot !== "am").length};
+  const auto = new Set(C.docs.map(d => d.id)), out = [];
+  for (const d of C.allDocs){
+    if (day.stops.some(s => s.id === d.id)) continue;
+    const offs = (C.match.byDoc[d.id] || []).map(i => ({i, o: C.offices[i]})).filter(x => x.o && x.o.coords);
+    if (!offs.length) continue;
+    const best = offs.slice().sort((a,b) => near(a.o.coords) - near(b.o.coords))[0], dist = near(best.o.coords);
+    if (dist > R) continue;
+    const r = {id:d.id, km:dist, office:best.i};
+    const k = iso + "|" + d.id, inOffs = offs.filter(x => availableOn(x.o, iso));
+    if (where[d.id]) { r.code = "planned"; r.iso = where[d.id]; }
+    else if (C.seen[d.id]) { r.code = "seen"; r.iso = C.seen[d.id]; }
+    else if (C.away.has(k)) r.code = "away";
+    else if (C.streak.has(k)) r.code = "streak";
+    else if (C.blocked.has(k)) r.code = C.cpSet && C.cpSet.has(k) ? "pod" : "skip";
+    else if (!auto.has(d.id)) r.code = d.remaining > 0 ? "notTurn" : "quota";
+    else if (!inOffs.length) r.code = "notIn";
+    else if (C.allowed && !inOffs.some(x => C.allowed.has(x.i))) r.code = "zone";
+    else {
+      const free = inOffs.filter(x => !addrAt[x.o.addrKey]);
+      if (!free.length){ const t = addrAt[inOffs[0].o.addrKey]; r.code = "office"; r.iso = t.iso; r.other = t.id; }
+      else {
+        const f = free.sort((a,b) => near(a.o.coords) - near(b.o.coords))[0], av = availableOn(f.o, iso); r.km = near(f.o.coords); r.office = f.i;
+        if (r.km > 20) r.code = "far";
+        else if (!((av.am && left.am > 0) || (av.pm && left.pm > 0))) { r.code = "half"; r.half = av.am ? "morning" : "afternoon"; }
+        else r.code = "fit";
+      }
+    }
+    out.push(r);
+  }
+  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
+  return out.sort((a,b) => order[a.code] - order[b.code] || a.km - b.km);
 }
 function feasibleDays(C, id){ return C.days.filter(d => !C.blocked.has(d + "|" + id) && optionsFor(C, id, d).length); }
 
@@ -913,9 +954,63 @@ function planWeek(input){
     }
   }
   if (!input.noRescue) rescueStranded(C, plan);
+  for (const iso of C.days) topUp(C, plan, iso);
   for (const iso of C.days) finishDay(C, plan, iso);
   plan.unscheduled = explainUnscheduled(C, plan);
   return {plan, C};
+}
+/* A day that came up short is filled anyway, bending the softer rules one step at a time:
+   1 a second HCP from an office you're visiting another day this week, 2 early calls (goal met or seen recently, calls still left),
+   3 extras (all calls done). Never bent: a pod member has them that day or the days around it, out of office, already called or planned this week,
+   not in that day, two at the same office on the same day.
+   Drives: within about 12 miles of the day's stops first; farther (up to about 30) only when it's worth it: on the way between stops,
+   or a spot where at least 3 can be seen (or all the spots still open). */
+function topUp(C, plan, iso){
+  const day = plan.days[iso]; if (!day || !C.caps[iso]) return;
+  const capAM = C.caps[iso].am - day.stops.filter(s => s.slot === "am").length, capPM = C.caps[iso].pm - day.stops.filter(s => s.slot !== "am").length;
+  let need = Math.min(C.caps[iso].total - day.stops.length, Math.max(0, capAM) + Math.max(0, capPM)); if (need <= 0) return;
+  const pts = day.stops.filter(s => s.coords).map(s => s.coords); if (!pts.length) return;
+  const near = c => Math.min(...pts.map(p => km(p, c)));
+  const usedDoc = new Set(), otherAddr = {}, dayAddr = new Set(day.stops.map(s => s.addrKey));
+  for (const k in plan.days) plan.days[k].stops.forEach(s => { usedDoc.add(s.id); if (k !== iso && !s.manual && C.addrRule !== "day" && !otherAddr[s.addrKey]) otherAddr[s.addrKey] = {iso:k, id:s.id}; });
+  const auto = new Set(C.docs.map(d => d.id)), cand = [];
+  for (const d of C.allDocs){
+    const k = iso + "|" + d.id;
+    if (usedDoc.has(d.id) || C.blocked.has(k) || C.seen[d.id]) continue;
+    for (const o of optionsFor(C, d.id, iso)){
+      if (!o.coords || dayAddr.has(o.addrKey)) continue;
+      const shared = otherAddr[o.addrKey], early = !auto.has(d.id) && d.remaining > 0, extra = !auto.has(d.id) && !(d.remaining > 0);
+      const level = (extra ? 3 : early ? 2 : 0) + (shared ? 1 : 0) * (extra || early ? 0.5 : 1);
+      cand.push({...o, d, level, dist: near(o.coords), relax: [shared ? {office: shared.id, iso: shared.iso} : null, early ? "early" : extra ? "extra" : null].filter(Boolean)});
+    }
+  }
+  if (!cand.length){ day.short = need; return; }
+  let am = Math.max(0, capAM), pm = Math.max(0, capPM);
+  const taken = new Set(), addrT = new Set();
+  const take = (o, drive) => {
+    if (need <= 0 || taken.has(o.d.id) || addrT.has(o.addrKey)) return false;
+    let slot = null; if (o.am && o.pm) slot = am >= pm ? (am ? "am" : "pm") : "pm"; else if (o.am && am) slot = "am"; else if (o.pm && pm) slot = "pm";
+    if (!slot || (slot === "am" ? am : pm) <= 0) return false;
+    if (slot === "am") am--; else pm--; need--; taken.add(o.d.id); addrT.add(o.addrKey);
+    const relax = o.relax.slice(); if (drive) relax.push(drive);
+    day.stops.push({id:o.d.id, office:o.office, slot, am: slot === "am", pm: slot === "pm", coords:o.coords, addrKey:o.addrKey, relax, history:[]}); pts.push(o.coords); return true;
+  };
+  // close by first: the gentlest rule bent wins, then the shortest drive
+  cand.filter(o => o.dist <= 20).sort((a,b) => a.level - b.level || a.dist - b.dist).forEach(o => take(o));
+  if (need > 0){
+    // on the way: a small detour on the loop home -> stops -> home
+    const seq = [C.home].concat(day.stops.filter(s => s.coords).map(s => s.coords)).concat([C.home]).filter(Boolean);
+    const detour = c => { let b = Infinity; for (let i = 0; i + 1 < seq.length; i++) b = Math.min(b, km(seq[i], c) + km(c, seq[i+1]) - km(seq[i], seq[i+1])); return b; };
+    cand.filter(o => o.dist > 20 && o.dist <= 48 && seq.length > 1 && detour(o.coords) <= 8).sort((a,b) => a.level - b.level || detour(a.coords) - detour(b.coords)).forEach(o => take(o, "way"));
+  }
+  if (need > 0){
+    // worth the drive: a spot with several HCPs within a few miles of each other
+    const far = cand.filter(o => o.dist > 20 && o.dist <= 48 && !taken.has(o.d.id));
+    const spots = far.map(c => { const g = far.filter(o => km(o.coords, c.coords) <= 8); return {g, n: new Set(g.map(o => o.d.id)).size, lv: g.reduce((a,o) => a + o.level, 0) / g.length}; })
+      .filter(x => x.n >= Math.max(2, Math.min(3, need))).sort((a,b) => b.n - a.n || a.lv - b.lv);
+    for (const sp of spots){ if (need <= 0) break; sp.g.slice().sort((a,b) => a.level - b.level).forEach(o => take(o, "cluster")); }
+  }
+  day.short = need;
 }
 function rebuildDay(C, plan, iso){
   // keep calendar visits and calls already marked done; try the next-best area with different doctors
@@ -924,6 +1019,7 @@ function rebuildDay(C, plan, iso){
   day.stops = day.stops.filter(s => s.fixed || s.done || s.manual);
   day.variant = (day.variant || 0) + 1;
   fillDay(C, plan, iso, {variant: day.variant, avoid: before});
+  topUp(C, plan, iso);
   finishDay(C, plan, iso);
   plan.unscheduled = explainUnscheduled(C, plan);
   return day;
@@ -1155,7 +1251,10 @@ function checkPlan(C, plan){
   for (const iso in plan.days) plan.days[iso].stops.forEach(s => {
     if (s.manual) return;
     if (seenD.has(s.id)) probs.push("doctor twice: " + s.id); seenD.set(s.id, iso);
-    const ak = C.addrRule === "day" ? iso + "|" + s.addrKey : s.addrKey;
+    // a stop added on purpose from an office visited another day (see topUp) only has to be alone at that office on its own day
+    const bent = (s.relax || []).some(r => r && typeof r === "object"), dk = iso + "|" + s.addrKey;
+    if (bent && seenA.has(dk)) probs.push("address twice: " + s.addrKey);
+    const ak = C.addrRule === "day" || bent ? dk : s.addrKey;
     if (seenA.has(ak)) probs.push("address twice: " + s.addrKey); seenA.set(ak, iso);
     if (C.away.has(iso + "|" + s.id)) probs.push("out of office: " + s.id + " " + iso);
     else if (C.blocked.has(iso + "|" + s.id) && !(s.fixed && C.streak.has(iso + "|" + s.id))) probs.push((C.streak.has(iso + "|" + s.id) ? "three days in a row: " : "counterpart same day: ") + s.id + " " + iso);
@@ -1206,6 +1305,6 @@ function csvRows(text){
 const api = {parseSharedWeek, isPerson, ANYTIME, availText, splitCity, detectColumns, isoDay, fromISO, addDays, mondayOf, weekDays, CITIES, ZIPS, loadGeo, cityCoords, km, miles, parseAvailability, splitSheetName, addressKey,
   officesFromRows, normName, matchDoctors, buildNameIndex, findDoctorsInText, parseICS, expandEvents, classifyEvent, MEAL_RE: MEAL, parseTSV,
   scheduleFromWords, scoreDoctors, paceSummary, holidaysOf, availableOn, planWeek, rebuildDay, placeFixed, fillDay, addCandidates, addManual, removeStop, restoreStop, moveOptions, moveStop, officeInZone, zipOf, cityKey, buildContext, substitutes, applySubstitute, undoSubstitute, checkPlan, finishDay,
-  docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled};
+  docsFromTrackerFile, docsFromCSV, csvRows, explainUnscheduled, whyShort, topUp};
 if (typeof module !== "undefined") module.exports = api; else root.RouteLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);

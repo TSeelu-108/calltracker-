@@ -170,6 +170,7 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .sbtns{display:flex;flex-direction:column;gap:6px;align-items:stretch;flex-wrap:wrap}
 .empty{padding:24px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px;margin-top:16px}
 .short{padding:8px 14px;font-size:13px;color:var(--red-ink);background:var(--red-fill)}
+.short .linkbtn{background:none;border:0;padding:0;font:inherit;min-height:0;cursor:pointer}
 details.uns{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 details.uns summary{font-weight:600;cursor:pointer;min-height:32px}
 .ulist{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:4px;font-size:14px}
@@ -1495,7 +1496,7 @@ function renderRoute(){
             ${s.movedFrom ? `<span class="tag swap">Moved from ${L.fromISO(s.movedFrom).toLocaleDateString(undefined,{weekday:"long"})}</span>` : ""}
             ${o && o.avail && o.avail.appt ? `<span class="tag appt">Appointment only</span>` : ""}
             ${o && o.fallback ? `<span class="tag warn">Address and days not set</span>` : o && o.avail && o.avail.unknown ? `<span class="tag warn">Days not set</span>` : ""}
-            ${doc.added ? `<span class="tag">Added by you · not on call plan</span>` : doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left${doc.target && doc.target < doc.assigned ? ` · goal ${doc.target}` : ""}</span>` : ""}${!s.fixed && !s.anchor && !doc.blitzDue ? (doc.extra ? `<span class="tag">Extra · quota met</span>` : doc.early ? `<span class="tag">Early</span>` : "") : ""}
+            ${doc.added ? `<span class="tag">Added by you · not on call plan</span>` : doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left${doc.target && doc.target < doc.assigned ? ` · goal ${doc.target}` : ""}</span>` : ""}${!s.fixed && !s.anchor && !doc.blitzDue ? (doc.extra ? `<span class="tag">Extra · quota met</span>` : doc.early ? `<span class="tag">Early</span>` : "") : ""}${(s.relax || []).map(r => typeof r === "object" ? `<span class="tag">Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})</span>` : r === "way" ? `<span class="tag">On the way</span>` : r === "cluster" ? `<span class="tag">Longer drive · several here</span>` : "").join("")}
             ${!s.done && trackerHasCall(s.id, iso) ? `<span class="tag cal">✓ Call logged ${iso === todayISO() ? "today" : fmtShort(iso)}</span>` : `<span class="tag">${doc.lastCall ? "Last call " + fmtShort(doc.lastCall) : "No call logged yet"}</span>`}
             ${prev ? `<span class="tag swap">Swapped in for ${esc(docName(prev.id))}</span>` : ""}
           </div>
@@ -1517,7 +1518,7 @@ function renderRoute(){
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. HCPs were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
       ${mealAsks().filter(e => L.isoDay(e.start) === iso).map(e => { const nm = mealName(e); return `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(nm)} isn't on your list, so this day isn't planned around your ${e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} ${esc(((e.summary || "").match(/lunch|breakfast|coffee|snacks?|dinner/i) || ["lunch"])[0].toLowerCase())}.</span><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button></div>`; }).join("")}
-      ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other HCPs on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule.</div>` : ""}
+      ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other HCPs on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule. <button class="linkbtn" data-why="${iso}" style="color:inherit;font-weight:700;text-decoration:underline">Why?</button></div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
       ${pm.length ? `<div class="half"><div class="lbl">Afternoon</div>${pm.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
       ${(d.removed||[]).length ? `<div class="daynotes">${d.removed.map((r,k) => `<span>${r.skipped ? "Skipped" : "Removed"}: ${esc(docName(r.id))} · <button class="btn small ghost" data-putback="${iso}|${k}" style="min-height:32px;padding:2px 8px">Put back</button></span>`).join("")}</div>` : ""}
@@ -1778,6 +1779,7 @@ $("routeArea").addEventListener("click", e => {
     const iso = rd.dataset.reday; L.rebuildDay(C, W.plan, iso); save(); render();
     toast("Here's another option for " + L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}) + ". Tap again for more."); return;
   }
+  const wy = e.target.closest("[data-why]"); if (wy){ openWhy(wy.dataset.why); return; }
   const sb = e.target.closest("[data-sub]"), ub = e.target.closest("[data-undo]");
   if (sb){ const [iso, i] = sb.dataset.sub.split("|"); openSubstitute(iso, +i); }
   if (ub){
@@ -2448,6 +2450,35 @@ function openMove(iso, i){
 }
 
 /* ---------- add a doctor by hand ---------- */
+// "Why only 4?": everyone near that day's stops, grouped by the rule that kept them off it
+function openWhy(iso){
+  const W = currentPlan(); if (!W) return; C = L.buildContext(contextInput());
+  const day = W.plan.days[iso], dn = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}), wd = d => L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"});
+  const list = L.whyShort(C, W.plan, iso, 32), target = +S.settings.perDay || 6;
+  const pod = id => [...new Set(D.cp.filter(v => v.date === iso && v.id === id).map(v => v.who))].join(" and ") || "Your pod";
+  const G = [
+    ["fit", "Could fit", `In on ${dn} and close by. Tap <b>Add someone</b> below to add them.`],
+    ["far", `In on ${dn}, but a longer drive`, `13 to 20 miles from your other ${dn} stops, so the planner left them out.`],
+    ["half", "That half of the day is full", ""],
+    ["office", "Same office as someone you're already seeing", S.settings.addrRule === "day" ? "" : `Your setting is <b>one visit per office a week</b>. Switch it to <b>one per office a day</b> in Settings → Where you work to allow these.`],
+    ["notIn", `Not usually in on ${dn}`, ""],
+    ["pod", `A pod member has them ${dn}`, ""],
+    ["streak", "Pod members see them the days around it", "Planning them would make three visits in a row."],
+    ["away", "Out of office", ""], ["skip", `You marked "Didn't see them" ${dn}`, ""],
+    ["seen", "Already called this week", ""], ["planned", "Already planned another day this week", ""],
+    ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""]];
+  const why = r => r.code === "planned" ? `planned ${wd(r.iso)}` : r.code === "seen" ? `called ${wd(r.iso)}` : r.code === "office" ? `same office as ${esc(docName(r.other))} (${wd(r.iso)})` : r.code === "pod" ? `${esc(pod(r.id))}` : r.code === "half" ? `only in the ${r.half}` : "";
+  const row = r => { const o = D.offices[r.office]; const w = why(r); return `<div class="cand"><div><div class="n">${esc(docName(r.id))}</div><div class="sub">${esc(o ? o.city || "" : "")} · ${Math.max(1, Math.round(r.km / 1.609))} mi from ${dn}'s stops${w ? " · " + w : ""}</div></div></div>`; };
+  const main = ["fit","far","half","office","notIn","pod","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
+  const sec = g => { const l = list.filter(r => r.code === g[0]); return l.length ? `<p style="margin-top:14px"><b>${g[1]}</b> (${l.length})${g[2] ? `<br><span class="sub">${g[2]}</span>` : ""}</p><div class="cands">${l.map(row).join("")}</div>` : ""; };
+  const restN = list.filter(r => rest.some(g => g[0] === r.code)).length;
+  openSheet(`<h2>Why only ${day.stops.length} on ${dn}?</h2>
+    <p class="sub">Everyone on your list within about 20 miles of ${dn}'s stops, and what kept each one off the plan.</p>
+    ${list.length ? G.filter(g => main.includes(g[0])).map(sec).join("") : `<p><b>No one else on your list has an office within about 20 miles of these stops.</b></p>`}
+    ${restN ? `<details style="margin-top:14px"><summary><b>Already seen or not due</b> (${restN})</summary>${rest.map(sec).join("")}</details>` : ""}
+    <div class="foot"><button class="btn" id="whyAdd">Add someone</button><button class="btn primary" id="closeS">Done</button></div>`);
+  $("closeS").onclick = closeSheet; $("whyAdd").onclick = () => openAdd(iso);
+}
 function openAdd(iso){
   const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
@@ -2921,7 +2952,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v98";
+const APP_SHELL = "weekrouter-shell-v100";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
