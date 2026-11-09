@@ -2427,7 +2427,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v77";
+const APP_SHELL = "calltracker-shell-v79";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
