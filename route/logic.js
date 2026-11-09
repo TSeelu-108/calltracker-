@@ -30,7 +30,23 @@ function cityCoords(city, address, zip){
   const hay = " " + cityKey((address||"") + " " + (city||"")) + " ";
   let best = null;
   for (const name in CITIES) if (hay.includes(" "+name+" ") && (!best || name.length > best.length)) best = name;
-  return best ? CITIES[best] : null;
+  if (best) return CITIES[best];
+  // a slightly misspelled town ("Brentwod", "Walnut Crek"): the closest known town name, one or two letters off
+  if (k && k.length >= 4){
+    let near = null, nd = 3;
+    for (const name in CITIES){ if (Math.abs(name.length - k.length) > 2) continue; const d = editDist(k, name, nd); if (d < nd){ nd = d; near = name; } }
+    if (near && nd <= (k.length >= 7 ? 2 : 1)) return CITIES[near];
+  }
+  return null;
+}
+function editDist(a, b, cap){
+  let prev = Array.from({length: b.length + 1}, (_, j) => j);
+  for (let i = 1; i <= a.length; i++){
+    const cur = [i]; let low = i;
+    for (let j = 1; j <= b.length; j++){ cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); if (cur[j] < low) low = cur[j]; }
+    if (low >= cap) return cap; prev = cur;
+  }
+  return prev[b.length];
 }
 function km(a,b){
   if (!a || !b) return 0;
@@ -723,12 +739,14 @@ function optionsFor(C, id, iso){
   return res;
 }
 // Why a day came up short: every HCP with an office near that day's stops, and the first rule that kept them off it
-function whyShort(C, plan, iso, radiusKm){
-  const day = plan.days[iso]; if (!day) return [];
-  const pts = day.stops.filter(s => s.coords).map(s => s.coords); if (!pts.length) return [];
+function whyShort(C, plan, iso, radiusKm, skipId, skipSlot){
+  // skipId: a stop being swapped out, treated as gone (its office and its half of the day are free)
+  const day0 = plan.days[iso]; if (!day0) return [];
+  const day = {...day0, stops: day0.stops.filter(s => s.id !== skipId)}, all = {}; for (const k in plan.days) all[k] = k === iso ? day : plan.days[k];
+  const pts = day0.stops.filter(s => s.coords).map(s => s.coords); if (!pts.length) return [];
   const R = radiusKm || 32, near = c => c ? Math.min(...pts.map(p => km(p, c))) : Infinity;
   const where = {}, addrAt = {};
-  for (const k in plan.days) plan.days[k].stops.forEach(s => { where[s.id] = where[s.id] || k; if (!s.manual && (C.addrRule !== "day" || k === iso) && !addrAt[s.addrKey]) addrAt[s.addrKey] = {iso:k, id:s.id}; });
+  for (const k in all) all[k].stops.forEach(s => { where[s.id] = where[s.id] || k; if (!s.manual && (C.addrRule !== "day" || k === iso) && !addrAt[s.addrKey]) addrAt[s.addrKey] = {iso:k, id:s.id}; });
   const left = {am: C.caps[iso].am - day.stops.filter(s => s.slot === "am").length, pm: C.caps[iso].pm - day.stops.filter(s => s.slot !== "am").length};
   const auto = new Set(C.docs.map(d => d.id)), out = [];
   for (const d of C.allDocs){
@@ -748,6 +766,7 @@ function whyShort(C, plan, iso, radiusKm){
     else if (!auto.has(d.id)) r.code = d.remaining > 0 ? "notTurn" : "quota";
     else if (!inOffs.length) r.code = "notIn";
     else if (C.allowed && !inOffs.some(x => C.allowed.has(x.i))) r.code = "zone";
+    else if (skipSlot && !inOffs.some(x => { const a = availableOn(x.o, iso); return skipSlot === "am" ? a.am : a.pm; })) { r.code = "half"; r.half = skipSlot === "am" ? "afternoon" : "morning"; }
     else {
       const free = inOffs.filter(x => !addrAt[x.o.addrKey]);
       if (!free.length){ const t = addrAt[inOffs[0].o.addrKey]; r.code = "office"; r.iso = t.iso; r.other = t.id; }
@@ -1125,15 +1144,24 @@ function substitutes(C, plan, iso, idx, limit){
   const others = day.stops.filter((_,i) => i !== idx && day.stops[i].coords).map(s => s.coords);
   const here = cur.coords;
   const center = others.length ? [others.reduce((a,c)=>a+c[0],0)/others.length, others.reduce((a,c)=>a+c[1],0)/others.length] : (cur.coords || C.home);
+  // the stop being swapped out frees its office, so others at that office come first. HCPs not due yet (goal met or called recently)
+  // and extras are offered too, lower down and tagged, the same softer steps the day filler uses
+  const todayA = new Set(day.stops.filter((s,i) => i !== idx && !s.manual).map(s => s.addrKey)), auto = new Set(C.docs.map(d => d.id));
+  const otherDay = {}; for (const k in plan.days) if (k !== iso) plan.days[k].stops.forEach(s => { if (!s.manual && !otherDay[s.addrKey]) otherDay[s.addrKey] = {office: s.id, iso: k}; });
   const res = [];
-  for (const d of C.docs){
-    if (d.id === cur.id || usedD.has(d.id) || C.blocked.has(iso + "|" + d.id) || C.seen[d.id]) continue;
+  for (const d of (C.allDocs || C.docs)){
+    // your pod has them twice this week: still offered (your call), last, with a heads-up
+    const p3 = C.pod3 && C.pod3.has(iso + "|" + d.id) && !C.cpSet.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id);
+    if (d.id === cur.id || usedD.has(d.id) || (C.blocked.has(iso + "|" + d.id) && !p3) || C.seen[d.id]) continue;
+    const early = !auto.has(d.id) && d.remaining > 0, extra = !auto.has(d.id) && !(d.remaining > 0);
     for (const o of optionsFor(C, d.id, iso)){
-      if (usedA.has(o.addrKey)) continue;
+      if (todayA.has(o.addrKey) && o.addrKey !== cur.addrKey) continue;
+      const shared = usedA.has(o.addrKey) && o.addrKey !== cur.addrKey ? otherDay[o.addrKey] : null;
       if (!(cur.slot === "am" ? o.am : o.pm)) continue;
       const near = here ? km(here, o.coords) : (others.length ? Math.min(...others.map(c => km(c, o.coords))) : km(center, o.coords));
       const sameOffice = o.addrKey === cur.addrKey;
-      res.push({...o, slot:cur.slot, doc:d, near, sameOffice, rank: d.score - 0.03 * near + (sameOffice ? 2 : 0)});
+      const relax = [shared ? {office: shared.office, iso: shared.iso} : null, early ? "early" : extra ? "extra" : null, p3 ? "pod3" : null].filter(Boolean);
+      res.push({...o, slot:cur.slot, doc:d, near, sameOffice, relax, pod3: p3, rank: (d.score || 0) - 0.03 * near + (sameOffice ? 2 : 0) - (extra ? 6 : early ? 3 : 0) - (shared ? 2 : 0) - (p3 ? 50 : 0)});
     }
   }
   const best = {}; res.forEach(r => { if (!best[r.id] || r.rank > best[r.id].rank) best[r.id] = r; });
@@ -1154,11 +1182,13 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id), streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
+        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !(C.pod3 && C.pod3.has(iso + "|" + d.id)) && !(C.cpSet && !C.cpSet.has(iso + "|" + d.id)), pod3: !!(C.pod3 && C.pod3.has(iso + "|" + d.id)), streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
     if (best) out.push(best);
+    // no office the map can place: still listed, at the bottom, so it can be fixed instead of silently missing
+    else out.push({id:d.id, office:(C.match.byDoc[d.id] || [])[0] ?? null, noMap:true, inToday:false, near:Infinity, doc:d, am:false, pm:false});
   }
   return out.sort((a,b) => (b.sameOffice && b.inToday) - (a.sameOffice && a.inToday) || (b.inToday - a.inToday) || (a.near - b.near) || (b.doc.score - a.doc.score));
 }
@@ -1214,7 +1244,7 @@ function moveStop(C, plan, iso, idx, toIso, opt){
 }
 function applySubstitute(C, plan, iso, idx, opt){
   const day = plan.days[iso], cur = day.stops[idx];
-  const next = {id:opt.id, office:opt.office, slot:cur.slot, am:opt.am, pm:opt.pm, coords:opt.coords, addrKey:opt.addrKey, history: (cur.history || []).concat([{id:cur.id, office:cur.office, am:cur.am, pm:cur.pm, coords:cur.coords, addrKey:cur.addrKey, fixed:cur.fixed, manual:cur.manual, note:cur.note, time:cur.time}])};
+  const next = {id:opt.id, office:opt.office, slot:cur.slot, am:opt.am, pm:opt.pm, coords:opt.coords, addrKey:opt.addrKey, relax:(opt.relax || []).filter(r => typeof r === "object"), history: (cur.history || []).concat([{id:cur.id, office:cur.office, am:cur.am, pm:cur.pm, coords:cur.coords, addrKey:cur.addrKey, fixed:cur.fixed, manual:cur.manual, note:cur.note, time:cur.time}])};
   day.stops[idx] = next; finishDay(C, plan, iso);
   return next;
 }

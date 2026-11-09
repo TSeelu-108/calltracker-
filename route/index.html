@@ -305,9 +305,12 @@ body::before{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area
 .ldhead .ldt b{font-size:16px}
 .lnote{margin:0 12px 6px;color:var(--ink)}
 .lwarn{border-color:var(--yel-edge);background:var(--yel-fill)}
+body.handoff > :not(.scrim):not(.toast){visibility:hidden}
+body.handoff .scrim{background:var(--bg)}
 </style>
 </head>
 <body>
+<script>/* opened from Call Tracker for one screen: keep Plan my week hidden behind it */ try { if (localStorage.getItem("pending.routerOpen")) document.body.classList.add("handoff"); } catch(e){}</script>
 <div class="wrap">
   <header class="top">
     <div class="titlebar">
@@ -1086,6 +1089,7 @@ function derive(){
     const seen = new Set();
     docOff[d.id] = offs.filter(o => !seen.has(o.addrKey) && seen.add(o.addrKey)).map(o => ({k:o.addrKey, a: o.address ? o.address + (o.city ? ", " + o.city : "") : (o.city ? o.city + " (address not set yet)" : "Address not set yet"), n: String(o.notes || "").replace(/\s+/g, " ").trim().slice(0, 160)}));
   }
+  fillMissingCoords(D.offices);
   try { const js = JSON.stringify(docOff); if (localStorage.getItem(DOCOFF_KEY) !== js) localStorage.setItem(DOCOFF_KEY, js); } catch(e){}
   D.names = L.buildNameIndex(D.docs, D.offices, D.match);
   D.days = L.weekDays(weekMon);
@@ -1136,7 +1140,14 @@ function dayAvail(loc){
 function appOffice(d, loc){
   const avail = dayAvail(loc);
   return {rawName:"", last:"", first:"", app:true, docId:d.id, address:loc.address || "", city:loc.city || "", avail, availText:L.availText(avail), notes:"", org:"", zip: loc.zip || L.zipOf("", loc.address),
-    coords:L.cityCoords(loc.city, loc.address, loc.zip), addrKey:L.addressKey(loc.address || loc.city, loc.city)};
+    coords:L.cityCoords(loc.city, loc.address, loc.zip) || L.cityCoords(d.city), addrKey:L.addressKey(loc.address || loc.city, loc.city)};
+}
+// an office the map still can't place borrows the spot of another office at the same street address (another HCP there, say)
+function fillMissingCoords(offs){
+  const street = o => String(o.address || "").toLowerCase().replace(/[.,#]/g, " ").replace(/\b(ste|suite|unit|bldg|building|fl|floor)\b.*$/, "").replace(/\s+/g, " ").trim();
+  const known = {}; offs.forEach(o => { const k = street(o); if (k && o.coords && !known[k]) known[k] = o.coords; });
+  offs.forEach(o => { if (!o.coords){ const k = street(o); if (k && known[k]) o.coords = known[k]; } });
+  return offs;
 }
 // a stop keeps the office index from when it was planned; if offices changed since, find it again by address
 const addrOf = o => o ? [o.address, o.city].filter(Boolean).join(", ") : "";
@@ -1798,15 +1809,15 @@ function openSubstitute(iso, i){
   const nearL = sameL.concat(rest.filter(c => L.miles(c.near) <= 25).slice(0, 10)), farL = rest.filter(c => L.miles(c.near) > 25).slice(0, nearL.length >= 4 ? 4 : 8);
   const list = nearL.concat(farL);
   const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
-  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div><div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
+  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div>${(c.relax || []).length ? `<div class="sub" style="color:var(--yel-ink)">${c.relax.map(r => typeof r === "object" ? `Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})` : r === "early" ? "Early · goal met or called recently" : r === "pod3" ? esc(podWeekNote(c.id)) + ", yours would be the third visit" : "Extra · quota met").join(" · ")}</div>` : ""}<div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
   openSheet(`<h2>Swap in someone for ${esc(docName(cur.id))}</h2>
-    <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, isn't at an office you're visiting this week, and isn't being seen by ${esc(cpList(" or "))} that day. Most behind and closest first.</p>
+    <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, and isn't being seen by ${esc(cpList(" or "))} that day. Same office first, then most behind and closest. <button class="linkbtn" id="subWhy" style="background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;min-height:0">Why not others?</button></p>
     ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
     ${sameL.length ? `<p style="margin-top:14px"><b>Also at this office today</b></p><div class="cands">${sameL.map((c,j) => card(c,j)).join("")}</div>` : ""}
     ${nearL.length > sameL.length ? `<p style="margin-top:14px"><b>${sameL.length ? "Nearby" : "Best fits"}</b></p><div class="cands">${nearL.slice(sameL.length).map((c,j) => card(c, sameL.length + j)).join("")}</div>` : (!sameL.length && farL.length ? `<p><b>No one nearby fits.</b></p>` : "")}
     ${farL.length ? `<p style="margin-top:14px"><b>Farther away</b> · would pull you out of today's area</p><div class="cands">${farL.map((c,j) => card(c, nearL.length + j)).join("")}</div>` : ""}
     <div class="foot"><button class="btn" id="closeS">Cancel</button></div>`);
-  $("closeS").onclick = closeSheet;
+  $("closeS").onclick = closeSheet; $("subWhy").onclick = () => openWhy(iso, cur.id, () => openSubstitute(iso, i), new Set(all.map(c => c.id)), cur.slot);
   $("sheet").querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
     const c = list[+b.dataset.pick]; L.applySubstitute(C, W.plan, iso, i, c); save();
     if (homeAfter){ backHome(`Swapped in ${docName(c.id)} for ${docName(cur.id)}.`); return; }
@@ -2450,16 +2461,18 @@ function openMove(iso, i){
 }
 
 /* ---------- add a doctor by hand ---------- */
+// "Ann and Chase have them this week (Wed, Fri)"
+function podWeekNote(id){ const v = D.cp.filter(x => x.id === id); return [...new Set(v.map(x => x.who))].join(" and ") + " have them this week (" + [...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"short"})))].join(", ") + ")"; }
 // "Why only 4?": everyone near that day's stops, grouped by the rule that kept them off it
-function openWhy(iso){
+function openWhy(iso, swapId, back, offered, swapSlot){
   const W = currentPlan(); if (!W) return; C = L.buildContext(contextInput());
   const day = W.plan.days[iso], dn = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"}), wd = d => L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"});
-  const list = L.whyShort(C, W.plan, iso, 32), target = +S.settings.perDay || 6;
+  const list = L.whyShort(C, W.plan, iso, 32, swapId, swapSlot).filter(r => r.id !== swapId && !(offered && offered.has(r.id))), target = +S.settings.perDay || 6;
   const pod = id => [...new Set(D.cp.filter(v => v.date === iso && v.id === id).map(v => v.who))].join(" and ") || "Your pod";
   const G = [
     ["fit", "Could fit", `In on ${dn} and close by. Tap <b>Add someone</b> below to add them.`],
     ["far", `In on ${dn}, but a longer drive`, `13 to 20 miles from your other ${dn} stops, so the planner left them out.`],
-    ["half", "That half of the day is full", ""],
+    ["half", swapId ? "In that day, but not at that time" : "That half of the day is full", ""],
     ["office", "Same office as someone you're already seeing", S.settings.addrRule === "day" ? "" : `Your setting is <b>one visit per office a week</b>. Switch it to <b>one per office a day</b> in Settings → Where you work to allow these.`],
     ["notIn", `Not usually in on ${dn}`, ""],
     ["pod", `A pod member has them ${dn}`, ""],
@@ -2473,36 +2486,42 @@ function openWhy(iso){
   const main = ["fit","far","half","office","notIn","pod","pod3","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
   const sec = g => { const l = list.filter(r => r.code === g[0]); return l.length ? `<p style="margin-top:14px"><b>${g[1]}</b> (${l.length})${g[2] ? `<br><span class="sub">${g[2]}</span>` : ""}</p><div class="cands">${l.map(row).join("")}</div>` : ""; };
   const restN = list.filter(r => rest.some(g => g[0] === r.code)).length;
-  openSheet(`<h2>Why only ${day.stops.length} on ${dn}?</h2>
-    <p class="sub">Everyone on your list within about 20 miles of ${dn}'s stops, and what kept each one off the plan.</p>
+  openSheet(`<h2>${swapId ? `Who else is near ${esc(docName(swapId))}?` : `Why only ${day.stops.length} on ${dn}?`}</h2>
+    <p class="sub">${swapId ? `Everyone on your list within about 20 miles who isn't offered as a swap, and why.` : `Everyone on your list within about 20 miles of ${dn}'s stops, and what kept each one off the plan.`}</p>
     ${list.length ? G.filter(g => main.includes(g[0])).map(sec).join("") : `<p><b>No one else on your list has an office within about 20 miles of these stops.</b></p>`}
     ${restN ? `<details style="margin-top:14px"><summary><b>Already seen or not due</b> (${restN})</summary>${rest.map(sec).join("")}</details>` : ""}
-    <div class="foot"><button class="btn" id="whyAdd">Add someone</button><button class="btn primary" id="closeS">Done</button></div>`);
-  $("closeS").onclick = closeSheet; $("whyAdd").onclick = () => openAdd(iso);
+    <div class="foot">${swapId ? `<button class="btn primary" id="closeS">Back</button>` : `<button class="btn" id="whyAdd">Add someone</button><button class="btn primary" id="closeS">Done</button>`}</div>`);
+  $("closeS").onclick = back || closeSheet; if ($("whyAdd")) $("whyAdd").onclick = () => openAdd(iso);
 }
 function openAdd(iso){
   const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
-  const row = c => { const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? (D.cp.find(v => v.date === iso && v.id === c.id) || {}).who + " is seeing them today" : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
+  const podWk = id => { const v = D.cp.filter(x => x.id === id); return [...new Set(v.map(x => x.who))].join(" and ") + " have them this week (" + [...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"short"})))].join(", ") + ")"; };
+  const row = c => { if (c.noMap) return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
+      <div class="sub" style="color:var(--red-ink)">${c.office == null ? "No office saved yet." : "The app can't place their office on the map. Check the town or add a ZIP."}</div></div>
+      <div class="actions"><button class="btn small" data-addfix="${esc(c.id)}">Fix office</button></div></div>`;
+    const o = D.offices[c.office]; const m = L.miles(c.near);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWk(c.id) + ", yours would be the third visit" : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
       ${warn.length ? `<div class="sub" style="color:var(--red-ink)">${esc(warn.join(" · "))}</div>` : ""}</div>
       <div class="actions">${c.am || !c.inToday ? `<button class="btn small primary" data-addslot="${c.id}|am">Morning</button>` : ""}${c.pm || !c.inToday ? `<button class="btn small primary" data-addslot="${c.id}|pm">Afternoon</button>` : ""}</div></div>`; };
-  const same = all.filter(c => c.sameOffice && c.inToday), inDay = all.filter(c => !c.sameOffice && c.inToday).slice(0, 15), rest = all.filter(c => !c.inToday || (!c.sameOffice && !inDay.includes(c)));
+  const same = all.filter(c => c.sameOffice && c.inToday), inDay = all.filter(c => !c.sameOffice && c.inToday).slice(0, 15), rest = all.filter(c => !c.noMap && (!c.inToday || (!c.sameOffice && !inDay.includes(c)))), noMap = all.filter(c => c.noMap);
   openSheet(`<h2>Add an HCP on ${dayName}</h2>
     <p>Your own pick, so the usual limits don't apply. Anything unusual is noted in red.</p>
     <input type="search" id="addQ" placeholder="Search any HCP or city" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;min-height:44px;margin-top:8px">
     <div id="addList">
       ${same.length ? `<p style="margin-top:14px"><b>At offices you're visiting today</b></p><div class="cands">${same.map(row).join("")}</div>` : ""}
       ${inDay.length ? `<p style="margin-top:14px"><b>In today nearby</b></p><div class="cands">${inDay.map(row).join("")}</div>` : ""}
-      <div id="addRest" hidden><p style="margin-top:14px"><b>Everyone else</b></p><div class="cands">${rest.map(row).join("")}</div></div>
+      <div id="addRest" hidden><p style="margin-top:14px"><b>Everyone else</b></p><div class="cands">${rest.map(row).join("")}</div>
+        ${noMap.length ? `<p style="margin-top:14px"><b>Office not on the map yet</b> · these can't be planned until it's fixed</p><div class="cands">${noMap.map(row).join("")}</div>` : ""}</div>
     </div>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
   $("addQ").oninput = () => { const q = $("addQ").value.trim().toLowerCase(); $("addRest").hidden = !q;
     $("addList").querySelectorAll(".cand").forEach(el => el.hidden = !!q && !el.dataset.name.includes(q)); };
+  $("sheet").querySelectorAll("[data-addfix]").forEach(b => b.onclick = () => openDocInfo(b.dataset.addfix, () => { C = L.buildContext(contextInput()); openAdd(iso); }));
   $("sheet").querySelectorAll("[data-addslot]").forEach(b => b.onclick = () => {
     const [id, slot] = b.dataset.addslot.split("|"); addWithConfirm(iso, all.find(x => x.id === id), slot, () => openAdd(iso));
   });
@@ -2522,6 +2541,7 @@ function addWithConfirm(iso, c, slot, back){
   if (c.seen) reasons.push(`You already called on them ${L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"})}.`);
   if (c.away || awayNow(id, iso)) reasons.push(`<b>${esc(docName(id))} is marked out of office on ${dayName}.</b>`);
   if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
+  if (c.pod3){ const v = D.cp.filter(x => x.id === id); reasons.push(`${esc([...new Set(v.map(x => x.who))].join(" and "))} already have them this week (${esc([...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"long"})))].join(", "))}), so yours would be the third visit.`); }
   if (c.streak) reasons.push(`Pod members see them the days around ${dayName}, so this would make three of you on three days in a row.`);
   if (!reasons.length) return doAdd();
   const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
@@ -2590,7 +2610,7 @@ function openWho(){
       if (best && best.rank <= rank) continue;
       best = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am:a.am, pm:a.pm, inToday:true, doc:d, aid, ck, rank,
         elsewhere: planned[d.id] && planned[d.id] !== iso ? planned[d.id] : null, onRoute: planned[d.id] === iso,
-        counterpart: D.cp.some(v => v.date === iso && v.id === d.id), seen: (C && C.seen && C.seen[d.id]) || (d.lastCall && d.lastCall >= weekMon && d.lastCall <= L.addDays(weekMon, 6) ? d.lastCall : null)};
+        counterpart: D.cp.some(v => v.date === iso && v.id === d.id), pod3: new Set(D.cp.filter(v => v.id === d.id).map(v => v.date + v.who)).size >= 2, seen: (C && C.seen && C.seen[d.id]) || (d.lastCall && d.lastCall >= weekMon && d.lastCall <= L.addDays(weekMon, 6) ? d.lastCall : null)};
     }
     if (best) (rows[best.aid] = rows[best.aid] || []).push(best);
   }
@@ -2600,7 +2620,7 @@ function openWho(){
     return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">Quota met</span>` : ""; };
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) + ", yours would be the third visit" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
     return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""} ${quota(c.doc)}</div>
       <div class="sub">${esc(addrOf(o))}</div>
       <div class="sub">${when} · ${c.doc.added ? "added by you" : c.doc.remaining > 0 ? c.doc.remaining + " of " + c.doc.assigned + " left" : "calls done"} · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -2953,7 +2973,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v102";
+const APP_SHELL = "weekrouter-shell-v105";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -2981,10 +3001,13 @@ placePendingLunch();
 // opened from a doctor in the Call Tracker: Office and days, or anchor them to a day this week
 // a change asked for from the Call Tracker's Home: done here, then straight back there
 window.homeAfter = false;
-window.backHome = function(msg){ try { if (msg) sessionStorage.setItem("home.msg", msg); } catch(e){} location.href = "../#home"; };
+// back to the tracker screen that opened this one (Home, or the HCP's card on the HCPs tab)
+let handBack = null;
+window.backHome = function(msg){ try { if (msg) sessionStorage.setItem("home.msg", msg); if (handBack && handBack.reopen) sessionStorage.setItem("tracker.reopen", handBack.reopen); } catch(e){}
+  location.href = "../#" + (handBack && handBack.back || "home"); };
 const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getItem("pending.routerOpen")); localStorage.removeItem("pending.routerOpen"); } catch(e){}
-  if (!p || !p.id) return false; derive();
-  if (p.act === "info") openDocInfo(p.id, () => { closeSheet(); setTimeout(() => { location.href = "../"; }, 250); });
+  if (!p || !p.id){ document.body.classList.remove("handoff"); return false; } derive(); handBack = {back: p.back || (p.act === "info" ? "docs" : "home"), reopen: p.reopen || null};
+  if (p.act === "info") openDocInfo(p.id, () => backHome(""));
   else if (p.act === "skip" || p.act === "sub" || p.act === "move"){
     render(); const W = currentPlan(), day = W && W.plan.days[p.iso], i = day ? day.stops.findIndex(x => x.id === p.id && !x.done) : -1;
     if (i < 0){ backHome("That stop isn't in today's plan anymore."); return true; }
@@ -2992,9 +3015,11 @@ const handedOff = (() => { let p = null; try { p = JSON.parse(localStorage.getIt
     homeAfter = true; if (p.act === "sub") openSubstitute(p.iso, i); else openMove(p.iso, i);
     const x = $("closeS"); if (x) x.onclick = () => backHome("");
   }
-  else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { toast("That HCP isn't in your list here yet"); return true; } homeAfter = true; openAnchorAdd(() => { homeAfter = false; closeSheet(); }, p.id); }
+  else if (p.act === "anchor"){ if (!D.docs.some(d => d.id === p.id)) { backHome("That HCP isn't in your Plan my week list yet."); return true; } homeAfter = true; openAnchorAdd(() => backHome(""), p.id); }
   return true;
 })();
+// safety: if the handed-over screen didn't open, show Plan my week normally rather than a blank page
+setTimeout(() => { if ($("scrim").hidden) document.body.classList.remove("handoff"); }, 600);
 if (/[?&]settings\b/.test(location.search)) { const m = location.search.match(/[?&]back=(\w+)/); settingsBack = m ? m[1] : null; history.replaceState(null, "", location.pathname); openSettings(); }
 else if (!handedOff && !geoStates().length && S.statePromptDay !== todayISO()) openStatePick();
 try { const rm = sessionStorage.getItem("restored.msg"); if (rm){ sessionStorage.removeItem("restored.msg"); toast(rm); } } catch(e){}
