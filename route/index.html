@@ -1809,7 +1809,7 @@ function openSubstitute(iso, i){
   const nearL = sameL.concat(rest.filter(c => L.miles(c.near) <= 25).slice(0, 10)), farL = rest.filter(c => L.miles(c.near) > 25).slice(0, nearL.length >= 4 ? 4 : 8);
   const list = nearL.concat(farL);
   const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
-  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div>${(c.relax || []).length ? `<div class="sub" style="color:var(--yel-ink)">${c.relax.map(r => typeof r === "object" ? `Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})` : r === "early" ? "Early · goal met or called recently" : r === "pod3" ? esc(podWeekNote(c.id)) + ", yours would be the third visit" : "Extra · quota met").join(" · ")}</div>` : ""}<div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
+  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div>${(c.relax || []).length ? `<div class="sub" style="color:var(--yel-ink)">${c.relax.map(r => typeof r === "object" ? `Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})` : r === "early" ? "Early · goal met or called recently" : r === "pod3" ? esc(podWeekNote(c.id)) : "Extra · quota met").join(" · ")}</div>` : ""}<div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
   openSheet(`<h2>Swap in someone for ${esc(docName(cur.id))}</h2>
     <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, and isn't being seen by ${esc(cpList(" or "))} that day. Same office first, then most behind and closest. <button class="linkbtn" id="subWhy" style="background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;min-height:0">Why not others?</button></p>
     ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
@@ -2461,8 +2461,11 @@ function openMove(iso, i){
 }
 
 /* ---------- add a doctor by hand ---------- */
-// "Ann and Chase have them this week (Wed, Fri)"
-function podWeekNote(id){ const v = D.cp.filter(x => x.id === id); return [...new Set(v.map(x => x.who))].join(" and ") + " have them this week (" + [...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"short"})))].join(", ") + ")"; }
+// "Ann (Wed) and Chase (Fri) are seeing this HCP this week. Yours would be the third visit."
+function podWeekNote(id){ const v = D.cp.filter(x => x.id === id).slice().sort((a,b) => a.date < b.date ? -1 : 1), wd = d => L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"});
+  const by = []; v.forEach(x => { let e = by.find(b => b.who === x.who); if (!e) by.push(e = {who: x.who, days: []}); if (!e.days.includes(wd(x.date))) e.days.push(wd(x.date)); });
+  const one = by.length === 1;
+  return (one ? `${by[0].who} is seeing this HCP ${by[0].days.join(" and ")}` : by.map(b => `${b.who} (${b.days.join(", ")})`).join(" and ") + " are seeing this HCP") + " this week. Yours would be the third visit."; }
 // "Why only 4?": everyone near that day's stops, grouped by the rule that kept them off it
 function openWhy(iso, swapId, back, offered, swapSlot){
   const W = currentPlan(); if (!W) return; C = L.buildContext(contextInput());
@@ -2496,12 +2499,11 @@ function openWhy(iso, swapId, back, offered, swapSlot){
 function openAdd(iso){
   const W = currentPlan(); const all = L.addCandidates(C, W.plan, iso);
   const dayName = L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"});
-  const podWk = id => { const v = D.cp.filter(x => x.id === id); return [...new Set(v.map(x => x.who))].join(" and ") + " have them this week (" + [...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"short"})))].join(", ") + ")"; };
   const row = c => { if (c.noMap) return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub" style="color:var(--red-ink)">${c.office == null ? "No office saved yet." : "The app can't place their office on the map. Check the town or add a ZIP."}</div></div>
       <div class="actions"><button class="btn small" data-addfix="${esc(c.id)}">Fix office</button></div></div>`;
     const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWk(c.id) + ", yours would be the third visit" : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWeekNote(c.id) : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -2541,7 +2543,7 @@ function addWithConfirm(iso, c, slot, back){
   if (c.seen) reasons.push(`You already called on them ${L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"})}.`);
   if (c.away || awayNow(id, iso)) reasons.push(`<b>${esc(docName(id))} is marked out of office on ${dayName}.</b>`);
   if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
-  if (c.pod3){ const v = D.cp.filter(x => x.id === id); reasons.push(`${esc([...new Set(v.map(x => x.who))].join(" and "))} already have them this week (${esc([...new Set(v.map(x => L.fromISO(x.date).toLocaleDateString(undefined,{weekday:"long"})))].join(", "))}), so yours would be the third visit.`); }
+  if (c.pod3) reasons.push(esc(podWeekNote(id)));
   if (c.streak) reasons.push(`Pod members see them the days around ${dayName}, so this would make three of you on three days in a row.`);
   if (!reasons.length) return doAdd();
   const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
@@ -2620,7 +2622,7 @@ function openWho(){
     return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">Quota met</span>` : ""; };
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) + ", yours would be the third visit" : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
     return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""} ${quota(c.doc)}</div>
       <div class="sub">${esc(addrOf(o))}</div>
       <div class="sub">${when} · ${c.doc.added ? "added by you" : c.doc.remaining > 0 ? c.doc.remaining + " of " + c.doc.assigned + " left" : "calls done"} · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -2973,7 +2975,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v105";
+const APP_SHELL = "weekrouter-shell-v106";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
