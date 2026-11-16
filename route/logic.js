@@ -501,8 +501,18 @@ function scheduleFromWords(words, weekMon, nameIndex){
   };
   const anchors = [];
   words.forEach((w,i) => { const d = dayOf(w, words[i+1]); if (d) anchors.push({...w, date:d, cx:w.left+w.w/2}); });
+  // The heading row is the line with the most different day names on it ("Mon 16  Tue 17  Wed 18 …"). A day name somewhere
+  // else, like the device's status bar ("Fri Nov 13") or a "Today" banner, is ignored when such a row exists.
+  let pool = anchors;
+  if (anchors.length){
+    const hs = anchors.map(a => a.h).sort((x,y) => x-y), mh = hs[Math.floor(hs.length/2)] || 20;
+    let bestRow = null;
+    anchors.forEach(a => { const row = anchors.filter(b => Math.abs(b.top - a.top) < mh * 1.5), n = new Set(row.map(b => b.date)).size;
+      if (!bestRow || n > bestRow.n || (n === bestRow.n && a.top < bestRow.top)) bestRow = {n, top: a.top, row}; });
+    if (bestRow && bestRow.n >= 2) pool = bestRow.row;
+  }
   // one anchor per date: keep the top-most occurrence
-  const firstPer = {}; anchors.forEach(a => { if (!firstPer[a.date] || a.top < firstPer[a.date].top) firstPer[a.date] = a; });
+  const firstPer = {}; pool.forEach(a => { if (!firstPer[a.date] || a.top < firstPer[a.date].top) firstPer[a.date] = a; });
   const A = Object.values(firstPer);
   const out = {}, others = {}; week.forEach(d => { out[d] = []; others[d] = []; });
   if (!A.length) return {byDate:out, others, layout:"none"};
