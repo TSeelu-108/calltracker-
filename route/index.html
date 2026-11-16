@@ -2960,7 +2960,9 @@ function openSettings(){
       <a class="btn small" href="../#newq">Start a new quarter</a></div>
     <p class="small" id="sBkMsg"></p>
     <label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="sDD" ${ddDraft ? "checked" : ""} style="width:20px;height:20px;min-height:0;margin:0"> Show DoorDash under More</label>
+    <p class="sub" id="verLine" style="margin-top:14px">Version: checking…</p><button class="btn small" id="verBtn" type="button">Check for updates</button>
     <div class="foot"><button class="btn" id="cancelS">Cancel</button><button class="btn primary" id="closeS">Done</button></div>`);
+  verCheck(); $("verBtn").onclick = () => { $("verLine").textContent = "Version: checking…"; verCheck(); };
   const sheet = $("sheet");
   const pressSeg = (attr, val) => sheet.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === val)));
   sheet.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { st.mode = b.dataset.mode; pressSeg("data-mode", st.mode); $("zoneBox").hidden = st.mode !== "zones"; });
@@ -3053,7 +3055,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v111";
+const APP_SHELL = "weekrouter-shell-v112";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -3073,6 +3075,61 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
 // a Home Screen app is often just brought back, not reopened: look for a newer version then too
 if ("serviceWorker" in navigator) { let lastChk = Date.now(); document.addEventListener("visibilitychange", () => { if (document.hidden || Date.now() - lastChk < 30000) return; lastChk = Date.now(); navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(()=>{}); updateSibling(); setTimeout(() => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}), 4000); }); }
+
+// ---- version check, from any screen ----
+// Reads the version numbers on the website and the ones installed on this phone, for both parts of the app
+// (Call Tracker and Plan my week). If the website is newer, the update is fetched; when it's in, you're told.
+const VER = {part: "route", base: "../", names: {tracker: "Call Tracker", route: "Plan my week"}};
+const verNum = s => { const m = String(s || "").match(/(\d+)\s*$/); return m ? +m[1] : 0; };
+async function appVersions(){
+  const web = async u => { try { const r = await fetch(u + "?check=" + Date.now(), {cache: "no-store"}); if (!r.ok) return null; const m = (await r.text()).match(/SHELL\s*=\s*"([^"]+)"/); return m ? m[1] : null; } catch(e){ return null; } };
+  let keys = []; try { keys = await caches.keys(); } catch(e){}
+  const inst = p => keys.filter(k => k.startsWith(p)).sort((a,b) => verNum(b) - verNum(a))[0] || null;
+  const [wt, wr] = await Promise.all([web(VER.base + "sw.js"), web(VER.base + "route/sw.js")]);
+  return {tracker: {web: wt, inst: inst("calltracker-shell-")}, route: {web: wr, inst: inst("weekrouter-shell-")}};
+}
+const verScope = part => part === VER.part ? undefined : (part === "route" ? VER.base + "route/" : VER.base || "../");
+let verBusy = false;
+async function verCheck(){
+  if (verBusy || !("serviceWorker" in navigator)) return; verBusy = true;
+  try {
+    let v = await appVersions();
+    const behind = ["tracker", "route"].filter(p => v[p].web && verNum(v[p].web) > verNum(v[p].inst));
+    if (behind.length){
+      await Promise.all(behind.map(p => navigator.serviceWorker.getRegistration(verScope(p)).then(r => r && r.update()).catch(() => {})));
+      for (let i = 0; i < 20; i++){ await new Promise(r => setTimeout(r, 1500)); v = await appVersions(); if (behind.every(p => verNum(v[p].inst) >= verNum(v[p].web))) break; }
+    }
+    let seen = {}; try { seen = JSON.parse(localStorage.getItem("ver.seen") || "{}"); } catch(e){}
+    // this screen is still the older copy: offer the reload (same notice as before)
+    if (verNum(v[VER.part].inst) > verNum(APP_SHELL)) verOffer();
+    // the other part was updated quietly: say so once, so you know it's in
+    const other = VER.part === "tracker" ? "route" : "tracker";
+    if (v[other].inst && seen[other] && verNum(v[other].inst) > verNum(seen[other])) toast(`${VER.names[other]} updated to version ${verNum(v[other].inst)} ✓`);
+    if (v[other].inst) seen[other] = v[other].inst;
+    try { localStorage.setItem("ver.seen", JSON.stringify(seen)); } catch(e){}
+    verShow(v);
+  } finally { verBusy = false; }
+}
+function verOffer(){
+  if (document.getElementById("updBar")) return;
+  const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh,0px) + 16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.onclick = () => { b.remove(); try { sessionStorage.setItem("upd.just", String(Date.now())); } catch(e){} const c = navigator.serviceWorker.controller; if (c) c.postMessage({type: "update-seen"}); setTimeout(() => location.reload(), 150); };
+  document.body.appendChild(b);
+}
+// the line in Settings / More: "Call Tracker 86 · Plan my week 112 · Up to date ✓"
+function verShow(v){
+  const el = document.getElementById("verLine"); if (!el) return;
+  const run = {[VER.part]: APP_SHELL};
+  const part = p => { const i = verNum(run[p] || v[p].inst); return `${VER.names[p]} ${i || "?"}`; };
+  const upToDate = ["tracker", "route"].every(p => !v[p].web || verNum(v[p].inst) >= verNum(v[p].web)) && verNum(v[VER.part].inst) <= verNum(APP_SHELL);
+  const offline = !v.tracker.web && !v.route.web;
+  el.innerHTML = `Version: ${part("tracker")} · ${part("route")} · ` + (offline ? "Can't check right now (offline)" : upToDate ? "<b style='color:var(--grn-ink, #1d6a33)'>Up to date ✓</b>" : "<b>Updating…</b>");
+}
+// after an update this screen says so once: "Updated to version 112 ✓"
+try { const last = localStorage.getItem("ver.ran." + VER.part); if (last && last !== APP_SHELL && verNum(APP_SHELL) > verNum(last)) setTimeout(() => toast(`${VER.names[VER.part]} updated to version ${verNum(APP_SHELL)} ✓`), 900); localStorage.setItem("ver.ran." + VER.part, APP_SHELL); } catch(e){}
+setTimeout(verCheck, 2500);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(verCheck, 1500); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 render();
 geoLoad(L.loadGeo).then(() => { geoReady = true; render(); afterStart(); });
