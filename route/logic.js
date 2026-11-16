@@ -691,15 +691,16 @@ function buildContext(input){
   C.podWeek = {}; C.pod3 = new Set();
   input.counterpartVisits.forEach(v => { (C.podWeek[v.id] = C.podWeek[v.id] || new Set()).add(v.date + "|" + v.who); });
   for (const id in C.podWeek) if (C.podWeek[id].size >= 2) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])){ C.pod3.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
-  // a pod member's field ride (riding with the manager): their HCPs are left alone in the week before it, so the HCP
-  // hasn't just heard from you; on the day itself you stay away from the offices they're visiting. After the ride, normal.
+  // a pod member's field ride (riding with the manager): their HCPs, and the offices they'll visit, are left alone from the
+  // week before the ride through the ride day, so no one there has just seen you. After the ride, normal.
   C.frBefore = new Set(); C.frWho = {}; C.frAddr = {};
   const allDays = input.days.concat(input.weekMon ? weekDays(input.weekMon) : []);
   for (const v of (input.fieldRideVisits || [])){
     for (const iso of allDays){
       const k = iso + "|" + v.id;
       if (iso < v.date && iso >= addDays(v.date, -7)){ (C.frWho[k] = C.frWho[k] || []).push(v); if (!C.blocked.has(k)){ C.frBefore.add(k); C.blocked.add(k); } }
-      if (iso === v.date) (input.match.byDoc[v.id] || []).forEach(i => { const o = input.offices[i]; if (o && o.addrKey) (C.frAddr[iso] = C.frAddr[iso] || {})[o.addrKey] = v; });
+      // her offices: kept clear from the week before the ride through the ride day, same as her HCPs
+      if (iso <= v.date && iso >= addDays(v.date, -7)) (input.match.byDoc[v.id] || []).forEach(i => { const o = input.offices[i]; if (o && o.addrKey) { const m = (C.frAddr[iso] = C.frAddr[iso] || {}); if (!m[o.addrKey] || m[o.addrKey].date > v.date) m[o.addrKey] = v; } });
     }
   }
   for (const iso in (input.skip || {})) input.skip[iso].forEach(s => C.blocked.add(iso + "|" + s.id));

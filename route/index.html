@@ -357,7 +357,7 @@ body.handoff .scrim{background:var(--bg)}
       <p id="s3"></p>
       <div class="actions">
         <span id="cpAdds" style="display:contents"></span>
-        <button class="btn small" id="shotBtn">Add schedule screenshots</button>
+        <button class="btn small" id="shotBtn">Add schedule screenshots or files</button>
         <button class="btn small" id="pasteBtn">Paste a shared week</button>
         <button class="btn small" id="cpBtn">Review</button>
       </div>
@@ -1460,7 +1460,7 @@ const frDay = iso => L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short
 function frNote(id){ const v = frVisits().filter(x => x.id === id); if (!v.length) return ""; const by = {}; v.forEach(x => (by[x.who] = by[x.who] || []).push(frDay(x.date)));
   return Object.keys(by).map(w => `${w} has this HCP on a field ride ${by[w].join(" and ")}.`).join(" ") + " Seeing them before it means the HCP may have just heard from you.";
 }
-function frOfficeNote(v){ return v ? `${v.who} is at this office on a field ride ${frDay(v.date)}.` : ""; }
+function frOfficeNote(v){ return v ? `${v.who} visits this office on a field ride ${frDay(v.date)}.` : ""; }
 let STAFF = {};
 const openPast = new Set(); let jumpedToday = false, inputsOpen = false, viewDay = null, spyHold = 0, geoReady = false;
 // the day you're looking at is highlighted in the day buttons: the one you tapped, or the one scrolled to the top
@@ -2198,7 +2198,7 @@ function openCounterparts(){
   if (!people.length){ needNames(openCounterparts); return; }
   openSheet(`<h2>Your pod this week</h2>
     <p>You won't be routed to an HCP on a day one of them is seeing that HCP. Dashed names are a best guess from a short or shared name; remove any that are wrong.</p>
-    <p class="sub">Tap <b>Field ride</b> on a day they're riding with your manager. Their HCPs are then left alone in the week before it, and you stay away from their offices that day.</p>
+    <p class="sub">Tap <b>Field ride</b> on a day they're riding with your manager. Their HCPs and the offices they'll visit are then left alone from the week before it through the ride day.</p>
     ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso);
       const whoOf = {}; v.forEach(x => (whoOf[x.id] = whoOf[x.id] || new Set()).add(x.who));
       const both = Object.keys(whoOf).filter(id => whoOf[id].size > 1);
@@ -2261,16 +2261,18 @@ function needNames(next){
 }
 /* a counterpart's "Share my week" message, pasted in */
 $("pasteBtn").onclick = () => openPasteWeek();
-function openPasteWeek(text){
+function openPasteWeek(text, presetWho){
   derive();
   if (!D.docs.length){ toast("Load your remaining calls first, so names can be recognized"); return; }
-  const people = cpNames(); if (!people.length){ needNames(() => openPasteWeek(text)); return; }
+  const people = cpNames(); if (!people.length){ needNames(() => openPasteWeek(text, presetWho)); return; }
   const r = text ? L.parseSharedWeek(text, weekMon, D.names) : null;
-  let who = r && r.who && people.find(p => p.toLowerCase() === r.who.toLowerCase().split(" ")[0]) || people[0];
+  let who = presetWho && people.includes(presetWho) ? presetWho : r && r.who && people.find(p => p.toLowerCase() === r.who.toLowerCase().split(" ")[0]) || people[0];
   const found = r ? Object.keys(r.byDate).sort().flatMap(d => r.byDate[d].map(x => ({date:d, ...x}))) : [];
-  openSheet(`<h2>Paste a shared week</h2>
+  openSheet(`${presetWho ? `<h2>Their schedule</h2>
+    <p>This is the text from the file. Check the names found below, then save.</p>
+    <div class="actions" style="margin-top:8px" hidden><button class="btn small" id="pClip">Paste</button></div>` : `<h2>Paste a shared week</h2>
     <p>When a pod member sends you their <b>Share my week</b> message, copy it from Messages or Mail (press and hold, then Copy) and paste it here.</p>
-    <div class="actions" style="margin-top:8px"><button class="btn small" id="pClip">Paste</button></div>
+    <div class="actions" style="margin-top:8px"><button class="btn small" id="pClip">Paste</button></div>`}
     <textarea id="pTxt" placeholder="Sam's week, Oct 19 – Oct 23&#10;&#10;Monday, Oct 19 · …&#10;Morning: …" style="margin-top:8px;min-height:120px">${esc(text || "")}</textarea>
     ${r ? `<div class="field">Whose week is it?<div class="seg" role="group">${people.map(p => `<button data-pw="${esc(p)}" aria-pressed="${p===who}">${esc(p)}</button>`).join("")}</div></div>
       ${found.length ? `<p style="margin-top:10px"><b style="color:var(--ink)">Found ${found.length} visit${found.length===1?"":"s"}${r.weekOf ? ", week of " + fmtShort(r.weekOf) : ""}</b>. Untick any that are wrong.</p>
@@ -2280,9 +2282,9 @@ function openPasteWeek(text){
   $("closeS").onclick = closeSheet;
   $("pClip").onclick = async () => { try { const v = await navigator.clipboard.readText(); if (v){ $("pTxt").value = v; openPasteWeek(v); } } catch(e){ $("pTxt").focus(); toast("Press and hold in the box, then tap Paste"); } };
   $("sheet").querySelectorAll("[data-pw]").forEach(b => b.onclick = () => { who = b.dataset.pw; $("sheet").querySelectorAll("[data-pw]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
-  if ($("pRe")) $("pRe").onclick = () => openPasteWeek($("pTxt").value);
+  if ($("pRe")) $("pRe").onclick = () => openPasteWeek($("pTxt").value, presetWho);
   $("pGo").onclick = () => {
-    if (!r || !found.length || $("pTxt").value !== text){ const v = $("pTxt").value.trim(); if (!v){ $("pTxt").focus(); return; } openPasteWeek(v); return; }
+    if (!r || !found.length || $("pTxt").value !== text){ const v = $("pTxt").value.trim(); if (!v){ $("pTxt").focus(); return; } openPasteWeek(v, presetWho); return; }
     const days = [...new Set(found.map(x => x.date))];
     S.cp = S.cp.filter(x => !(x.who === who && x.src === "shared" && days.includes(x.date)));
     const frAuto = /field\s*-?\s*ride/i.test(text || ""); if (frAuto) days.forEach(d => frToggle(who, d, true));
@@ -2331,10 +2333,10 @@ $("shotBtn").onclick = () => {
   const people = cpNames();
   if (!people.length){ needNames(() => $("shotBtn").click()); return; }
   let who = shotWho && people.includes(shotWho) ? shotWho : people[0]; shotWho = null;
-  openSheet(`<h2>Add a calendar screenshot</h2>
-    <p>Pick screenshots of their calendar for ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}. Whose is it?</p>
+  openSheet(`<h2>Add their schedule</h2>
+    <p>Pick screenshots of their calendar for ${fmtShort(D.days[0])} – ${fmtShort(D.days[4])}, or a file they sent you: a Word document, a text file or a calendar (.ics). A file is read exactly, so nothing is missed. Whose is it?</p>
     <div class="seg" role="group" aria-label="Whose schedule">${people.map(p => `<button data-who="${esc(p)}" aria-pressed="${p === who}">${esc(p)}</button>`).join("")}</div>
-    <div style="margin-top:12px"><label class="btn primary" for="shotF">Choose screenshots</label><input type="file" id="shotF" accept="image/*" multiple hidden></div>
+    <div style="margin-top:12px"><label class="btn primary" for="shotF">Choose screenshots or a file</label><input type="file" id="shotF" accept="image/*,.docx,.txt,.ics,.pdf,.doc,text/plain,text/calendar,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf" multiple hidden></div>
     <div class="thumbs" id="thumbs"></div>
     <div class="sub" id="oStat" aria-live="polite" style="margin-top:8px"></div>
     <div class="prog" id="oProg" hidden><i id="oBar"></i></div>
@@ -2342,8 +2344,61 @@ $("shotBtn").onclick = () => {
     <div class="foot" id="oFoot"><button class="btn" id="closeS">Cancel</button></div>`);
   $("closeS").onclick = closeSheet;
   $("sheet").querySelectorAll("[data-who]").forEach(b => b.onclick = () => { who = b.dataset.who; $("sheet").querySelectorAll("[data-who]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
-  $("shotF").onchange = e => readShots([...e.target.files], () => who);
+  $("shotF").onchange = async e => {
+    const files = [...e.target.files], docs = files.filter(f => !/^image\//.test(f.type) && !/\.(png|jpe?g|heic|heif|gif|webp)$/i.test(f.name));
+    if (!docs.length) return readShots(files, () => who);
+    // a file: its text goes through the same reader as a pasted week, with this person already picked
+    $("oStat").textContent = "Reading the file…";
+    try {
+      const parts = []; for (const f of docs) parts.push(await scheduleFileText(f));
+      const text = parts.join("\n\n").trim();
+      if (!text){ $("oStat").textContent = "No text found in that file."; return; }
+      openPasteWeek(text, who);
+    } catch(err){ $("oStat").textContent = err && err.userMsg ? err.userMsg : "That file couldn't be read. A screenshot of it works too."; }
+  };
 };
+// the text of a schedule a pod member sent as a file: Word (.docx), plain text, or a calendar (.ics). Read on this device only.
+async function scheduleFileText(f){
+  const name = (f.name || "").toLowerCase();
+  const fail = m => { const e = new Error(m); e.userMsg = m; return e; };
+  if (/\.pdf$/.test(name) || f.type === "application/pdf") throw fail("PDFs can't be read here yet. Take a screenshot of each page instead, or ask for the Word file.");
+  if (/\.doc$/.test(name)) throw fail("That's an older Word file (.doc). Open it and save it as .docx, or take a screenshot of it.");
+  if (/\.ics$/.test(name) || f.type === "text/calendar") return icsAsWeekText(await f.text());
+  if (/\.docx$/.test(name) || /wordprocessingml/.test(f.type)) return docxText(await f.arrayBuffer());
+  return await f.text();
+}
+// a calendar file as day headings and event lines, the shape the week reader understands
+function icsAsWeekText(t){
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"], DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const by = {}; L.parseICS(t).forEach(e => { if (!e.start || !e.start.date) return; const d = e.start.date, k = L.isoDay(d);
+    (by[k] = by[k] || {head: `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`, lines: []}).lines.push([e.summary, e.location].filter(Boolean).join(" · ")); });
+  return Object.keys(by).sort().map(k => by[k].head + "\n" + by[k].lines.join("\n")).join("\n\n");
+}
+// the paragraphs of a Word document (.docx is a zip; the text is in word/document.xml)
+async function docxText(buf){
+  const u = new Uint8Array(buf), dv = new DataView(buf);
+  let eocd = -1; for (let i = u.length - 22; i >= Math.max(0, u.length - 66000); i--) if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  if (eocd < 0) throw new Error("not a zip");
+  let p = dv.getUint32(eocd + 16, true); const n = dv.getUint16(eocd + 10, true);
+  for (let k = 0; k < n; k++){
+    const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    const fname = new TextDecoder().decode(u.subarray(p + 46, p + 46 + nlen));
+    if (fname === "word/document.xml"){
+      const start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), data = u.subarray(start, start + csize);
+      let xml;
+      if (method === 0) xml = new TextDecoder().decode(data);
+      else {
+        if (typeof DecompressionStream === "undefined"){ const e = new Error("old"); e.userMsg = "This iPhone can't open Word files here. Update iOS, or take a screenshot of the document."; throw e; }
+        xml = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
+      }
+      const ent = {amp:"&", lt:"<", gt:">", quot:'"', apos:"'"};
+      return xml.replace(/<w:tab\/>/g, " ").replace(/<w:br[^>]*\/>/g, "\n").replace(/<\/w:p>/g, "\n").replace(/<[^>]+>/g, "")
+        .replace(/&(amp|lt|gt|quot|apos);/g, (m, k) => ent[k]).replace(/&#(\d+);/g, (m, c) => String.fromCharCode(+c)).replace(/\n{3,}/g, "\n\n").trim();
+    }
+    p += 46 + nlen + xlen + clen;
+  }
+  throw new Error("no document text");
+}
 async function readShots(files, whoFn){
   if (!files.length) return;
   busy = true; ocrCtl = new AbortController(); const sig = ocrCtl.signal; let shotText = "";
@@ -2501,7 +2556,7 @@ function openWhy(iso, swapId, back, offered, swapSlot){
     ["streak", "Pod members see them the days around it", "Planning them would make three visits in a row."],
     ["pod3", "Your pod already has them twice this week", "Yours would be the third visit."],
     ["fr", "Coming up on a pod member's field ride", "Left alone in the week before the ride, so the HCP hasn't just heard from you."],
-    ["frOffice", "At an office a pod member is visiting on a field ride that day", ""],
+    ["frOffice", "At an office a pod member visits on a field ride", "Kept clear from the week before the ride through the ride day."],
     ["away", "Out of office", ""], ["skip", `You marked "Didn't see them" ${dn}`, ""],
     ["seen", "Already called this week", ""], ["planned", "Already planned another day this week", ""],
     ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""]];
@@ -2998,7 +3053,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v109";
+const APP_SHELL = "weekrouter-shell-v111";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
