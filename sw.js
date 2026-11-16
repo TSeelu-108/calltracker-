@@ -1,6 +1,6 @@
 // Call Tracker offline support. Only the app's own files are cached here; your data stays in this device's storage.
 // Opens instantly from the saved copy; the newest files are fetched in the background, and the page is told when an update is ready.
-const SHELL = "calltracker-shell-v85";
+const SHELL = "calltracker-shell-v86";
 const FILES = ["./", "index.html", "manifest.webmanifest", "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 const looksWhole = (text, path, mode) => mode === "navigate" || /(^|\/)(index\.html)?$/.test(path) ? /<\/html>\s*$/i.test(text) && text.length > 2000 : /\.js$/.test(path) ? text.trim().length > 200 : true;
 // install only when the page itself arrived whole; otherwise the version already on the iPad keeps running
@@ -25,6 +25,7 @@ self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;
   if (url.pathname.includes("/geo/")) return; // place data keeps its own cache (geo-places-v1)
+  if (/\/sw\.js$/.test(url.pathname)) return; // version checks always read the website's copy
   if (url.pathname.includes("/route/")) return; // Plan my week has its own offline files
   const key = req.mode === "navigate" ? "index.html" : req;
   const fresh = async () => {
