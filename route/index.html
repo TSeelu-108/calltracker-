@@ -1114,7 +1114,9 @@ function derive(){
   D.cp = S.cp.filter(v => D.days.includes(v.date));
   D.cal.filter(e => e.kind === "counterpart").forEach(e => {
     const date = L.isoDay(e.start);
-    e.docs.forEach(x => { if (!D.cp.some(v => v.date === date && v.id === x.id)) D.cp.push({date, id:x.id, who:(e.who[0]||"Calendar"), src:"calendar", sure:x.sure}); });
+    // one visit per person per day: Ann and Chase seeing the same HCP the same day are two visits, not one
+    const who = e.who[0] || "Calendar";
+    e.docs.forEach(x => { if (!D.cp.some(v => v.date === date && v.id === x.id && v.who === who)) D.cp.push({date, id:x.id, who, src:"calendar", sure:x.sure}); });
   });
   // no start city chosen yet: use the middle of your offices until one is picked in Settings
   const oc = D.offices.filter(o => o.coords);
@@ -3055,7 +3057,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v112";
+const APP_SHELL = "weekrouter-shell-v113";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -3069,7 +3071,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
   let just = 0; try { just = +sessionStorage.getItem("upd.just") || 0; } catch(e){}
   if (Date.now() - just < 60000) return;   // just updated: a late duplicate notice is not news
   const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
-  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh,0px) + 16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:40;white-space:nowrap;max-width:calc(100% - 24px);background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
   b.onclick = () => { b.remove(); try { sessionStorage.setItem("upd.just", String(Date.now())); } catch(e){} const c = navigator.serviceWorker.controller; if (c) c.postMessage({type:"update-seen"}); setTimeout(() => location.reload(), 150); }; document.body.appendChild(b);
 });
 if ("serviceWorker" in navigator) { const ask = () => navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({type:"update?", ver: APP_SHELL}); setTimeout(ask, 1500); setTimeout(ask, 6000); }
@@ -3113,7 +3115,7 @@ async function verCheck(){
 function verOffer(){
   if (document.getElementById("updBar")) return;
   const b = document.createElement("button"); b.id = "updBar"; b.type = "button"; b.textContent = "A new version is ready · Tap to update";
-  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh,0px) + 16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
+  b.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:40;white-space:nowrap;max-width:calc(100% - 24px);background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2)";
   b.onclick = () => { b.remove(); try { sessionStorage.setItem("upd.just", String(Date.now())); } catch(e){} const c = navigator.serviceWorker.controller; if (c) c.postMessage({type: "update-seen"}); setTimeout(() => location.reload(), 150); };
   document.body.appendChild(b);
 }
