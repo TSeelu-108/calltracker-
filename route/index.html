@@ -412,6 +412,7 @@ S.settings = Object.assign({home:"", perDay:6, workDays:[1,2,3,4,5], counterpart
 try { const cut = new Date(Date.now() - 60 * 864e5), cutIso = cut.getFullYear() + "-" + String(cut.getMonth()+1).padStart(2,"0") + "-" + String(cut.getDate()).padStart(2,"0");
   if (Array.isArray(S.cp)) S.cp = S.cp.filter(v => !v.date || v.date >= cutIso);
   if (Array.isArray(S.cpOther)) S.cpOther = S.cpOther.filter(v => !v.date || v.date >= cutIso);
+  if (Array.isArray(S.fieldRides)) S.fieldRides = S.fieldRides.filter(k => String(k).split("|").pop() >= cutIso);
   if (S.kinds) for (const k in S.kinds){ const t = +String(k).split("|").pop(); if (t && t < cut.getTime()) delete S.kinds[k]; }
 } catch(e){}
 function load(){
@@ -1153,7 +1154,7 @@ function fillMissingCoords(offs){
 const addrOf = o => o ? [o.address, o.city].filter(Boolean).join(", ") : "";
 function officeOf(s){ if (s.office == null) return null; const o = D.offices[s.office]; if (o && o.addrKey === s.addrKey) return o; return D.offices.find(x => x.addrKey === s.addrKey) || o || null; }
 const docName = id => { const d = D.docs.find(x => x.id === id); return d ? title(d.name) : title(id); };
-function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone]); }
+function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone, frVisits().map(v => v.date + v.id).sort()]); }
 
 /* ---------- render ---------- */
 // a call logged in the Call Tracker (+ Call) marks that day's stop done here too, and taking the call back there undoes it
@@ -1448,8 +1449,18 @@ function setCard(n, st, txt){ $("d"+n).className = "dot " + st; $("s"+n).textCon
 let C = null; // context for the current week's plan
 function currentPlan(){ return S.weeks[weekMon] || null; }
 function contextInput(){
-  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away};
+  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away, fieldRideVisits: frVisits()};
 }
+// field rides: a pod member's day with the manager, marked by you ("Chase|2026-11-16")
+function frSet(){ return new Set(S.fieldRides || []); }
+function frVisits(){ const f = frSet(); return (S.cp || []).filter(v => f.has(v.who + "|" + v.date)); }
+function frToggle(who, iso, on){ const f = frSet(), k = who + "|" + iso; if (on === undefined) on = !f.has(k); if (on) f.add(k); else f.delete(k); S.fieldRides = [...f]; }
+const frDay = iso => L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short"}) + " " + L.fromISO(iso).getDate();
+// "Chase has this HCP on a field ride Mon 16."
+function frNote(id){ const v = frVisits().filter(x => x.id === id); if (!v.length) return ""; const by = {}; v.forEach(x => (by[x.who] = by[x.who] || []).push(frDay(x.date)));
+  return Object.keys(by).map(w => `${w} has this HCP on a field ride ${by[w].join(" and ")}.`).join(" ") + " Seeing them before it means the HCP may have just heard from you.";
+}
+function frOfficeNote(v){ return v ? `${v.who} is at this office on a field ride ${frDay(v.date)}.` : ""; }
 let STAFF = {};
 const openPast = new Set(); let jumpedToday = false, inputsOpen = false, viewDay = null, spyHold = 0, geoReady = false;
 // the day you're looking at is highlighted in the day buttons: the one you tapped, or the one scrolled to the top
@@ -1809,7 +1820,7 @@ function openSubstitute(iso, i){
   const nearL = sameL.concat(rest.filter(c => L.miles(c.near) <= 25).slice(0, 10)), farL = rest.filter(c => L.miles(c.near) > 25).slice(0, nearL.length >= 4 ? 4 : 8);
   const list = nearL.concat(farL);
   const mi = k => { const m = L.miles(k); return m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away"; };
-  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div>${(c.relax || []).length ? `<div class="sub" style="color:var(--yel-ink)">${c.relax.map(r => typeof r === "object" ? `Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})` : r === "early" ? "Early · goal met or called recently" : r === "pod3" ? esc(podWeekNote(c.id)) : "Extra · quota met").join(" · ")}</div>` : ""}<div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
+  const card = (c,j) => { const o = D.offices[c.office]; return `<div class="cand"><div><div class="n">${esc(docName(c.id))}</div><div class="sub">${esc(addrOf(o))} · ${mi(c.near)}</div>${(c.relax || []).length ? `<div class="sub" style="color:var(--yel-ink)">${c.relax.map(r => typeof r === "object" ? `Same office as ${esc(docName(r.office))} (${L.fromISO(r.iso).toLocaleDateString(undefined,{weekday:"short"})})` : r === "early" ? "Early · goal met or called recently" : r === "pod3" ? esc(podWeekNote(c.id)) : r === "fr" ? esc(frNote(c.id)) : r === "frOffice" ? esc(frOfficeNote(c.frOffice)) : "Extra · quota met").join(" · ")}</div>` : ""}<div class="sub">${c.doc.remaining} of ${c.doc.assigned} left · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div></div><button class="btn small primary" data-pick="${j}">Use</button></div>`; };
   openSheet(`<h2>Swap in someone for ${esc(docName(cur.id))}</h2>
     <p>${fmtDay(iso)}, ${cur.slot === "am" ? "morning" : "afternoon"}. Everyone here is in on that day and time, isn't already in your week, and isn't being seen by ${esc(cpList(" or "))} that day. Same office first, then most behind and closest. <button class="linkbtn" id="subWhy" style="background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;min-height:0">Why not others?</button></p>
     ${list.length ? "" : `<p><b>No one else fits that ${cur.slot === "am" ? "morning" : "afternoon"} without breaking a rule.</b></p>`}
@@ -2187,6 +2198,7 @@ function openCounterparts(){
   if (!people.length){ needNames(openCounterparts); return; }
   openSheet(`<h2>Your pod this week</h2>
     <p>You won't be routed to an HCP on a day one of them is seeing that HCP. Dashed names are a best guess from a short or shared name; remove any that are wrong.</p>
+    <p class="sub">Tap <b>Field ride</b> on a day they're riding with your manager. Their HCPs are then left alone in the week before it, and you stay away from their offices that day.</p>
     ${D.days.map(iso => { const v = D.cp.filter(x => x.date === iso);
       const whoOf = {}; v.forEach(x => (whoOf[x.id] = whoOf[x.id] || new Set()).add(x.who));
       const both = Object.keys(whoOf).filter(id => whoOf[id].size > 1);
@@ -2196,7 +2208,7 @@ function openCounterparts(){
       return `<div class="cpday"><b>${fmtDay(iso)}</b>
         ${both.length ? `<p class="small" style="margin:4px 0 2px;color:var(--ink)"><span style="display:inline-block;width:3px;height:12px;background:#ea580c;border-radius:2px;margin-right:6px;vertical-align:-1px"></span>${esc([...new Set(both.flatMap(id => [...whoOf[id]]))].join(" and "))} are both seeing ${both.length === 1 ? "" : both.length + " HCPs: "}${esc(both.map(lastName).join(", "))}</p>` : ""}
         ${groups.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${groups.map(([who, gi, list, others]) => { const pc = [["#2563eb","#eef4ff"],["#9333ea","#f6efff"],["#0f766e","#ecfdf5"],["#c2410c","#fff4ec"],["#be185d","#fdf0f6"],["#4d7c0f","#f3fae8"]][gi % 6];
-          return `<div style="flex:1 1 150px;min-width:0;background:${pc[1]};border-radius:12px;padding:10px"><div style="font-weight:700;color:${pc[0]};margin-bottom:6px">${esc(who)} · ${list.length + others.length}</div>
+          return `<div style="flex:1 1 150px;min-width:0;background:${pc[1]};border-radius:12px;padding:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px"><span style="font-weight:700;color:${pc[0]}">${esc(who)} · ${list.length + others.length}</span><button class="chip" data-fr="${esc(who)}|${iso}" aria-pressed="${frSet().has(who + "|" + iso)}" style="min-height:30px;padding:2px 10px;font-size:13px;${frSet().has(who + "|" + iso) ? "background:" + pc[0] + ";border-color:" + pc[0] + ";color:#fff;font-weight:700" : ""}">${frSet().has(who + "|" + iso) ? "✓ " : ""}Field ride</button></div>
           ${list.map(x => { const dbl = both.includes(x.id); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;background:var(--surface);border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:14px;${dbl ? "box-shadow:inset 3px 0 0 #ea580c;font-weight:600;" : ""}${x.sure === false ? "outline:1px dashed var(--line);" : ""}" title="${esc(title(docName(x.id)))}"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(lastName(x.id))}${x.sure===false?"?":""}</span>${x.src === "calendar" ? `<span class="sub">cal</span>` : `<button aria-label="Remove ${esc(title(docName(x.id)))}" data-rm="${esc(iso+"|"+x.id+"|"+x.who)}" style="border:0;background:none;color:var(--muted);font-size:15px;padding:0 2px;min-height:0;cursor:pointer">✕</button>`}</div>`; }).join("")}${others.map(o => `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;border-radius:8px;padding:6px 8px;margin-bottom:5px;font-size:13px;color:var(--muted);border:1px dashed var(--line)" title="Not on your list"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.name.split(" ").pop())}</span><span style="font-size:11px">not yours</span></div>`).join("")}</div>`; }).join("")}</div>` : `<span class="sub">None</span>`}</div>`; }).join("")}
     <div class="field">Add one by hand
       <div class="actions">
@@ -2209,6 +2221,7 @@ function openCounterparts(){
     <p class="sub">Visits from your calendar are changed in the calendar review.</p>
     <div class="foot"><button class="btn primary" id="closeS">Done</button></div>`);
   $("closeS").onclick = () => { closeSheet(); render(); };
+  $("sheet").querySelectorAll("[data-fr]").forEach(b => b.onclick = () => { const i = b.dataset.fr.lastIndexOf("|"); frToggle(b.dataset.fr.slice(0, i), b.dataset.fr.slice(i + 1)); save(); openCounterparts(); });
   $("sheet").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const [d,id,w] = b.dataset.rm.split("|"); S.cp = S.cp.filter(x => !(x.date === d && x.id === id && x.who === w)); save(); openCounterparts(); });
   $("aAdd").onclick = () => { const v = {date:$("aDay").value, id:$("aDoc").value, who:$("aWho").value, src:"manual", sure:true}; if (!S.cp.some(x => x.date===v.date && x.id===v.id && x.who===v.who)) S.cp.push(v); save(); openCounterparts(); };
 }
@@ -2272,9 +2285,10 @@ function openPasteWeek(text){
     if (!r || !found.length || $("pTxt").value !== text){ const v = $("pTxt").value.trim(); if (!v){ $("pTxt").focus(); return; } openPasteWeek(v); return; }
     const days = [...new Set(found.map(x => x.date))];
     S.cp = S.cp.filter(x => !(x.who === who && x.src === "shared" && days.includes(x.date)));
+    const frAuto = /field\s*-?\s*ride/i.test(text || ""); if (frAuto) days.forEach(d => frToggle(who, d, true));
     $("sheet").querySelectorAll("[data-pv]:checked").forEach(c => { const [date,id,s] = c.dataset.pv.split("|"); S.cp.push({date, id, who, src:"shared", sure: s === "1"}); });
     save(); closeSheet(); render();
-    toast(`Saved ${who}'s week` + (r.weekOf && r.weekOf !== weekMon ? ` of ${fmtShort(r.weekOf)}` : "") + ". You won't be sent to those HCPs on those days.");
+    toast(`Saved ${who}'s week` + (r.weekOf && r.weekOf !== weekMon ? ` of ${fmtShort(r.weekOf)}` : "") + ". You won't be sent to those HCPs on those days." + (frAuto ? " Marked as field ride days." : ""));
   };
 }
 /* screenshots read on the iPad */
@@ -2330,7 +2344,7 @@ $("shotBtn").onclick = () => {
 };
 async function readShots(files, whoFn){
   if (!files.length) return;
-  busy = true; ocrCtl = new AbortController(); const sig = ocrCtl.signal;
+  busy = true; ocrCtl = new AbortController(); const sig = ocrCtl.signal; let shotText = "";
   $("thumbs").innerHTML = files.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
   $("oProg").hidden = false; const bar = p => $("oBar").style.width = Math.round(p*100) + "%";
   let worker;
@@ -2350,6 +2364,7 @@ async function readShots(files, whoFn){
         const { data } = await worker.recognize(img, {}, {tsv:true, text:true});
         L.parseTSV(data.tsv || "").forEach(w => { if (!words.some(x => Math.abs(x.left - w.left) < 8 && Math.abs(x.top - w.top) < 8 && Math.abs(x.w - w.w) < 14)) words.push(w); });
       }
+      shotText += " " + words.map(w => w.text).join(" ");
       const r = L.scheduleFromWords(words, weekMon, D.names); layouts.push(r.layout);
       for (const d in (r.others || {})) if (otherBy[d]) r.others[d].forEach(n => otherBy[d].add(n));
       // a two- or three-letter last name on its own ("HO", "SU", "LU") is too easily a stray scrap of text: kept only when the first name is there too
@@ -2374,7 +2389,9 @@ async function readShots(files, whoFn){
     S.cpOther = (S.cpOther || []).filter(x => !(x.who === who && D.days.includes(x.date)) && x.date >= L.addDays(todayISO(), -21));
     D.days.forEach(d => otherBy[d].forEach(name => S.cpOther.push({date:d, who, name})));
     $("sheet").querySelectorAll("[data-v]:checked").forEach(c => { const [date,id,s] = c.dataset.v.split("|"); S.cp.push({date, id, who, src:"screenshot", sure: s === "1"}); });
-    save(); closeSheet(); render(); toast(`Saved ${who}'s week`);
+    const frAuto = /field\s*-?\s*ride/i.test(shotText), frDays = [...new Set([...$("sheet").querySelectorAll("[data-v]:checked")].map(c => c.dataset.v.split("|")[0]))];
+    if (frAuto) frDays.forEach(d => frToggle(who, d, true));
+    save(); closeSheet(); render(); toast(`Saved ${who}'s week` + (frAuto ? ". Marked as field ride days; change it in Review." : ""));
   };
 }
 
@@ -2481,12 +2498,14 @@ function openWhy(iso, swapId, back, offered, swapSlot){
     ["pod", `A pod member has them ${dn}`, ""],
     ["streak", "Pod members see them the days around it", "Planning them would make three visits in a row."],
     ["pod3", "Your pod already has them twice this week", "Yours would be the third visit."],
+    ["fr", "Coming up on a pod member's field ride", "Left alone in the week before the ride, so the HCP hasn't just heard from you."],
+    ["frOffice", "At an office a pod member is visiting on a field ride that day", ""],
     ["away", "Out of office", ""], ["skip", `You marked "Didn't see them" ${dn}`, ""],
     ["seen", "Already called this week", ""], ["planned", "Already planned another day this week", ""],
     ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""]];
   const why = r => r.code === "planned" ? `planned ${wd(r.iso)}` : r.code === "seen" ? `called ${wd(r.iso)}` : r.code === "office" ? `same office as ${esc(docName(r.other))} (${wd(r.iso)})` : r.code === "pod" ? `${esc(pod(r.id))}` : r.code === "half" ? `only in the ${r.half}` : "";
   const row = r => { const o = D.offices[r.office]; const w = why(r); return `<div class="cand"><div><div class="n">${esc(docName(r.id))}</div><div class="sub">${esc(o ? o.city || "" : "")} · ${Math.max(1, Math.round(r.km / 1.609))} mi from ${dn}'s stops${w ? " · " + w : ""}</div></div></div>`; };
-  const main = ["fit","far","half","office","notIn","pod","pod3","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
+  const main = ["fit","far","half","office","notIn","pod","pod3","fr","frOffice","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
   const sec = g => { const l = list.filter(r => r.code === g[0]); return l.length ? `<p style="margin-top:14px"><b>${g[1]}</b> (${l.length})${g[2] ? `<br><span class="sub">${g[2]}</span>` : ""}</p><div class="cands">${l.map(row).join("")}</div>` : ""; };
   const restN = list.filter(r => rest.some(g => g[0] === r.code)).length;
   openSheet(`<h2>${swapId ? `Who else is near ${esc(docName(swapId))}?` : `Why only ${day.stops.length} on ${dn}?`}</h2>
@@ -2503,7 +2522,7 @@ function openAdd(iso){
       <div class="sub" style="color:var(--red-ink)">${c.office == null ? "No office saved yet." : "The app can't place their office on the map. Check the town or add a ZIP."}</div></div>
       <div class="actions"><button class="btn small" data-addfix="${esc(c.id)}">Fix office</button></div></div>`;
     const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWeekNote(c.id) : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWeekNote(c.id) : "", c.fr ? frNote(c.id) : "", c.frOffice ? frOfficeNote(c.frOffice) : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -2544,6 +2563,8 @@ function addWithConfirm(iso, c, slot, back){
   if (c.away || awayNow(id, iso)) reasons.push(`<b>${esc(docName(id))} is marked out of office on ${dayName}.</b>`);
   if (c.counterpart) reasons.push(`${esc((D.cp.find(v => v.date === iso && v.id === id) || {}).who || "A teammate")} is seeing them on ${dayName}.`);
   if (c.pod3) reasons.push(esc(podWeekNote(id)));
+  if (c.fr) reasons.push(esc(frNote(id)));
+  if (c.frOffice) reasons.push(esc(frOfficeNote(c.frOffice)));
   if (c.streak) reasons.push(`Pod members see them the days around ${dayName}, so this would make three of you on three days in a row.`);
   if (!reasons.length) return doAdd();
   const offs = (D.match.byDoc[id] || []).map(i => D.offices[i]);
@@ -2975,7 +2996,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v107";
+const APP_SHELL = "weekrouter-shell-v108";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over

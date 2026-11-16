@@ -691,6 +691,17 @@ function buildContext(input){
   C.podWeek = {}; C.pod3 = new Set();
   input.counterpartVisits.forEach(v => { (C.podWeek[v.id] = C.podWeek[v.id] || new Set()).add(v.date + "|" + v.who); });
   for (const id in C.podWeek) if (C.podWeek[id].size >= 2) for (const iso of input.days.concat(input.weekMon ? weekDays(input.weekMon) : [])){ C.pod3.add(iso + "|" + id); C.blocked.add(iso + "|" + id); }
+  // a pod member's field ride (riding with the manager): their HCPs are left alone in the week before it, so the HCP
+  // hasn't just heard from you; on the day itself you stay away from the offices they're visiting. After the ride, normal.
+  C.frBefore = new Set(); C.frWho = {}; C.frAddr = {};
+  const allDays = input.days.concat(input.weekMon ? weekDays(input.weekMon) : []);
+  for (const v of (input.fieldRideVisits || [])){
+    for (const iso of allDays){
+      const k = iso + "|" + v.id;
+      if (iso < v.date && iso >= addDays(v.date, -7)){ (C.frWho[k] = C.frWho[k] || []).push(v); if (!C.blocked.has(k)){ C.frBefore.add(k); C.blocked.add(k); } }
+      if (iso === v.date) (input.match.byDoc[v.id] || []).forEach(i => { const o = input.offices[i]; if (o && o.addrKey) (C.frAddr[iso] = C.frAddr[iso] || {})[o.addrKey] = v; });
+    }
+  }
   for (const iso in (input.skip || {})) input.skip[iso].forEach(s => C.blocked.add(iso + "|" + s.id));
   // doctors out of office: blocked like a counterpart day, but remembered separately for the reasons shown
   C.away = new Set();
@@ -739,12 +750,15 @@ function buildContext(input){
   }
   return C;
 }
-function optionsFor(C, id, iso){
-  const res = [];
+function optionsFor(C, id, iso, opt){
+  const res = [], frA = C.frAddr && C.frAddr[iso];
   (C.match.byDoc[id] || []).forEach(i => {
     if (C.allowed && !C.allowed.has(i)) return;
     const o = C.offices[i]; const a = availableOn(o, iso);
-    if (a) res.push({id, office:i, am:a.am, pm:a.pm, coords:o.coords, addrKey:o.addrKey});
+    // a pod member is at this office on a field ride that day: only offered when you're choosing by hand
+    const fr = frA && frA[o.addrKey] && frA[o.addrKey].id !== id ? frA[o.addrKey] : null;
+    if (fr && !(opt && opt.frOk)) return;
+    if (a) res.push({id, office:i, am:a.am, pm:a.pm, coords:o.coords, addrKey:o.addrKey, frOffice: fr});
   });
   return res;
 }
@@ -772,10 +786,12 @@ function whyShort(C, plan, iso, radiusKm, skipId, skipSlot){
     else if (C.away.has(k)) r.code = "away";
     else if (C.streak.has(k)) r.code = "streak";
     else if (C.pod3.has(k)) r.code = "pod3";
+    else if (C.frBefore && C.frBefore.has(k)) r.code = "fr";
     else if (C.blocked.has(k)) r.code = C.cpSet && C.cpSet.has(k) ? "pod" : "skip";
     else if (!auto.has(d.id)) r.code = d.remaining > 0 ? "notTurn" : "quota";
     else if (!inOffs.length) r.code = "notIn";
     else if (C.allowed && !inOffs.some(x => C.allowed.has(x.i))) r.code = "zone";
+    else if (C.frAddr && C.frAddr[iso] && inOffs.every(x => C.frAddr[iso][x.o.addrKey])) { r.code = "frOffice"; r.fr = C.frAddr[iso][inOffs[0].o.addrKey]; }
     else if (skipSlot && !inOffs.some(x => { const a = availableOn(x.o, iso); return skipSlot === "am" ? a.am : a.pm; })) { r.code = "half"; r.half = skipSlot === "am" ? "afternoon" : "morning"; }
     else {
       const free = inOffs.filter(x => !addrAt[x.o.addrKey]);
@@ -789,7 +805,7 @@ function whyShort(C, plan, iso, radiusKm, skipId, skipSlot){
     }
     out.push(r);
   }
-  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, pod3:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
+  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, pod3:5, fr:5, frOffice:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
   return out.sort((a,b) => order[a.code] - order[b.code] || a.km - b.km);
 }
 function feasibleDays(C, id){ return C.days.filter(d => !C.blocked.has(d + "|" + id) && optionsFor(C, id, d).length); }
@@ -1161,17 +1177,18 @@ function substitutes(C, plan, iso, idx, limit){
   const res = [];
   for (const d of (C.allDocs || C.docs)){
     // your pod has them twice this week: still offered (your call), last, with a heads-up
-    const p3 = C.pod3 && C.pod3.has(iso + "|" + d.id) && !C.cpSet.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id);
-    if (d.id === cur.id || usedD.has(d.id) || (C.blocked.has(iso + "|" + d.id) && !p3) || C.seen[d.id]) continue;
+    const k3 = iso + "|" + d.id, soft = !C.cpSet.has(k3) && !C.streak.has(k3) && !C.away.has(k3);
+    const p3 = soft && C.pod3 && C.pod3.has(k3), fr = soft && !p3 && C.frBefore && C.frBefore.has(k3);
+    if (d.id === cur.id || usedD.has(d.id) || (C.blocked.has(iso + "|" + d.id) && !p3 && !fr) || C.seen[d.id]) continue;
     const early = !auto.has(d.id) && d.remaining > 0, extra = !auto.has(d.id) && !(d.remaining > 0);
-    for (const o of optionsFor(C, d.id, iso)){
+    for (const o of optionsFor(C, d.id, iso, {frOk:true})){
       if (todayA.has(o.addrKey) && o.addrKey !== cur.addrKey) continue;
       const shared = usedA.has(o.addrKey) && o.addrKey !== cur.addrKey ? otherDay[o.addrKey] : null;
       if (!(cur.slot === "am" ? o.am : o.pm)) continue;
       const near = here ? km(here, o.coords) : (others.length ? Math.min(...others.map(c => km(c, o.coords))) : km(center, o.coords));
       const sameOffice = o.addrKey === cur.addrKey;
-      const relax = [shared ? {office: shared.office, iso: shared.iso} : null, early ? "early" : extra ? "extra" : null, p3 ? "pod3" : null].filter(Boolean);
-      res.push({...o, slot:cur.slot, doc:d, near, sameOffice, relax, pod3: p3, rank: (d.score || 0) - 0.03 * near + (sameOffice ? 2 : 0) - (extra ? 6 : early ? 3 : 0) - (shared ? 2 : 0) - (p3 ? 50 : 0)});
+      const relax = [shared ? {office: shared.office, iso: shared.iso} : null, early ? "early" : extra ? "extra" : null, p3 ? "pod3" : null, fr ? "fr" : null, o.frOffice ? "frOffice" : null].filter(Boolean);
+      res.push({...o, slot:cur.slot, doc:d, near, sameOffice, relax, pod3: p3, rank: (d.score || 0) - 0.03 * near + (sameOffice ? 2 : 0) - (extra ? 6 : early ? 3 : 0) - (shared ? 2 : 0) - (p3 ? 50 : 0) - (fr || o.frOffice ? 40 : 0)});
     }
   }
   const best = {}; res.forEach(r => { if (!best[r.id] || r.rank > best[r.id].rank) best[r.id] = r; });
@@ -1192,7 +1209,7 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !(C.pod3 && C.pod3.has(iso + "|" + d.id)) && !(C.cpSet && !C.cpSet.has(iso + "|" + d.id)), pod3: !!(C.pod3 && C.pod3.has(iso + "|" + d.id)), streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
+        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !(C.pod3 && C.pod3.has(iso + "|" + d.id)) && !(C.cpSet && !C.cpSet.has(iso + "|" + d.id)), pod3: !!(C.pod3 && C.pod3.has(iso + "|" + d.id)), fr: !!(C.frBefore && C.frBefore.has(iso + "|" + d.id)), frOffice: (C.frAddr && C.frAddr[iso] && C.frAddr[iso][o.addrKey] && C.frAddr[iso][o.addrKey].id !== d.id) ? C.frAddr[iso][o.addrKey] : null, streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
