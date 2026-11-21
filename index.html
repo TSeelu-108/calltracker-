@@ -92,6 +92,9 @@
   --grn-fill:#1d3d27; --grn-edge:#3f7d50; --grn-ink:#b8ecc5; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
+/* the page scrolls inside body, not the whole window: on iPhone a flick-scroll of the window can drag the bottom tab bar up the screen */
+html{height:100%;overflow:hidden}
+body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer;touch-action:manipulation}
@@ -268,9 +271,10 @@ header.top{border-bottom:0;padding-bottom:6px}
 .eyebrow{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .vtitle{font-family:var(--f-disp);font-size:32px;line-height:1.1;margin:2px 0 0;letter-spacing:-.015em}
 .bsub{font-size:14px;color:var(--muted);margin-top:3px}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);will-change:transform;border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
+body.kb .tabbar{display:none}
 .tab[aria-current=page]{color:var(--accent);font-weight:800}
 .tab[aria-current=page] svg{background:var(--accent);color:var(--accent-ink);border-radius:999px;width:56px;height:30px;padding:3px 16px;box-sizing:border-box}
 .view{margin-top:6px}
@@ -1103,9 +1107,9 @@ function renderHeader(){
   ["home","docs","lunch","more"].forEach(v => { $("v" + v[0].toUpperCase() + v.slice(1)).hidden = v !== view; });
 }
 function setView(v){
-  if (view === v){ window.scrollTo({top:0, behavior:"smooth"}); return; }
+  if (view === v){ document.body.scrollTo({top:0, behavior:"smooth"}); return; }
   view = v; try { history.replaceState(null, "", "#" + v); } catch(e){}
-  window.scrollTo(0, 0); render();
+  document.body.scrollTo(0, 0); render();
 }
 
 /* ---------- the quarter: pace by field days (weekends, holidays and your time off don't count) ---------- */
@@ -1212,7 +1216,7 @@ function renderLunches(){
   $("lunchNudge").innerHTML = n ? `<button class="lnudge" id="lnGo">🍽 <b>${n} lunch${n === 1 ? "" : "es"} still to send</b><span class="btn small">Open</span></button>` : "";
   if (n) $("lnGo").onclick = () => setView("lunch");
 }
-function showLunchesTab(note){ lunchNote = note || ""; if (view !== "lunch") setView("lunch"); else render(); window.scrollTo(0, 0); }
+function showLunchesTab(note){ lunchNote = note || ""; if (view !== "lunch") setView("lunch"); else render(); document.body.scrollTo(0, 0); }
 let lunchNote = "";
 function renderLunchTab(){ lunchesPanel($("lunchTab"), {note: lunchNote, onChange: () => { renderHeader(); }}); lunchNote = ""; }
 // a phone number in a note or staff line, tappable
@@ -2459,7 +2463,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v90";
+const APP_SHELL = "calltracker-shell-v92";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -2546,6 +2550,17 @@ render();
 geoLoad(applyGeo);
 // "Add Doe" from Plan my week's build check
 try { const pend = localStorage.getItem("pending.addProvider"); if (pend){ localStorage.removeItem("pending.addProvider"); let o = {last: pend}; if (pend[0] === "{") o = JSON.parse(pend); o.cal = true; openAddProvider(null, o); } } catch(e){}
+</script>
+<script>
+/* iPhone keyboard: the tab bar rides up with the keyboard and can stay stuck mid-screen after it closes.
+   Hide it while typing, and put it back at the bottom once the keyboard is gone. */
+(function(){
+  const typing = el => el && (el.tagName === "TEXTAREA" || el.isContentEditable || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range|color)$/i.test(el.type)));
+  let t = 0;
+  document.addEventListener("focusin", e => { if (typing(e.target)){ clearTimeout(t); document.body.classList.add("kb"); } });
+  document.addEventListener("focusout", () => { clearTimeout(t); t = setTimeout(() => { if (!typing(document.activeElement)){ document.body.classList.remove("kb"); document.body.scrollTo(document.body.scrollLeft, document.body.scrollTop); } }, 120); });
+  if (window.visualViewport) visualViewport.addEventListener("resize", () => { if (visualViewport.height >= window.innerHeight - 40 && !typing(document.activeElement)){ document.body.classList.remove("kb"); document.body.scrollTo(document.body.scrollLeft, document.body.scrollTop); } });
+})();
 </script>
 </body>
 </html>
