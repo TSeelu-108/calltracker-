@@ -268,7 +268,7 @@ header.top{border-bottom:0;padding-bottom:6px}
 .eyebrow{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .vtitle{font-family:var(--f-disp);font-size:32px;line-height:1.1;margin:2px 0 0;letter-spacing:-.015em}
 .bsub{font-size:14px;color:var(--muted);margin-top:3px}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);will-change:transform;border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
 .tab[aria-current=page]{color:var(--accent);font-weight:800}
@@ -366,6 +366,7 @@ header.top{border-bottom:0;padding-bottom:6px}
 .lunchbox .stop.lsend .sn{border-color:var(--yel-edge);color:var(--yel-ink)}
 .lnudge{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:11px 14px;border-radius:12px;background:var(--yel-fill);border:1px solid var(--yel-edge);color:var(--yel-ink);font:inherit;text-align:left;cursor:pointer}
 .lnudge .btn{margin-left:auto;background:var(--surface);color:var(--ink)}
+.optag{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 8px;background:var(--accent-soft);color:var(--accent);vertical-align:2px;margin-left:4px;white-space:nowrap}
 .ltag{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 8px;background:#f3eefa;color:#5b3f8c;vertical-align:2px;margin-left:4px}
 @media (prefers-color-scheme:dark){.ltag{background:#2a2238;color:#d6c6f2}}
 #lunchTab .sechd{margin-top:16px}
@@ -1221,13 +1222,13 @@ function stopInfo(x){
   if (st.length){ const c = st[0]; return [c.t, c.n, c.p ? staffFmtPhone(c.p) : ""].filter(Boolean).join(" · ") + (st.length > 1 ? ` · +${st.length - 1} more` : ""); }
   return x.note || "";
 }
-function stopRow(x, i, isNext){
+function stopRow(x, i, isNext, offPlan){
   const d = find(x.id); const left = d ? (d.added || !d.a ? "" : rem(d) ? rem(d) + " left" : "all calls done") : "";
   const logged = d && allDates(d).includes(logDay);
   const lt = bUpcoming().filter(b => b.date === todayISO() && (b.docs || []).includes(x.id));
   const info = stopInfo(x);
   return `<div class="stop${logged ? " done" : ""}${isNext ? " next" : ""}"><div class="sn">${logged ? "✓" : i + 1}</div>
-    <div style="min-width:0">${isNext ? `<span class="nextpill">Next</span> ` : ""}<button class="nm" data-h="${esc(x.id)}">${esc(titleCase(x.name))}</button>${lt.map(b => ` <span class="ltag">🍽 ${esc(b.kind)} ${esc(b.time)}</span>`).join("")}
+    <div style="min-width:0">${isNext ? `<span class="nextpill">Next</span> ` : ""}<button class="nm" data-h="${esc(x.id)}">${esc(titleCase(x.name))}</button>${offPlan ? ` <span class="optag">Not in today's plan</span>` : ""}${lt.map(b => ` <span class="ltag">🍽 ${esc(b.kind)} ${esc(b.time)}</span>`).join("")}
       <div class="mt">${esc(x.city || "")}${left ? " · " + left : ""}${x.addr && !isNext ? ` · <a href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}>Directions</a>` : ""}</div>
       ${info && !logged ? `<div class="mt info">${telLinks(info)}</div>` : ""}</div>
     <div class="act">${d ? (logged ? `<span class="donepill">Logged</span><button class="undo" data-u="${esc(d.id)}" aria-label="Undo">↶</button>` : `${isNext && x.addr ? `<a class="btn small dirbtn" href="${esc(dirUrl(x.addr))}"${tgt(dirUrl(x.addr))}>➜ Directions</a>` : ""}<button class="call" data-c="${esc(d.id)}">+ Call</button><button class="smore" data-smore="${esc(x.id)}" aria-label="More for ${esc(titleCase(x.name))}">⋯</button>`) : ""}</div></div>`;
@@ -1268,10 +1269,16 @@ function renderHome(){
     const isN = () => false;   // every stop looks the same
     $("todayList").innerHTML = (am.length && pm.length ? `<div class="slot">Morning</div>` : "") + am.map((x, i) => stopRow(x, i, isN(x))).join("") + (am.length && pm.length ? `<div class="slot">Afternoon</div>` : "") + pm.map((x, i) => stopRow(x, i + am.length, isN(x))).join("");
   }
-  // calls logged today for HCPs who weren't in today's plan (seen off-plan, logged from the HCPs tab): shown here too
+  // calls logged today for HCPs who weren't in today's plan (logged from the HCPs tab): same cards as the plan, with a note
   if (logDay === t){
     const planned = new Set(st.map(x => x.id)), extra = state.doctors.filter(d => !planned.has(d.id) && allDates(d).includes(t)).sort(byLastName);
-    if (extra.length){ const ctx0 = rowCtx(); $("todayList").innerHTML += `<div class="slot">Also called today · not in today's plan</div>` + extra.map(d => docRow(d, ctx0)).join(""); }
+    if (extra.length){
+      let offs = {}; try { offs = JSON.parse(localStorage.getItem("doctor.offices.v1")) || {}; } catch(e){}
+      const rowsX = extra.map(d => { const o = (offs[d.id] || [])[0], addr = o && o.a && !/not set yet/.test(o.a) ? o.a : "";
+        return {id: d.id, name: d.name, city: addr ? addr.split(", ").pop() : titleCase(d.city || ""), addr, k: (o && o.k) || "", note: ""}; });
+      $("todayList").innerHTML += (st.length ? "" : "") + rowsX.map((x, i) => stopRow(x, st.length + i, false, true)).join("");
+      if (st.length) $("todaySub").textContent += ` · ${extra.length} not in the plan`;
+    }
   }
   const q = norm(ui.hq || "");
   if (!q){ $("hResults").innerHTML = ""; return; }
@@ -2452,7 +2459,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v89";
+const APP_SHELL = "calltracker-shell-v90";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
