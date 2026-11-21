@@ -164,6 +164,7 @@ header.top{background:var(--bg);padding-top:calc(12px + env(safe-area-inset-top,
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .tag{font-size:12px;font-weight:600;border-radius:6px;padding:2px 6px;background:var(--surface);border:1px solid var(--line)}
 .tag.appt{background:var(--yel-fill);border-color:var(--yel-edge);color:var(--yel-ink)}
+.tag.op{background:var(--accent-soft);border-color:var(--accent-soft);color:var(--accent);font-weight:700}
 .tag.cal{background:var(--grn-fill);border-color:var(--grn-edge);color:var(--grn-ink)}
 .tag.swap{background:var(--accent-soft)}
 .note{font-size:12px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
@@ -255,7 +256,7 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
 /* tab bar shared with the Call Tracker */
 :root{--tabh:64px}
 body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);will-change:transform;border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
 .tab[aria-current=page]{color:var(--accent);font-weight:800}
@@ -1505,6 +1506,19 @@ function renderRoute(){
       html += `<section class="day past" id="day-${iso}"><div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")} · ${dn} of ${d.stops.length} done</span></div><div class="dayact"><button class="btn small ghost" data-openpast="${iso}">Show</button></div></div></section>`;
       continue;
     }
+    // a call logged in the tracker for someone not in this day's plan: looks like a done stop, with a note
+    const offPlanHtml = id => {
+      const doc = D.docs.find(x => x.id === id) || {}; const o = (D.match.byDoc[id] || []).map(i => D.offices[i]).find(Boolean);
+      const addr = o ? [o.address, o.city].filter(Boolean).join(", ") : "";
+      return `<div class="stop am done">
+        <div class="num">${++k}</div>
+        <div class="who">
+          <div class="n">${esc(docName(id))}</div>
+          ${o ? (o.address ? `<a class="a addr" href="${mapsUrl(addr)}" target="_blank" rel="noopener">${esc(addr)} <span aria-hidden="true">›</span></a>` : `<div class="a">${esc(addr)}</div>`) : ""}
+          <div class="tags"><span class="tag op">Not in this plan</span>${doc.added ? `<span class="tag">Added by you · not on call plan</span>` : doc.remaining != null ? `<span class="tag">${doc.remaining} of ${doc.assigned} left</span>` : ""}<span class="tag cal">✓ Call logged ${iso === todayISO() ? "today" : fmtShort(iso)}</span></div>
+        </div>
+        <div class="sbtns"></div>
+      </div>`; };
     const stopHtml = (s, i) => {
       const o = officeOf(s); const doc = D.docs.find(x => x.id === s.id) || {};
       const prev = s.history.length ? s.history[s.history.length-1] : null;
@@ -1545,11 +1559,11 @@ function renderRoute(){
       <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " miles of driving" + (S.settings.home ? ", from " + esc(title(S.settings.home)) + " and back" : "") : ""}</span></div><div class="dayact">${iso < tday ? `<button class="btn small ghost" data-hidepast="${iso}">Hide</button>` : ""}<button class="btn small ghost" data-add="${iso}">Add an HCP</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. HCPs were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
-      ${offPlan.length ? `<div class="daynotes"><span>Also called, not in this plan: ${esc(offPlan.map(docName).join(", "))}</span></div>` : ""}
       ${mealAsks().filter(e => L.isoDay(e.start) === iso).map(e => { const nm = mealName(e); return `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(nm)} isn't on your list, so this day isn't planned around your ${e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} ${esc(((e.summary || "").match(/lunch|breakfast|coffee|snacks?|dinner/i) || ["lunch"])[0].toLowerCase())}.</span><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button></div>`; }).join("")}
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other HCPs on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule. <button class="linkbtn" data-why="${iso}" style="color:inherit;font-weight:700;text-decoration:underline">Why?</button></div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
       ${pm.length ? `<div class="half"><div class="lbl">Afternoon</div>${pm.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
+      ${offPlan.length ? `<div class="half"><div class="lbl">Also called</div>${offPlan.map(offPlanHtml).join("")}</div>` : ""}
       ${(d.removed||[]).length ? `<div class="daynotes">${d.removed.map((r,k) => `<span>${r.skipped ? "Skipped" : "Removed"}: ${esc(docName(r.id))} · <button class="btn small ghost" data-putback="${iso}|${k}" style="min-height:32px;padding:2px 8px">Put back</button></span>`).join("")}</div>` : ""}
       ${!d.stops.length ? `<div class="half"><div class="sub" style="padding:8px 4px">${d.notes && d.notes.some(x => x.label === "All day") ? "Your calendar has this day blocked." : "Nothing could be planned this day."}</div></div>` : ""}
     </section>`;
@@ -3099,7 +3113,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v117";
+const APP_SHELL = "weekrouter-shell-v118";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
