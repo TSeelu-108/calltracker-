@@ -882,6 +882,17 @@ function makeFixedStop(C, f, iso){
   const off = o ? C.offices[o.office] : (C.match.byDoc[f.id]||[]).map(i => C.offices[i])[0];
   return {id:f.id, office: o ? o.office : ((C.match.byDoc[f.id]||[])[0] ?? null), slot:f.slot, coords: off ? off.coords : null, addrKey: off ? off.addrKey : "cal|"+f.id, fixed:true, am:f.slot === "am", pm:f.slot === "pm", note:f.note, time:f.time, hour:f.hour, history:[]};
 }
+// A day stays in one area: its stops no more than about 30 miles apart, unless set visits (a lunch, an anchor) are farther
+// apart than that, or a stop sits on the drive out from home to the day's area.
+const DAY_SPAN = 48;
+function spanOf(pts){ let m = 0; pts.forEach(a => pts.forEach(b => { m = Math.max(m, km(a, b)); })); return m; }
+function dayLimit(day){ return Math.max(DAY_SPAN, spanOf(day.stops.filter(s => s.coords && (s.fixed || s.manual || s.done)).map(s => s.coords)) + 8); }
+function fitsDay(C, pts, c, lim){
+  if (!c || !pts.length) return true;
+  if (pts.every(p => km(p, c) <= lim)) return true;
+  // on the way: a small detour on the drive between home and one of the day's stops
+  return !!C.home && pts.every(p => km(p, c) <= lim * 1.5) && pts.some(p => km(C.home, c) + km(c, p) - km(C.home, p) <= 10);
+}
 function fillDay(C, plan, iso, opts){
   // Plans the open spots of one day. opts: {variant: n (0 = best area, 1 = next best...), avoid: Set of ids to leave out if possible}
   opts = opts || {};
@@ -911,15 +922,17 @@ function fillDay(C, plan, iso, opts){
   const fill = (center, radius, extra) => {
     const P = all.filter(o => dist(o.coords, center) <= radius || (extra && extra(o))).sort((a,b) => adj(b, center) - adj(a, center));
     const picked = [], dU = new Set(), aU = new Set(); let am = capAM, pm = capPM, n = 0, val = 0;
+    const pts = day.stops.filter(s => s.coords).map(s => s.coords), lim = dayLimit(day);
     for (const o of P){
       if (n >= total || am + pm === 0) break;
       if (dU.has(o.id) || aU.has(o.addrKey)) continue;
+      if (!fitsDay(C, pts, o.coords, lim)) continue;
       let slot = null;
       if (o.am && o.pm) slot = am >= pm ? (am ? "am" : "pm") : "pm";
       else if (o.am && am) slot = "am"; else if (o.pm && pm) slot = "pm";
       if (!slot || (slot === "am" ? am : pm) <= 0) continue;
       if (slot === "am") am--; else pm--;
-      n++; dU.add(o.id); aU.add(o.addrKey); val += adj(o, center); picked.push({...o, slot});
+      n++; dU.add(o.id); aU.add(o.addrKey); val += adj(o, center); picked.push({...o, slot}); pts.push(o.coords);
     }
     return {picked, val, left: total - n};
   };
@@ -1022,7 +1035,9 @@ function topUp(C, plan, iso){
   const capAM = C.caps[iso].am - day.stops.filter(s => s.slot === "am").length, capPM = C.caps[iso].pm - day.stops.filter(s => s.slot !== "am").length;
   let need = Math.min(C.caps[iso].total - day.stops.length, Math.max(0, capAM) + Math.max(0, capPM)); if (need <= 0) return;
   const pts = day.stops.filter(s => s.coords).map(s => s.coords); if (!pts.length) return;
-  const near = c => Math.min(...pts.map(p => km(p, c)));
+  const core = pts.slice(), lim = dayLimit(day);
+  // distance from the day's stops as planned, so one added stop can't pull the next one farther out
+  const near = c => Math.min(...core.map(p => km(p, c)));
   const usedDoc = new Set(), otherAddr = {}, dayAddr = new Set(day.stops.map(s => s.addrKey));
   for (const k in plan.days) plan.days[k].stops.forEach(s => { usedDoc.add(s.id); if (k !== iso && !s.manual && C.addrRule !== "day" && !otherAddr[s.addrKey]) otherAddr[s.addrKey] = {iso:k, id:s.id}; });
   const auto = new Set(C.docs.map(d => d.id)), cand = [];
@@ -1041,6 +1056,7 @@ function topUp(C, plan, iso){
   const taken = new Set(), addrT = new Set();
   const take = (o, drive) => {
     if (need <= 0 || taken.has(o.d.id) || addrT.has(o.addrKey)) return false;
+    if (!fitsDay(C, pts, o.coords, lim)) return false;
     let slot = null; if (o.am && o.pm) slot = am >= pm ? (am ? "am" : "pm") : "pm"; else if (o.am && am) slot = "am"; else if (o.pm && pm) slot = "pm";
     if (!slot || (slot === "am" ? am : pm) <= 0) return false;
     if (slot === "am") am--; else pm--; need--; taken.add(o.d.id); addrT.add(o.addrKey);
@@ -1138,7 +1154,7 @@ function rescueStranded(C, plan){
       const now = tally();
       // and neither day may end up thinner, or stretched across two far-apart areas
       const spread = stops => { let m = 0; const p = stops.filter(s => s.coords); p.forEach(a => p.forEach(b => { m = Math.max(m, km(a.coords, b.coords)); })); return m; };
-      const oA = JSON.parse(saveA).stops, oB = JSON.parse(saveB).stops, lim = Math.max(70, spread(oA), spread(oB));
+      const oA = JSON.parse(saveA).stops, oB = JSON.parse(saveB).stops, lim = Math.max(DAY_SPAN + 8, spread(oA), spread(oB));
       const tidy = Math.min(plan.days[A].stops.length, plan.days[B].stops.length) >= Math.min(oA.length, oB.length) && spread(plan.days[A].stops) <= lim && spread(plan.days[B].stops) <= lim;
       if (tidy && now[0] >= before[0] && now[1] > before[1] + 1e-6) changed = true;
       else { plan.days[A] = JSON.parse(saveA); plan.days[B] = JSON.parse(saveB); }

@@ -258,7 +258,8 @@ body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--surface) 94%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
-.tab[aria-current=page]{color:var(--accent)}
+.tab[aria-current=page]{color:var(--accent);font-weight:800}
+.tab[aria-current=page] svg{background:var(--accent);color:var(--accent-ink);border-radius:999px;width:56px;height:30px;padding:3px 16px;box-sizing:border-box}
 .toast{bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))!important}
 .instrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:14px}
 .instrip .incell{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font:inherit;color:var(--ink);border-radius:12px}
@@ -1491,6 +1492,8 @@ function renderRoute(){
   $("buildLbl").textContent = "Rebuild week";
   $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> HCPs planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${paceWords(D.pace).short} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
+  // calls logged in the tracker on a day, for HCPs not in that day's plan
+  const offPlanCalls = {}; ((readTrackerRaw() || {}).doctors || []).forEach(t => (t.log || []).concat(t.hist || []).forEach(x => { const l = (offPlanCalls[x] = offPlanCalls[x] || []); if (!l.includes(t.id)) l.push(t.id); }));
   const isos = Object.keys(plan.days).sort(), tday = todayISO();
   let html = `<nav class="daynav" aria-label="Jump to a day">${isos.map(iso => { const d = plan.days[iso], dn = d.stops.filter(s => s.done || trackerHasCall(s.id, iso)).length;
     return `<button type="button" data-jump="${iso}" class="${iso === tday ? "today" : iso < tday ? "past" : ""}">${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(iso).getDate()}<span>${iso < tday || dn ? dn + "/" + d.stops.length + " ✓" : d.stops.length + " stops"}</span></button>`; }).join("")}</nav><div class="days">`;
@@ -1536,11 +1539,13 @@ function renderRoute(){
     };
     const am = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "am"), pm = d.stops.map((s,i) => [s,i]).filter(([s]) => s.slot === "pm");
     const cps = (cpBy[iso]||[]);
+    const offPlan = (offPlanCalls[iso] || []).filter(id => !d.stops.some(x => x.id === id));
     const cpLine = cps.length ? Object.entries(cps.reduce((m,v) => ((m[v.who] = m[v.who] || []).push(docName(v.id) + (v.sure === false ? "?" : "")), m), {})).map(([w,l]) => `${esc(w)} is seeing ${esc(l.join(", "))}`).join(" · ") : "";
     html += `<section class="day" id="day-${iso}">
       <div class="dayhead"><div><h2>${fmtDay(iso)}</h2><span class="area">${esc(d.area || "No visits")}${d.miles ? " · about " + d.miles + " miles of driving" + (S.settings.home ? ", from " + esc(title(S.settings.home)) + " and back" : "") : ""}</span></div><div class="dayact">${iso < tday ? `<button class="btn small ghost" data-hidepast="${iso}">Hide</button>` : ""}<button class="btn small ghost" data-add="${iso}">Add an HCP</button>${d.stops.some(s => !s.fixed && !s.done && !s.manual) || d.short ? `<button class="btn small ghost" data-reday="${iso}">Try another area</button>` : ""}</div></div>
       ${d.farApart ? `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink)">${esc(docName(d.farApart.a))} and ${esc(docName(d.farApart.b))} are about ${d.farApart.mi} miles apart, so this day has a lot of driving. HCPs were picked near each of them.</div>` : ""}
       ${(d.notes && d.notes.length) || cpLine ? `<div class="daynotes">${(d.notes||[]).map(x => `<span>${esc(x.label)} · ${esc(x.text)}</span>`).join("")}${cpLine ? `<span>${cpLine}</span>` : ""}</div>` : ""}
+      ${offPlan.length ? `<div class="daynotes"><span>Also called, not in this plan: ${esc(offPlan.map(docName).join(", "))}</span></div>` : ""}
       ${mealAsks().filter(e => L.isoDay(e.start) === iso).map(e => { const nm = mealName(e); return `<div class="short" style="background:var(--yel-fill);color:var(--yel-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>${esc(nm)} isn't on your list, so this day isn't planned around your ${e.start.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} ${esc(((e.summary || "").match(/lunch|breakfast|coffee|snacks?|dinner/i) || ["lunch"])[0].toLowerCase())}.</span><button type="button" class="btn small" data-addprov="${esc(nm)}" data-addiso="${L.isoDay(e.start)}">Add ${esc(nm)}</button></div>`; }).join("")}
       ${d.short && d.stops.length < target ? `<div class="short">${d.stops.length} of ${target} fit. No other HCPs on your list are in near this area on ${L.fromISO(iso).toLocaleDateString(undefined,{weekday:"long"})} without breaking a rule. <button class="linkbtn" data-why="${iso}" style="color:inherit;font-weight:700;text-decoration:underline">Why?</button></div>` : ""}
       ${am.length ? `<div class="half"><div class="lbl">Morning</div>${am.map(([s,i]) => stopHtml(s,i)).join("")}</div>` : ""}
@@ -2667,6 +2672,8 @@ function openWho(){
   derive();
   if (!D.docs.length){ toast("Pull in your remaining calls first"); return; }
   const W = currentPlan(); if (W) C = L.buildContext(contextInput());
+  // who's in on a day depends only on their office days, not on whether the address is on the map yet
+  const inOn = (o, d) => L.availableOn(o.coords ? o : {...o, coords:[0,0]}, d);
   if (!who.iso || !D.days.includes(who.iso)) who.iso = D.days.includes(todayISO()) ? todayISO() : D.days[0];
   const iso = who.iso, areas = whoAreas(), byId = Object.fromEntries(areas.map(a => [a.id, a]));
   const areaOfCity = {}; areas.forEach(a => a.cities.forEach(c => areaOfCity[c.k] = a.id));
@@ -2683,10 +2690,10 @@ function openWho(){
   const finished = d => !d.added && d.remaining <= 0;
   const rows = {};   // area id -> [candidate]
   for (const d of D.docs){
-    if (!who.all && (finished(d) || d.noAuto)) continue;
+    // everyone in is listed; HCPs with no calls left go in their own group
     let best = null;
     for (const i of (D.match.byDoc[d.id] || [])){
-      const o = D.offices[i]; const a = L.availableOn(o, iso); if (!a) continue;
+      const o = D.offices[i]; const a = inOn(o, iso); if (!a) continue;
       const ck = L.cityKey(o.city), aid = areaOfCity[ck]; if (!aid) continue;
       const rank = who.sel.includes(aid) && !who.off.includes(ck) ? 0 : 99;
       if (best && best.rank <= rank) continue;
@@ -2699,7 +2706,7 @@ function openWho(){
   const count = aid => (rows[aid] || []).filter(c => !who.off.includes(c.ck)).length;
   const canAdd = W && W.plan.days[iso];
   const quota = d => { if (d.added || !d.assigned) return ""; const done = d.completed != null ? +d.completed : d.assigned - d.remaining, cap = Math.max(2, Math.round(d.assigned / 3));
-    return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">Quota met</span>` : ""; };
+    return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">No calls left</span>` : ""; };
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
     const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
@@ -2709,28 +2716,63 @@ function openWho(){
       ${flags.length ? `<div class="sub" style="color:var(--red-ink)">${esc(flags.join(" · "))}</div>` : ""}</div>
       ${canAdd && !c.onRoute ? `<div class="actions">${c.am ? `<button class="btn small primary" data-wadd="${c.id}|am">Morning</button>` : ""}${c.pm ? `<button class="btn small primary" data-wadd="${c.id}|pm">Afternoon</button>` : ""}</div>` : ""}</div>`; };
   const section = aid => { const a = byId[aid], list = (rows[aid] || []).filter(c => !who.off.includes(c.ck));
-    list.sort((x,y) => (x.onRoute - y.onRoute) || (finished(x.doc) - finished(y.doc)) || (y.doc.score - x.doc.score));
+    list.sort((x,y) => (x.onRoute - y.onRoute) || (y.doc.score - x.doc.score));
+    const left = list.filter(c => !finished(c.doc)), none = list.filter(c => finished(c.doc));
     const per = a.cities.map(c => [c.name, list.filter(x => x.ck === c.k).length]).filter(x => x[1]);
     const folded = who.fold.includes(aid);
     return `<div class="whosec" style="margin-top:14px">
       <button class="whohead" data-wfold="${aid}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:var(--t-blue-bg, #e3eff7);color:#0f5f8c;border:0;border-radius:10px;padding:10px 12px;font-weight:700;min-height:44px">
-        <span>${esc(a.name)} · ${list.length} in on ${dayName}${per.length > 1 ? `<span style="font-weight:400"> (${esc(per.map(x => x[0] + " " + x[1]).join(", "))})</span>` : ""}</span><span aria-hidden="true">${folded ? "▸" : "▾"}</span></button>
+        <span>${esc(a.name)} · ${list.length} in on ${dayName}${none.length ? ` · ${left.length} with calls left` : ""}${per.length > 1 ? `<span style="font-weight:400"> (${esc(per.map(x => x[0] + " " + x[1]).join(", "))})</span>` : ""}</span><span aria-hidden="true">${folded ? "▸" : "▾"}</span></button>
       ${a.cities.length > 1 ? `<div class="chips" style="margin-top:8px">${a.cities.map(c => `<button class="chip" data-wcity="${c.k}" aria-pressed="${!who.off.includes(c.k)}" style="min-height:36px;${who.off.includes(c.k) ? "opacity:.6" : "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px"}">${who.off.includes(c.k) ? "" : "✓ "}${esc(c.name)}</button>`).join("")}</div>` : ""}
-      ${folded ? "" : `<div class="cands">${list.map(row).join("") || `<p class="sub">No one ${who.all ? "" : "with calls left "}is in there on ${dayName}.</p>`}</div>`}</div>`; };
+      ${folded ? "" : `<div class="cands">${left.map(row).join("") || `<p class="sub">No one with calls left is in there on ${dayName}.</p>`}</div>
+        ${none.length ? `<p class="sub" style="margin:12px 0 4px;font-weight:700">Also in · no calls left</p><div class="cands" style="opacity:.72">${none.map(row).join("")}</div>` : ""}`}</div>`; };
   openSheet(`<h2>Who's in</h2>
     <p class="sub" style="margin-top:6px">Which HCPs are in on a day, area by area, so you can add them to that day. Pick any day this week; use the arrows on the main screen for another week.</p>
     <div class="seg" role="group" aria-label="Day" style="margin-top:6px">${D.days.map(d => `<button data-wday="${d}" aria-pressed="${d===iso}" style="${d===iso ? "background:var(--accent);color:var(--accent-ink);font-weight:700" : ""}">${L.fromISO(d).toLocaleDateString(undefined,{weekday:"short"})} ${L.fromISO(d).getDate()}${d === todayISO() ? " · today" : ""}</button>`).join("")}</div>
-    <div class="seg" role="group" aria-label="Which HCPs" style="margin-top:8px"><button data-wall="0" aria-pressed="${!who.all}">Calls left only</button><button data-wall="1" aria-pressed="${who.all}">Everyone in</button></div>
     <p class="sub" style="margin-top:10px">Tap the areas you'll be in. Tap again to take one off.</p>
-    <div class="chips" style="margin-top:6px">${areas.map(a => { const n = (rows[a.id] || []).length, on = who.sel.includes(a.id);
-      return `<button class="chip" data-warea="${a.id}" aria-pressed="${on}" style="min-height:40px;${on ? "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px" : n ? "" : "opacity:.5"}">${on ? "✓ " : ""}${esc(a.name)} · ${n}</button>`; }).join("")}</div>
+    <div class="chips" style="margin-top:6px">${areas.map(a => { const n = (rows[a.id] || []).length, nl = (rows[a.id] || []).filter(c => !finished(c.doc)).length, on = who.sel.includes(a.id);
+      return `<button class="chip" data-warea="${a.id}" aria-pressed="${on}" style="min-height:40px;${on ? "background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding-right:12px" : n ? "" : "opacity:.5"}">${on ? "✓ " : ""}${esc(a.name)} · ${n === nl ? n : nl + " left · " + n + " in"}</button>`; }).join("")}</div>
     <label class="sub" style="display:flex;gap:6px;align-items:center;margin-top:10px"><input type="checkbox" id="wPin" ${who.pin?"checked":""}> 📌 Anchor who I add</label>
     ${!canAdd ? `<p class="sub">${W ? "That day isn't in your plan, so these can't be added to it." : "Build this week first to add HCPs to a day."}</p>` : ""}
     ${areas.filter(a => who.sel.includes(a.id)).map(a => section(a.id)).join("") || `<p class="sub" style="margin-top:14px">Pick an area above to see who's in.</p>`}
+    <p class="sechd" style="margin-top:18px">Not seeing someone?</p>
+    <input type="search" id="wFind" placeholder="Type a name" autocomplete="off" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;min-height:44px">
+    <div class="cands" id="wWhy"></div>
     <div class="foot"><button class="btn" id="closeS">Close</button></div>`);
   $("closeS").onclick = closeSheet;
+  // why an HCP isn't listed for this day
+  const shown = new Set(areas.filter(a => who.sel.includes(a.id)).flatMap(a => (rows[a.id] || []).filter(c => !who.off.includes(c.ck)).map(c => c.id)));
+  const whyNot = d => {
+    if (shown.has(d.id)) return "Listed above.";
+    if (awayNow(d.id, iso)) return "Marked out of office " + dayName + ".";
+    const offs = (D.match.byDoc[d.id] || []).map(i => D.offices[i]).filter(Boolean);
+    if (!offs.length) return "No office address on file. Add one under Office and days.";
+    const inO = offs.filter(o => inOn(o, iso));
+    if (!inO.length){
+      const mates = new Set(); offs.forEach(o => D.docs.forEach(x => { if (x.id !== d.id && (D.match.byDoc[x.id] || []).some(i => D.offices[i] && D.offices[i].addrKey === o.addrKey && inOn(D.offices[i], iso))) mates.add(docName(x.id)); }));
+      const noDays = offs.every(o => !o.avail || !Object.keys(o.avail.days || {}).length);
+      return (noDays ? "Their office days aren't set, so the app doesn't know when they're in." : "Their office days on file don't include " + dayName + (offs.some(o => o.avail && o.avail.nth && o.avail.nth.length) ? " that week" : "") + ".")
+        + (mates.size ? " " + [...mates].slice(0, 3).join(", ") + " at the same address " + (mates.size === 1 ? "is" : "are") + " in." : "") + " If they're in, update their days under Office and days, or add them below.";
+    }
+    const o = inO[0], ck = L.cityKey(o.city), aid = areaOfCity[ck];
+    if (!aid) return (o.city ? title(o.city) : "Their city") + " isn't in any of your areas.";
+    if (!who.sel.includes(aid)) return "In " + byId[aid].name + ". Tap that area above to see them.";
+    if (who.off.includes(ck)) return title(o.city) + " is switched off above. Tap it to see them.";
+    return "";
+  };
+  const norm = x => String(x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const findWho = () => { const q = norm($("wFind").value || ""); if (q.length < 2){ $("wWhy").innerHTML = ""; return; }
+    const hits = D.docs.filter(d => norm(docName(d.id)).includes(q)).slice(0, 6);
+    $("wWhy").innerHTML = hits.map(d => { const offs = (D.match.byDoc[d.id] || []); const o = D.offices[offs[0]];
+      const listed = shown.has(d.id), onRoute = planned[d.id] === iso;
+      return `<div class="cand"><div><div class="n">${esc(docName(d.id))}</div>${o ? `<div class="sub">${esc(addrOf(o))}</div>` : ""}<div class="sub">${esc(whyNot(d))}</div></div>
+        ${canAdd && !listed && !onRoute && o ? `<div class="actions"><button class="btn small" data-wany="${esc(d.id)}|am">Morning</button><button class="btn small" data-wany="${esc(d.id)}|pm">Afternoon</button></div>` : ""}</div>`; }).join("") || `<p class="sub">No one by that name on your list.</p>`;
+    $("wWhy").querySelectorAll("[data-wany]").forEach(b => b.onclick = () => { const [id, slot] = b.dataset.wany.split("|"); const d = D.docs.find(x => x.id === id), i = (D.match.byDoc[id] || [])[0], o = D.offices[i];
+      const av = inOn(o, iso);
+      addWithConfirm(iso, {id, office:i, coords:o.coords, addrKey:o.addrKey, inToday: !!av, am: av ? av.am : true, pm: av ? av.pm : true, doc:d, pod3: new Set(D.cp.filter(v => v.id === id).map(v => v.date + v.who)).size >= 2, elsewhere: planned[id] && planned[id] !== iso ? planned[id] : null, counterpart: D.cp.some(v => v.date === iso && v.id === id)}, slot, openWho); });
+  };
+  $("wFind").addEventListener("input", findWho);
   $("sheet").querySelectorAll("[data-wday]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); who.iso = b.dataset.wday; openWho(); });
-  $("sheet").querySelectorAll("[data-wall]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); who.all = b.dataset.wall === "1"; keepPrefs(); openWho(); });
   $("sheet").querySelectorAll("[data-warea]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const id = b.dataset.warea; who.sel = who.sel.includes(id) ? who.sel.filter(x => x !== id) : who.sel.concat(id); keepPrefs(); openWho(); });
   $("sheet").querySelectorAll("[data-wcity]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const k = b.dataset.wcity; who.off = who.off.includes(k) ? who.off.filter(x => x !== k) : who.off.concat(k); keepPrefs(); openWho(); });
   $("sheet").querySelectorAll("[data-wfold]").forEach(b => b.onclick = () => { const y0 = $("sheet").scrollTop; requestAnimationFrame(() => { $("sheet").scrollTop = y0; }); const id = b.dataset.wfold; who.fold = who.fold.includes(id) ? who.fold.filter(x => x !== id) : who.fold.concat(id); openWho(); });
@@ -3057,7 +3099,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v113";
+const APP_SHELL = "weekrouter-shell-v117";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
