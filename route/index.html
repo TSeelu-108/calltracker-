@@ -69,6 +69,9 @@
   --grn-fill:#1d3d27; --grn-edge:#3f7d50; --grn-ink:#b8ecc5; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
+/* the page scrolls inside body, not the whole window: on iPhone a flick-scroll of the window can drag the bottom tab bar up the screen */
+html{height:100%;overflow:hidden}
+body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer;touch-action:manipulation}
@@ -256,9 +259,10 @@ textarea{font:inherit;color:inherit;border:1px solid var(--line);background:var(
 /* tab bar shared with the Call Tracker */
 :root{--tabh:64px}
 body{padding-bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom,0px))}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);will-change:transform;border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);-webkit-transform:translateZ(0);transform:translateZ(0);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;border:0;background:transparent;color:var(--muted);font-size:12px;font-weight:650;text-decoration:none;border-radius:10px}
 .tab svg{width:24px;height:24px}
+body.kb .tabbar{display:none}
 .tab[aria-current=page]{color:var(--accent);font-weight:800}
 .tab[aria-current=page] svg{background:var(--accent);color:var(--accent-ink);border-radius:999px;width:56px;height:30px;padding:3px 16px;box-sizing:border-box}
 .toast{bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))!important}
@@ -1470,7 +1474,7 @@ const openPast = new Set(); let jumpedToday = false, inputsOpen = false, viewDay
 // the day you're looking at is highlighted in the day buttons: the one you tapped, or the one scrolled to the top
 function markDay(iso){ viewDay = iso; document.querySelectorAll(".daynav [data-jump]").forEach(b => b.classList.toggle("sel", b.dataset.jump === iso)); }
 let spyTick = false;
-window.addEventListener("scroll", () => { if (spyTick || Date.now() < spyHold) return; spyTick = true; requestAnimationFrame(() => { spyTick = false;
+document.body.addEventListener("scroll", () => { if (spyTick || Date.now() < spyHold) return; spyTick = true; requestAnimationFrame(() => { spyTick = false;
   const nav = document.querySelector(".daynav"); if (!nav) return; const line = nav.getBoundingClientRect().bottom + 24; let cur = null;
   document.querySelectorAll("section.day[id^='day-']").forEach(s => { if (s.getBoundingClientRect().top <= line) cur = s.id.slice(4); });
   if (!cur){ const f = document.querySelector("section.day[id^='day-']"); cur = f ? f.id.slice(4) : null; }
@@ -3113,7 +3117,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v118";
+const APP_SHELL = "weekrouter-shell-v120";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
@@ -3220,6 +3224,17 @@ else if (!handedOff && !geoStates().length && S.statePromptDay !== todayISO()) o
 try { const rm = sessionStorage.getItem("restored.msg"); if (rm){ sessionStorage.removeItem("restored.msg"); toast(rm); } } catch(e){}
 $("stateNagBtn").onclick = () => openStatePick();
 }
+</script>
+<script>
+/* iPhone keyboard: the tab bar rides up with the keyboard and can stay stuck mid-screen after it closes.
+   Hide it while typing, and put it back at the bottom once the keyboard is gone. */
+(function(){
+  const typing = el => el && (el.tagName === "TEXTAREA" || el.isContentEditable || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|file|range|color)$/i.test(el.type)));
+  let t = 0;
+  document.addEventListener("focusin", e => { if (typing(e.target)){ clearTimeout(t); document.body.classList.add("kb"); } });
+  document.addEventListener("focusout", () => { clearTimeout(t); t = setTimeout(() => { if (!typing(document.activeElement)){ document.body.classList.remove("kb"); document.body.scrollTo(document.body.scrollLeft, document.body.scrollTop); } }, 120); });
+  if (window.visualViewport) visualViewport.addEventListener("resize", () => { if (visualViewport.height >= window.innerHeight - 40 && !typing(document.activeElement)){ document.body.classList.remove("kb"); document.body.scrollTo(document.body.scrollLeft, document.body.scrollTop); } });
+})();
 </script>
 </body>
 </html>
