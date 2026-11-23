@@ -351,6 +351,7 @@ body.kb .tabbar{display:none}
 .step h3{margin:0;font-size:16.5px}
 .step p{margin:2px 0 0;font-size:14px;color:var(--muted)}
 .step .opt{font-weight:500;color:var(--muted);font-size:14px}
+.step > .btn{flex:none;white-space:nowrap}
 .setup .sft{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 18px 14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}
 .toast{bottom:calc(var(--tabh) + 18px + env(safe-area-inset-bottom,0px))}
 .remind{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;padding:12px 14px;margin-top:10px;box-shadow:0 4px 18px rgba(0,0,0,.05)}
@@ -1193,7 +1194,7 @@ function setupSteps(){
     {ok: state.doctors.some(d => !d.added), t:"Load your Assigned calls report", p:"The Excel file with your HCPs and how many calls each one needs this quarter.", b:"Choose file", go:() => openReports()},
     {ok: !!state.attainAt || state.doctors.some(d => d.c0 > 0), t:"Load your Attainment report", p:"Brings in the calls you've already made this quarter. Screenshots or the file.", b:"Load", go:() => openReports()},
     {ok: !!(st.home && states.length), t:"Tell it about you", p:"The state you work in, the town you start your day from, and how many HCPs you see a day.", b:"Set up", go:() => { location.href = "route/?settings&back=home"; }},
-    {opt:true, ok: !!(r.sheet || Object.keys(r.docInfo || {}).length), t:"Offices and days", p:"Without them, Plan my week places each HCP by the address on your Assigned calls report (or their town) on any day. Load a best-times spreadsheet if you have one, or add days as you go.", b:"Open Plan my week", go:() => { location.href = "route/"; }}
+    {opt:true, ok: !!(r.sheet || Object.keys(r.docInfo || {}).length), t:"Offices and days", p:"Without them, Plan my week places each HCP by the address on your Assigned calls report (or their town) on any day. Load a best-times spreadsheet if you have one, or add days as you go.", b:"Plan my week", go:() => { location.href = "route/"; }}
   ];
 }
 const setupNeeded = () => setupSteps().some(x => !x.ok && !x.opt);
@@ -2463,7 +2464,7 @@ $("ddBtn").onclick = () => {
   setTimeout(() => { if (!document.hidden && Date.now() - t0 < 3000) window.open("https://www.doordash.com/", "_blank"); }, 1600);
 };
 /* ---------- Home Screen + offline ---------- */
-const APP_SHELL = "calltracker-shell-v92";
+const APP_SHELL = "calltracker-shell-v93";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
