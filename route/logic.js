@@ -722,6 +722,9 @@ function buildContext(input){
   C.seen = {}; input.docs.forEach(d => { if (d.lastCall && d.lastCall >= input.weekMon && d.lastCall <= wkEnd) C.seen[d.id] = d.lastCall; });
   C.caps = {}; C.fixed = {}; C.busyNotes = {}; C.addrRule = input.addrRule || "week";
   C.allowed = input.zone ? new Set(input.offices.map((o,i) => officeInZone(o, input.zone) ? i : -1).filter(i => i >= 0)) : null;
+  // cities skipped for this week: the planner leaves their offices out; you can still add an HCP there by hand
+  C.cityOff = new Set(input.skipCities || []);
+  if (C.cityOff.size) C.allowed = new Set(input.offices.map((o,i) => !C.cityOff.has(cityKey(o.city)) && (!C.allowed || C.allowed.has(i)) ? i : -1).filter(i => i >= 0));
   for (const iso of input.days){
     let busyA = 0, busyP = 0, off = false; const notes = [];
     for (const ev of input.calendar){
@@ -791,6 +794,7 @@ function whyShort(C, plan, iso, radiusKm, skipId, skipSlot){
     else if (C.blocked.has(k)) r.code = C.cpSet && C.cpSet.has(k) ? "pod" : "skip";
     else if (!auto.has(d.id)) r.code = d.remaining > 0 ? "notTurn" : "quota";
     else if (!inOffs.length) r.code = "notIn";
+    else if (C.cityOff && C.cityOff.size && inOffs.every(x => C.cityOff.has(cityKey(x.o.city)))) r.code = "cityOff";
     else if (C.allowed && !inOffs.some(x => C.allowed.has(x.i))) r.code = "zone";
     else if (C.frAddr && C.frAddr[iso] && inOffs.every(x => C.frAddr[iso][x.o.addrKey])) { r.code = "frOffice"; r.fr = C.frAddr[iso][inOffs[0].o.addrKey]; }
     else if (skipSlot && !inOffs.some(x => { const a = availableOn(x.o, iso); return skipSlot === "am" ? a.am : a.pm; })) { r.code = "half"; r.half = skipSlot === "am" ? "afternoon" : "morning"; }
@@ -806,7 +810,7 @@ function whyShort(C, plan, iso, radiusKm, skipId, skipSlot){
     }
     out.push(r);
   }
-  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, pod3:5, fr:5, frOffice:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10};
+  const order = {fit:0, half:1, far:2, office:3, notIn:4, pod:5, pod3:5, fr:5, frOffice:5, streak:5, away:5, skip:5, seen:6, planned:7, notTurn:8, quota:9, zone:10, cityOff:10};
   return out.sort((a,b) => order[a.code] - order[b.code] || a.km - b.km);
 }
 function feasibleDays(C, id){ return C.days.filter(d => !C.blocked.has(d + "|" + id) && optionsFor(C, id, d).length); }
@@ -1226,7 +1230,7 @@ function addCandidates(C, plan, iso){
       const a = availableOn(o, iso);
       const near = pts.length ? Math.min(...pts.map(c => km(c, o.coords))) : km(C.home, o.coords);
       const cand = {id:d.id, office:i, coords:o.coords, addrKey:o.addrKey, am: a ? a.am : true, pm: a ? a.pm : true, inToday: !!a, near, doc:d,
-        sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !(C.pod3 && C.pod3.has(iso + "|" + d.id)) && !(C.cpSet && !C.cpSet.has(iso + "|" + d.id)), pod3: !!(C.pod3 && C.pod3.has(iso + "|" + d.id)), fr: !!(C.frBefore && C.frBefore.has(iso + "|" + d.id)), frOffice: (C.frAddr && C.frAddr[iso] && C.frAddr[iso][o.addrKey] && C.frAddr[iso][o.addrKey].id !== d.id) ? C.frAddr[iso][o.addrKey] : null, streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
+        cityOff: !!(C.cityOff && C.cityOff.has(cityKey(o.city))), sameOffice: todayAddr.has(o.addrKey), elsewhere: elsewhere[d.id] || null, counterpart: C.blocked.has(iso + "|" + d.id) && !C.away.has(iso + "|" + d.id) && !C.streak.has(iso + "|" + d.id) && !(C.pod3 && C.pod3.has(iso + "|" + d.id)) && !(C.cpSet && !C.cpSet.has(iso + "|" + d.id)), pod3: !!(C.pod3 && C.pod3.has(iso + "|" + d.id)), fr: !!(C.frBefore && C.frBefore.has(iso + "|" + d.id)), frOffice: (C.frAddr && C.frAddr[iso] && C.frAddr[iso][o.addrKey] && C.frAddr[iso][o.addrKey].id !== d.id) ? C.frAddr[iso][o.addrKey] : null, streak: C.streak.has(iso + "|" + d.id), away: C.away.has(iso + "|" + d.id), seen: C.seen[d.id] || null};
       const key = c => (c.inToday ? 0 : 100) + (c.sameOffice ? 0 : 1) + c.near;
       if (!best || key(cand) < key(best)) best = cand;
     }
@@ -1313,6 +1317,7 @@ function explainUnscheduled(C, plan){
     else if (offs.every(o => !o.avail)) why = "No days listed in your spreadsheet";
     else if (offs.every(o => o.onLeave)) why = "Spreadsheet notes say on leave";
     else if (offs.every(o => !o.coords)) why = "City not recognized";
+    else if (C.cityOff && C.cityOff.size && offs.every(o => C.cityOff.has(cityKey(o.city)))) why = "In a city you're skipping this week";
     else if (C.allowed && (C.match.byDoc[d.id]||[]).every(i => !C.allowed.has(i))) why = "Outside this week's zone";
     else {
       const avDays = C.days.filter(iso => optionsFor(C, d.id, iso).length);
@@ -1323,7 +1328,8 @@ function explainUnscheduled(C, plan){
     }
     return {id:d.id, why};
   });
-  return out.filter(u => u.why !== "Outside this week's zone").concat(out.filter(u => u.why === "Outside this week's zone"));
+  const last = u => u.why === "Outside this week's zone" || u.why === "In a city you're skipping this week";
+  return out.filter(u => !last(u)).concat(out.filter(last));
 }
 function checkPlan(C, plan){
   // returns list of rule problems (used by tests and shown if anything is off)

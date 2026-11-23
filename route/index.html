@@ -199,6 +199,9 @@ details.uns summary{font-weight:600;cursor:pointer;min-height:32px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:4px 4px 4px 10px;font-size:13px;background:var(--bg)}
 .chip.maybe{border-style:dashed}
+.skcs{display:flex;flex-wrap:wrap;gap:8px}
+.skc{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:14px;min-height:38px}
+.skc[aria-pressed=true]{background:#fbe9e7;border-color:#e0a59b;color:#8a2c1d;font-weight:700;text-decoration:line-through}
 .chip button{border:0;background:transparent;min-width:28px;min-height:28px;border-radius:50%;color:var(--muted);font-size:16px}
 .cpday{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-top:8px}
 .cpday b{display:block;margin-bottom:6px}
@@ -412,7 +415,7 @@ const title = s => String(s||"").toLowerCase().replace(/\b([a-z])/g, m => m.toUp
 
 /* ---------- state (kept only on this iPad) ---------- */
 let S = load() || {};
-S = Object.assign({docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, mealSkip:{}, blitzes:[], away:{}, anchors:{}}, S);
+S = Object.assign({skipCities:{}, docs:null, sheet:null, overrides:{}, ics:null, kinds:{}, cp:[], weeks:{}, zoneOverride:{}, docInfo:{}, colMap:null, calOk:{}, mealSkip:{}, blitzes:[], away:{}, anchors:{}}, S);
 S.settings = Object.assign({home:"", perDay:6, workDays:[1,2,3,4,5], counterparts:[], mode:"area", addrRule:"week", zones:[{name:"Zone A", cities:[], zips:[]},{name:"Zone B", cities:[], zips:[]}], zoneAnchor:null, chargers:"off", myName:"", goal:100, timeOff:[], holidays:true}, S.settings||{});
 // keep this iPad's storage small over the years: pod visits and calendar sorting older than two months aren't needed
 try { const cut = new Date(Date.now() - 60 * 864e5), cutIso = cut.getFullYear() + "-" + String(cut.getMonth()+1).padStart(2,"0") + "-" + String(cut.getDate()).padStart(2,"0");
@@ -1162,7 +1165,7 @@ function fillMissingCoords(offs){
 const addrOf = o => o ? [o.address, o.city].filter(Boolean).join(", ") : "";
 function officeOf(s){ if (s.office == null) return null; const o = D.offices[s.office]; if (o && o.addrKey === s.addrKey) return o; return D.offices.find(x => x.addrKey === s.addrKey) || o || null; }
 const docName = id => { const d = D.docs.find(x => x.id === id); return d ? title(d.name) : title(id); };
-function stamp(){ return JSON.stringify([S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone, frVisits().map(v => v.date + v.id).sort()]); }
+function stamp(){ return JSON.stringify([(S.skipCities || {})[weekMon] || [], S.docs && S.docs.src !== "tracker" && S.docs.at, S.sheet && S.sheet.at, S.overrides, S.docInfo, S.calOk, S.blitzes, S.away, S.anchors[weekMon], S.ics && S.ics.at, S.kinds, D.cp.map(v => v.date+v.id).sort(), S.settings, D.zone, frVisits().map(v => v.date + v.id).sort()]); }
 
 /* ---------- render ---------- */
 // a call logged in the Call Tracker (+ Call) marks that day's stop done here too, and taking the call back there undoes it
@@ -1220,6 +1223,11 @@ function render(){
   document.querySelector(".inputs").hidden = fold; $("inHead").hidden = fold;
   const podOn = cpNames().length > 0 || D.cp.length > 0;
   document.querySelectorAll(".inputs .card")[2].hidden = !podOn;
+  { // number the cards that are showing, so a hidden pod card doesn't leave a gap (1, 2, 4)
+    const shown = [...document.querySelectorAll(".inputs .card")].filter(c => !c.hidden);
+    shown.forEach((c, i) => { const n = c.querySelector(".inum"); if (n) n.textContent = i + 1; });
+    const words = ["", "one thing", "two things", "three things", "four things"];
+    $("inHead").querySelector("p").textContent = `Plan my week builds your route from ${shown.length === 4 ? "these four things" : "these " + words[shown.length].replace(" things","") + " things"}. The more you add, the better the plan.`; }
   const dotOf = k => $("d" + k).className.replace("dot","").trim();
   const nLeft = S.docs ? S.docs.list.filter(d => d.remaining > 0).length : 0, cLeft = S.docs ? S.docs.list.reduce((n,d) => n + d.remaining, 0) : 0;
   const cells = [
@@ -1457,7 +1465,7 @@ function setCard(n, st, txt){ $("d"+n).className = "dot " + st; $("s"+n).textCon
 let C = null; // context for the current week's plan
 function currentPlan(){ return S.weeks[weekMon] || null; }
 function contextInput(){
-  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, addrRule:S.settings.addrRule, away:S.away, fieldRideVisits: frVisits()};
+  return {weekMon, days:D.workDays, docs:D.docs, offices:D.offices, match:D.match, home:D.home, perDay:+S.settings.perDay||6, counterpartVisits:D.cp, calendar:D.cal, zone:D.zone, skipCities:(S.skipCities[weekMon] || []), addrRule:S.settings.addrRule, away:S.away, fieldRideVisits: frVisits()};
 }
 // field rides: a pod member's day with the manager, marked by you ("Chase|2026-11-16")
 function frSet(){ return new Set(S.fieldRides || []); }
@@ -1484,7 +1492,7 @@ function renderRoute(){
   $("stale").hidden = !(W && W.stamp !== stamp());
   $("stateNag").hidden = !geoReady || geoLoaded.size > 0;
   if (!W){
-    $("summary").innerHTML = zonePill();
+    $("summary").innerHTML = zonePill() + skipPill();
     $("buildLbl").textContent = "Build my week";
     $("routeArea").innerHTML = `<div class="empty">${S.docs ? "Tap <b>Build my week</b> to plan " + fmtShort(D.days[0]) + " – " + fmtShort(D.days[4]) + "." : "Pull in your remaining calls, add where and when your HCPs are in, then tap <b>Build my week</b>."}</div>`;
     return;
@@ -1495,7 +1503,7 @@ function renderRoute(){
   let n = 0, mi = 0, swaps = 0; const target = (+S.settings.perDay||6);
   Object.values(plan.days).forEach(d => { n += d.stops.length; mi += d.miles; swaps += d.stops.filter(s => s.history.length).length; });
   $("buildLbl").textContent = "Rebuild week";
-  $("summary").innerHTML = zonePill() + `<span class="pill"><b>${n}</b> HCPs planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${paceWords(D.pace).short} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
+  $("summary").innerHTML = zonePill() + skipPill() + `<span class="pill"><b>${n}</b> HCPs planned</span><span class="pill"><b>${Object.values(plan.days).filter(d => d.stops.length).length}</b> days</span>${D.pace ? `<button class="pill" id="paceBtn"><b>${D.pace.done}</b> of ${D.pace.target} calls done · ${paceWords(D.pace).short} ⓘ</button>` : ""}${swaps?`<span class="pill"><b>${swaps}</b> swapped</span>`:""}${blitzProgress(plan).map((p,k) => `<button class="pill" data-bprog="${k}" style="background:var(--yel-fill);border-color:var(--yel-edge)">${esc(p.b.name)}: <b>${p.planned.length} of ${p.due.length}</b> planned</button>`).join("")}<button class="btn small" id="shareBtn" style="background:#e8730c;border-color:#e8730c;color:#fff;font-weight:700">Share my week</button>${(W.versions||[]).length ? `<button class="btn small" id="versBtn">Previous builds (${W.versions.length})</button>` : ""}`;
   const cpBy = {}; D.cp.forEach(v => (cpBy[v.date] = cpBy[v.date] || []).push(v));
   // calls logged in the tracker on a day, for HCPs not in that day's plan
   const offPlanCalls = {}; ((readTrackerRaw() || {}).doctors || []).forEach(t => (t.log || []).concat(t.hist || []).forEach(x => { const l = (offPlanCalls[x] = offPlanCalls[x] || []); if (!l.includes(t.id)) l.push(t.id); }));
@@ -1608,6 +1616,37 @@ function chargerLink(d){
   const url = /Android/i.test(navigator.userAgent) ? `https://www.google.com/maps/search/${encodeURIComponent(q)}/@${lat},${lng},12z` : `https://maps.apple.com/?q=${encodeURIComponent(q)}&sll=${lat},${lng}&z=12`;
   return ` · <a class="ev" href="${url}" target="_blank" rel="noopener">⚡ Chargers</a>`;
 }
+// cities skipped for one week (week by week: nothing to remember to turn off)
+const skipNow = ck => ((S.skipCities || {})[weekMon] || []).includes(ck);
+function skipPill(){
+  const L0 = (S.skipCities || {})[weekMon] || [];
+  if (!L0.length) return `<button class="pill" id="skipBtn" aria-label="Skip cities this week">Skip cities</button>`;
+  const nm = L0.map(k => { const o = D.offices.find(o => L.cityKey(o.city) === k); return o ? title(o.city) : k; });
+  return `<button class="pill zonepill" id="skipBtn" aria-label="Change the cities you're skipping">Skipping ${esc(nm.length > 3 ? nm.slice(0,2).join(", ") + " +" + (nm.length - 2) : nm.join(", "))} ✎</button>`;
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest("#skipBtn")) return;
+  derive(); const areas = whoAreas(); if (!areas.length){ toast("Pull in your remaining calls first"); return; }
+  const before = JSON.stringify(S.skipCities[weekMon] || []); let sel = new Set(S.skipCities[weekMon] || []);
+  const draw = () => {
+    openSheet(`<h2>Skip cities ${fmtShort(D.days[0])} – ${fmtShort(D.days[D.days.length-1])}</h2>
+      <p>Plan my week won't route you to these cities this week. Next week starts fresh. You can still add an HCP there by hand.</p>
+      ${areas.map(a => `<p class="sechd" style="margin:14px 0 6px">${esc(a.name)}</p><div class="skcs">${a.cities.map(c => `<button type="button" class="skc" data-sk="${esc(c.k)}" aria-pressed="${sel.has(c.k)}">${sel.has(c.k) ? "✕ " : ""}${esc(c.name)} · ${c.n}</button>`).join("")}</div>`).join("")}
+      <div class="foot">${sel.size ? `<button class="btn" id="skClear">Skip none</button>` : ""}<button class="btn primary" id="skDone">${JSON.stringify([...sel].sort()) === JSON.stringify(JSON.parse(before).sort()) ? "Done" : "Save and rebuild week"}</button></div>`);
+    $("sheet").querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { const k = b.dataset.sk; sel.has(k) ? sel.delete(k) : sel.add(k); draw(); });
+    if ($("skClear")) $("skClear").onclick = () => { sel = new Set(); draw(); };
+    $("skDone").onclick = () => {
+      const now = [...sel]; if (now.length) S.skipCities[weekMon] = now; else delete S.skipCities[weekMon];
+      const cut = L.addDays(todayISO(), -60); Object.keys(S.skipCities).forEach(k => { if (k < cut) delete S.skipCities[k]; });
+      save(); closeSheet();
+      if (JSON.stringify([...now].sort()) !== JSON.stringify(JSON.parse(before).sort())){
+        if (currentPlan()){ build(); toast(now.length ? "Week rebuilt without " + now.length + (now.length === 1 ? " city" : " cities") : "Week rebuilt with every city"); }
+        else render();
+      }
+    };
+  };
+  draw();
+});
 function zonePill(){
   if (!D.zone) return "";
   return `<button class="pill zonepill" id="zoneBtn" aria-label="Change this week's zone">${esc(D.zone.name)} this week ⇄</button>`;
@@ -1635,7 +1674,7 @@ function addClears(root){
 }
 
 let busy = false, ocrCtl = null;
-function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+function closeSheet(){ if (ocrCtl) ocrCtl.abort(); $("scrim").hidden = true; $("sheet").innerHTML = ""; $("stateNag").hidden = !geoReady || geoLoaded.size > 0; }
 $("scrim").addEventListener("click", e => { if (e.target === $("scrim") && !busy){ checkPending = false; sheetLeave(); } });
 $("prevW").onclick = () => { weekMon = L.addDays(weekMon, -7); S.lastWeek = weekMon; save(); render(); };
 $("nextW").onclick = () => { weekMon = L.addDays(weekMon, 7); S.lastWeek = weekMon; save(); render(); };
@@ -1942,6 +1981,7 @@ $("f2").onchange = async e => {
 };
 // first time: which state you work in (its towns and ZIP codes are downloaded once and kept on this iPad)
 function openStatePick(){
+  $("stateNag").hidden = true;   // the question itself is on screen; the reminder banner comes back if they choose later
   const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e){ return ""; } })();
   const guess = {"America/Los_Angeles":"CA","America/Denver":"CO","America/Phoenix":"AZ","America/Chicago":"IL","America/New_York":"NY","America/Detroit":"MI","America/Anchorage":"AK","Pacific/Honolulu":"HI","America/Boise":"ID","America/Indiana/Indianapolis":"IN"}[tz] || "";
   openSheet(`<h2>Which state do you work in?</h2>
@@ -2584,7 +2624,7 @@ function openWhy(iso, swapId, back, offered, swapSlot){
     ["frOffice", "At an office a pod member visits on a field ride", "Kept clear from the week before the ride through the ride day."],
     ["away", "Out of office", ""], ["skip", `You marked "Didn't see them" ${dn}`, ""],
     ["seen", "Already called this week", ""], ["planned", "Already planned another day this week", ""],
-    ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""]];
+    ["notTurn", "Goal met and called recently", "Not their turn yet."], ["quota", "All calls done", ""], ["zone", "Outside this week's zone", ""], ["cityOff", "In a city you're skipping this week", "Tap Skipping at the top to change."]];
   const why = r => r.code === "planned" ? `planned ${wd(r.iso)}` : r.code === "seen" ? `called ${wd(r.iso)}` : r.code === "office" ? `same office as ${esc(docName(r.other))} (${wd(r.iso)})` : r.code === "pod" ? `${esc(pod(r.id))}` : r.code === "half" ? `only in the ${r.half}` : "";
   const row = r => { const o = D.offices[r.office]; const w = why(r); return `<div class="cand"><div><div class="n">${esc(docName(r.id))}</div><div class="sub">${esc(o ? o.city || "" : "")} · ${Math.max(1, Math.round(r.km / 1.609))} mi from ${dn}'s stops${w ? " · " + w : ""}</div></div></div>`; };
   const main = ["fit","far","half","office","notIn","pod","pod3","fr","frOffice","streak","away","skip"], rest = G.filter(g => !main.includes(g[0]));
@@ -2604,7 +2644,7 @@ function openAdd(iso){
       <div class="sub" style="color:var(--red-ink)">${c.office == null ? "No office saved yet." : "The app can't place their office on the map. Check the town or add a ZIP."}</div></div>
       <div class="actions"><button class="btn small" data-addfix="${esc(c.id)}">Fix office</button></div></div>`;
     const o = D.offices[c.office]; const m = L.miles(c.near);
-    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWeekNote(c.id) : "", c.fr ? frNote(c.id) : "", c.frOffice ? frOfficeNote(c.frOffice) : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : ""].filter(Boolean);
+    const warn = [c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.inToday ? "" : "Not listed as in on " + dayName, c.elsewhere ? "Also planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A pod member") + " is seeing them today" : "", c.pod3 ? podWeekNote(c.id) : "", c.fr ? frNote(c.id) : "", c.frOffice ? frOfficeNote(c.frOffice) : "", c.streak ? "Would make three of you on three days in a row" : "", c.away ? "Out of office today" : "", c.cityOff ? "In a city you're skipping this week" : ""].filter(Boolean);
     return `<div class="cand" data-name="${esc(c.doc.name.toLowerCase() + " " + (o.city||"").toLowerCase())}"><div><div class="n">${esc(docName(c.id))}</div>
       <div class="sub">${esc(addrOf(o))}${c.sameOffice ? " · <b>an office you're at today</b>" : " · " + (m < 0.5 ? "same city" : "about " + Math.round(m) + " mi away")}</div>
       <div class="sub">${c.doc.remaining} of ${c.doc.assigned} left${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -2727,7 +2767,7 @@ function openWho(){
     return done >= d.assigned + cap ? `<span class="tag warn">Over quota · ${done} of ${d.assigned}</span>` : d.remaining <= 0 ? `<span class="tag">No calls left</span>` : ""; };
   const row = c => { const o = D.offices[c.office];
     const when = c.am && c.pm ? "Morning and afternoon" : c.am ? "Morning only" : "Afternoon only";
-    const flags = [awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
+    const flags = [skipNow(c.ck) ? "Skipped this week" : "", awayNow(c.id, iso) ? "Out of office" : "", c.pod3 && !c.counterpart ? podWeekNote(c.id) : "", c.seen ? "Already called " + L.fromISO(c.seen).toLocaleDateString(undefined,{weekday:"long"}) : "", c.elsewhere ? "Planned " + L.fromISO(c.elsewhere).toLocaleDateString(undefined,{weekday:"long"}) : "", c.counterpart ? ((D.cp.find(v => v.date === iso && v.id === c.id) || {}).who || "A teammate") + " is seeing them " + dayName : ""].filter(Boolean);
     return `<div class="cand"><div><div class="n">${esc(docName(c.id))}${c.onRoute ? ` <span class="tag cal">On your route</span>` : ""} ${quota(c.doc)}</div>
       <div class="sub">${esc(addrOf(o))}</div>
       <div class="sub">${when} · ${c.doc.added ? "added by you" : c.doc.remaining > 0 ? c.doc.remaining + " of " + c.doc.assigned + " left" : "calls done"} · ${c.doc.lastCall ? "last call " + fmtShort(c.doc.lastCall) : "no call logged yet"}${o.avail && o.avail.appt ? " · appointment only" : ""}</div>
@@ -3117,7 +3157,7 @@ let qEndDraft = "", ddDraft = true, settingsBack = null;
 // Settings opened from the Call Tracker: go back there when it's closed
 function settingsDone(){ if (settingsBack){ const b = settingsBack; settingsBack = null; location.href = "../#" + b; } }
 
-const APP_SHELL = "weekrouter-shell-v120";
+const APP_SHELL = "weekrouter-shell-v121";
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 // the other half of the app (Call Tracker / Plan my week) keeps its own copy: fetch its update too, quietly,
 // so the "new version" notice shows once instead of again when you switch over
